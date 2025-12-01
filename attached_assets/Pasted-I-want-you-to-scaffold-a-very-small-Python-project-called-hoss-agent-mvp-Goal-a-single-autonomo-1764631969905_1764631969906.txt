@@ -1,0 +1,43 @@
+I want you to scaffold a very small Python project called “hoss-agent-mvp”.
+
+Goal: a single autonomous “research agent” that pulls tasks from a queue, uses an LLM plus web tools to research, and writes a summary. I want a minimal, ugly-but-working MVP, not production quality.
+
+Architecture:
+	•	main.py: entrypoint. Loops over tasks: get next open task, call the agent, store result, print reward vs cost vs profit.
+	•	agent.py: contains the agent loop. Uses a ReAct-style loop with a fixed number of steps. It talks to OpenAI’s ChatCompletion API (model like gpt-4o-mini or gpt-3.5-turbo), and can emit tool calls in the response like USE_SEARCH: and USE_FETCH: and then eventually FINAL_ANSWER:.
+	•	tools.py:
+	•	web_search(query: str) -> list[dict]: for now you can either stub it with fake results OR call a free search endpoint if you know one. Return a list of dicts with title and url.
+	•	web_fetch(url: str) -> str: fetch page content (requests.get + very simple HTML-to-text, even just stripping tags is fine) and return text.
+	•	tasks.py: stores a simple in-memory list of 2–3 tasks, each with id, description, reward_cents, status, result, cost_cents, and profit_cents. Functions: get_next_open_task(), complete_task(task_id, result_text, cost_cents), and all_tasks().
+	•	accounting.py: a tiny CostTracker class that tracks approximate token usage and converts it into cost_cents using a hardcoded cost_per_1k_tokens_cents.
+
+Agent behavior:
+	•	System prompt should explain the protocol clearly:
+	•	Think step by step.
+	•	If it needs web info, it should respond with USE_SEARCH: <query> or USE_FETCH: <url>.
+	•	After seeing OBSERVATION: ... from the tools, it continues reasoning.
+	•	When done, it returns FINAL_ANSWER: <summary>.
+	•	The loop in agent.py should:
+	•	send messages to OpenAI,
+	•	inspect the reply:
+	•	if it contains USE_SEARCH:, call web_search and append an OBSERVATION message.
+	•	if it contains USE_FETCH:, call web_fetch and append an OBSERVATION message.
+	•	if it contains FINAL_ANSWER:, stop and return that text and total cost.
+	•	cap at a small number of steps (like 4–6) to avoid infinite loops.
+
+Cost tracking:
+	•	Every time we send/receive messages to the model, estimate token usage by len(text)//4 and add to CostTracker.
+	•	At the end, convert tokens to cost_cents and use that in complete_task.
+
+main.py:
+	•	Loop:
+	•	call get_next_open_task() until no more open tasks.
+	•	for each task, run the agent, then call complete_task.
+	•	print out task id, reward, cost, profit, and the summary text.
+
+Assume I will set OPENAI_API_KEY as an environment variable myself.
+
+Please:
+	1.	create all these files with working code,
+	2.	include any requirements.txt or config needed,
+	3.	and then tell me exactly how to run it inside Replit.
