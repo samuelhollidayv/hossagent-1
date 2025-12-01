@@ -4,7 +4,7 @@ ReAct-style agent that uses OpenAI ChatCompletion API with tool commands.
 
 import os
 import re
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from accounting import CostTracker
 from tools import web_search, web_fetch
 
@@ -45,12 +45,17 @@ def run_agent(task_description: str) -> tuple[str, float]:
     for step in range(MAX_STEPS):
         print(f"  [Step {step + 1}/{MAX_STEPS}]")
         
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,  # type: ignore
-            temperature=0.7,
-            max_tokens=1000,
-        )
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,  # type: ignore
+                temperature=0.7,
+                max_tokens=1000,
+            )
+        except OpenAIError as e:
+            error_msg = f"OpenAI API error: {str(e)}"
+            print(f"  [ERROR] {error_msg}")
+            return error_msg, cost_tracker.get_cost_cents()
         
         reply = response.choices[0].message.content or ""
         cost_tracker.add_tokens(reply)
