@@ -31,6 +31,10 @@ def main():
         
         completed = complete_task(task["id"], result, cost_cents)
         
+        if completed is None:
+            print("  ERROR: Failed to complete task")
+            continue
+        
         print()
         print(f"  RESULT: {result[:200]}..." if len(result) > 200 else f"  RESULT: {result}")
         print(f"  Cost: {cost_cents:.2f} cents")
