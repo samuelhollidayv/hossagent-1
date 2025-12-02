@@ -8,7 +8,7 @@ A minimal autonomous research agent that pulls tasks from a queue, uses an LLM (
 hoss-agent-mvp/
 ├── main.py         # Entrypoint - loops over tasks, runs agent, prints metrics
 ├── agent.py        # ReAct-style agent with OpenAI ChatCompletion API
-├── tools.py        # Web tools: web_search (mock) and web_fetch (real)
+├── tools.py        # Web tools: web_search (DuckDuckGo) and web_fetch (BeautifulSoup)
 ├── tasks.py        # In-memory task queue management
 ├── accounting.py   # CostTracker for token usage and cost calculation
 └── requirements.txt
@@ -25,8 +25,8 @@ hoss-agent-mvp/
 
 ### Agent Protocol
 The agent uses these commands in its responses:
-- `USE_SEARCH: <query>` - Search the web (currently mock results)
-- `USE_FETCH: <url>` - Fetch and parse webpage content
+- `USE_SEARCH: <query>` - Search the web via DuckDuckGo (returns real results)
+- `USE_FETCH: <url>` - Fetch and parse webpage content with BeautifulSoup
 - `FINAL_ANSWER: <summary>` - Return final research summary
 
 ### Cost Tracking
@@ -57,4 +57,7 @@ Edit `tasks.py` to add/modify the `TASKS` list with:
 - `cost_per_1k_tokens_cents` in `accounting.py`: Cost calculation rate
 
 ## Recent Changes
+- Added real DuckDuckGo search (Dec 2025)
+- Added BeautifulSoup for HTML parsing (Dec 2025)
+- Added error handling for OpenAI API errors (Dec 2025)
 - Initial MVP scaffold (Dec 2025)
