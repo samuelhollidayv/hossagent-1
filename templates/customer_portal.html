@@ -293,6 +293,39 @@
             margin-bottom: 2rem;
             color: #f90;
         }}
+        .category-badge {{
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #333;
+            color: #999;
+        }}
+        .urgency-high {{
+            background: rgba(255, 0, 0, 0.15);
+            border: 1px solid #f00;
+            color: #f00;
+        }}
+        .urgency-medium {{
+            background: rgba(255, 153, 0, 0.15);
+            border: 1px solid #f90;
+            color: #f90;
+        }}
+        .urgency-low {{
+            background: rgba(0, 255, 0, 0.15);
+            border: 1px solid #0f0;
+            color: #0f0;
+        }}
+        .fire-icon {{
+            color: #f90;
+            margin-right: 0.25rem;
+        }}
+        .opportunities-subtitle {{
+            color: #666;
+            font-size: 0.8rem;
+            font-style: italic;
+        }}
         @media (max-width: 768px) {{
             body {{
                 padding: 1rem;
@@ -325,6 +358,8 @@
         </div>
 
         {payment_message}
+
+        {opportunities_section}
 
         <div class="section">
             <div class="section-header">

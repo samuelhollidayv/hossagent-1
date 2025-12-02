@@ -107,6 +107,43 @@ class Invoice(SQLModel, table=True):
     notes: Optional[str] = None
 
 
+class Signal(SQLModel, table=True):
+    """
+    Signals Engine: Captures external context signals about companies.
+    
+    Sources include competitor updates, job postings, reviews, permits, weather events.
+    Each signal can generate one or more LeadEvents for actionable opportunities.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    lead_id: Optional[int] = Field(default=None, foreign_key="lead.id")
+    source_type: str  # job_posting, review, competitor_update, permit, weather, news
+    raw_payload: str  # JSON string of raw signal data
+    context_summary: Optional[str] = None  # LLM-generated summary
+    geography: Optional[str] = None  # Miami, Broward, etc.
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LeadEvent(SQLModel, table=True):
+    """
+    Signals Engine: Actionable opportunities derived from Signals.
+    
+    Each event represents a contextual moment for outreach.
+    Categories are Miami-tuned: HURRICANE_SEASON, COMPETITOR_SHIFT, GROWTH_SIGNAL, etc.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    lead_id: Optional[int] = Field(default=None, foreign_key="lead.id")
+    signal_id: Optional[int] = Field(default=None, foreign_key="signal.id")
+    summary: str  # Human-readable opportunity description
+    category: str  # growth, risk, competitor_move, opportunity, hurricane_season, bilingual_opportunity
+    urgency_score: int = Field(default=50)  # 0-100, higher = more urgent
+    status: str = "new"  # new, queued, contacted, responded, archived
+    recommended_action: Optional[str] = None  # What the system suggests
+    outbound_message: Optional[str] = None  # Generated email if contacted
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 TRIAL_TASK_LIMIT = 15
 TRIAL_LEAD_LIMIT = 20
 SUBSCRIPTION_PRICE_CENTS = 9900  # $99/month

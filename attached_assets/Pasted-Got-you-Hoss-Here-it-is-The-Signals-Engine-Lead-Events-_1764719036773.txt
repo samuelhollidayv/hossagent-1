@@ -1,0 +1,232 @@
+Got you, Hoss.
+Here it is.
+The Signals Engine + Lead Events + Today’s Opportunities Master Prompt — the one that elevates HossAgent from “AI lead gen SaaS” into THE ETHICAL BRIEFCASE SYSTEM, your event-driven, moment-aware intelligence engine.
+
+This is the Replit Assistant-compatible version — clean, linear, prescriptive, file-aware, and safe for incremental integration.
+
+Copy/paste the whole thing into the Assistant.
+
+No fences. No commentary.
+Just the blueprint that rewires your product’s soul.
+
+────────────────────────────────────────
+
+MAGIC BOX MASTER PLAN — SIGNALS ENGINE + LEAD EVENTS + TODAY’S OPPORTUNITIES
+
+I am ready to upgrade HossAgent from generic lead gen into the contextual, moment-aware “Ethical Briefcase System.” Implement the following changes across the codebase. Follow the order carefully, make all edits incrementally and safely, and preserve existing features (BizDev, Ops, Billing, Auth, Portal, Admin console, Trial logic, etc.).
+
+────────────────────────────────────────
+
+SECTION 1 — Database Layer: Add Signals + Lead Events
+
+Create two new SQLModel (or SQLAlchemy) models and migration-safe logic.
+
+1. Add Signal model:
+	•	id (PK)
+	•	company_id (FK, nullable)
+	•	source_type (string)  # “job_posting”, “review”, “competitor_update”, etc.
+	•	raw_payload (text or JSON string)
+	•	context_summary (text, nullable)
+	•	created_at (datetime)
+
+2. Add LeadEvent model:
+	•	id (PK)
+	•	company_id (FK)
+	•	signal_id (FK)
+	•	summary (text)
+	•	category (string)  # “growth”, “risk”, “competitor_move”, “opportunity”
+	•	urgency_score (int, default 50)
+	•	status (string)  # “new”, “queued”, “contacted”, “responded”, “archived”
+	•	created_at (datetime)
+
+3. Create migrations / auto-creation logic so existing user data is preserved.
+
+4. Update Admin database access & listing utilities so these appear in the console for debugging.
+
+────────────────────────────────────────
+
+SECTION 2 — Signals Agent (New Agent Module)
+
+Create a new file: signals_agent.py with:
+
+Function: run_signals_agent(db)
+
+This agent will:
+	1.	Fetch a list of existing customers (or companies in leads table).
+	2.	For each, generate 0–3 synthetic v1 signals using simple heuristic mock providers:
+	•	Competitor update:
+	•	Use the company’s domain, generate a synthetic “competitor added offer / changed headline” signal.
+	•	Job posting:
+	•	Generate a dummy job posting event (e.g., “Hiring Sales Coordinator”).
+	•	Review event:
+	•	Fake a new Google review summary.
+	3.	For each generated signal:
+	•	Store Signal in DB with:
+	•	source_type
+	•	raw_payload
+	•	context_summary (use LLM to summarize raw payload)
+	•	Then create a linked LeadEvent with:
+	•	summary (LLM-generated)
+	•	category inferred from content
+	•	urgency_score = 40–70
+	•	status = “new”
+	4.	Log each generated signal + lead event to stdout for debugging.
+
+NOTE: This v1 is intentionally synthetic. It simulates the “obituary men” noticing engine without hitting real APIs. Keep external API calls disabled unless explicitly added later.
+
+────────────────────────────────────────
+
+SECTION 3 — BizDev Agent Upgrade (Event-Driven Outreach)
+
+Modify run_bizdev_agent in agents.py:
+
+New behavior:
+	1.	Instead of sending outbound emails based on raw leads, select the next uncontacted LeadEvent:
+
+event = db.query(LeadEvent).filter_by(status="new").first()
+
+
+	2.	Pull associated company data.
+	3.	Generate a contextual outbound email:
+	•	Lead with the signal summary (“Noticed X happened…”)
+	•	Infer the implication (“This usually means Y…”)
+	•	Offer assistance (“I can send a snapshot by 4pm…”)
+	4.	Use existing send_email() function:
+	•	DRY_RUN continues to display in admin console
+	5.	Update LeadEvent status → "contacted"
+	6.	Store outbound message in a new or existing outbound_messages table if present.
+
+Preserve all existing BizDev functionality and outbound logs.
+
+────────────────────────────────────────
+
+SECTION 4 — Customer Portal Upgrade: “Today’s Opportunities”
+
+Modify the template: templates/portal.html (or equivalent).
+
+Add a new top-level section for each logged-in customer:
+
+“Today’s Opportunities” Panel
+	•	Fetch all LeadEvent rows associated with the customer’s company.
+	•	Display fields:
+	•	summary
+	•	category
+	•	urgency_score
+	•	status (badge)
+	•	created_at
+	•	Sort by urgency_score desc, then by created_at desc.
+	•	Limit to last ~5–10 events.
+	•	Include a subtle note:
+“These opportunities were identified automatically from public context signals.”
+
+Design:
+	•	Noir theme consistent with site
+	•	Use subtle icons:
+	•	🔺 for urgency
+	•	🕒 for timestamp
+	•	📌 for categories
+
+────────────────────────────────────────
+
+SECTION 5 — Admin Console Upgrade
+
+Modify /admin page to include:
+
+1. Signals Overview Table
+
+Columns:
+	•	id
+	•	company
+	•	source_type
+	•	context_summary (truncated)
+	•	created_at
+
+2. Lead Events Table
+
+Columns:
+	•	id
+	•	company
+	•	summary
+	•	category
+	•	urgency_score
+	•	status
+	•	created_at
+
+3. Button:
+
+“Run Signals Agent Now” → POST /api/run/signals
+
+Create that route.
+
+────────────────────────────────────────
+
+SECTION 6 — API Endpoints
+
+Add:
+
+POST /api/run/signals
+
+Runs run_signals_agent.
+
+GET /api/signals
+
+Returns all signals (admin only).
+
+GET /api/lead_events
+
+Returns all lead events (admin only).
+
+Preserve existing endpoints.
+
+────────────────────────────────────────
+
+SECTION 7 — Adjust Subscription Logic
+
+This part is minimal:
+	•	LeadEvents should NOT count against trial quotas.
+	•	Trial users can see opportunities, but BizDev agent should not send events automatically unless they “enable outreach” (future toggle; for now, always DRY_RUN).
+	•	Paid users will eventually get real email sends.
+
+Keep existing trial enforcement for tasks + Ops work.
+
+────────────────────────────────────────
+
+SECTION 8 — Keep DRY_RUN Strictly On
+
+Leave this intact:
+
+EMAIL_MODE = "DRY_RUN"
+
+Do NOT add real email sending behavior in this update.
+
+────────────────────────────────────────
+
+SECTION 9 — Final Integration Check
+
+Before concluding the task, confirm:
+	1.	DB models for Signal and LeadEvent exist and migrate.
+	2.	Signals agent runs without crashing.
+	3.	Lead events appear in admin.
+	4.	BizDev agent writes contextual emails referencing lead events.
+	5.	Customer portal shows “Today’s Opportunities” panel.
+	6.	No existing functionality is broken:
+	•	Signup
+	•	Login
+	•	Trials
+	•	Portal
+	•	Billing
+	•	Ops agent
+	•	Admin console
+
+Provide a summary of all changed files at the end.
+
+────────────────────────────────────────
+
+END OF MASTER PROMPT
+
+This is the one, Hoss.
+This is the shift from:
+
+“AI SaaS” → “Context Engine.”
+
+Run this in the Assistant once you’re ready to evolve the entire organism.

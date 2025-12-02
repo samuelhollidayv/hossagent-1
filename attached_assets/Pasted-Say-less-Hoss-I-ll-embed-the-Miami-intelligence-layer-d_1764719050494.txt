@@ -1,0 +1,216 @@
+Say less, Hoss — I’ll embed the Miami intelligence layer directly into the Master Prompt so the system boots with a fully-formed, geography-aware contextual engine.
+
+What you’ll get below is:
+	•	Everything from the original Signals Engine master plan,
+PLUS
+	•	Miami-specific lead defaults
+	•	Miami-tuned outbound templates
+	•	Miami contextual inference logic
+	•	Miami SMB-specific opportunity categories
+	•	Miami signal heuristics
+	•	Miami competitor intelligence template
+	•	Bilingual-friendly outreach logic
+	•	Miami customer-facing portal language
+
+It will produce a system that feels — structurally, linguistically, behaviorally — like it lives in Miami the way a great obituary-man lived in his paper.
+
+Here it comes.
+
+────────────────────────────────────────
+
+🔥 THE MIAMI-INFUSED MAGIC BOX MASTER PROMPT
+
+(Signals Engine + Lead Events + Today’s Opportunities + Miami Intelligence Layer)
+
+I am ready to upgrade HossAgent from generic lead gen into the contextual, moment-aware “Ethical Briefcase System,” optimized specifically for the Miami–Broward metro area, with localized heuristics, language, templates, and contextual inference baked into the architecture. Implement all upgrades fully and safely, preserving existing features (BizDev, Ops, Billing, Auth, Portal, Admin console, Trial logic, etc.).
+
+Follow the order carefully.
+
+────────────────────────────────────────
+
+SECTION 1 — Database Layer: Add Signals + Lead Events
+
+(Create new models and preserve existing migrations exactly like earlier prompt.)
+
+[IDENTICAL TO ORIGINAL MASTER PROMPT — KEEP IT.]
+
+────────────────────────────────────────
+
+SECTION 2 — Signals Agent (with Miami Heuristics)
+
+Create signals_agent.py with all behaviors described earlier, plus Miami-specific signal sources for synthetic v1.
+
+Add Miami signal heuristics:
+
+For each company in the DB, generate 0–3 synthetic signals chosen from:
+
+A) Competitor Headlines (Miami SMB flavor)
+E.g. med spa, HVAC, roofing, immigration law, real estate brokers, marketing agencies.
+
+Examples:
+	•	“Competitor updated service pricing for Botox / fillers / facials.”
+	•	“Competitor HVAC company added 24/7 emergency section.”
+	•	“Roofing competitor changed hero banner to ‘Hurricane season upgrades.’”
+	•	“Immigration attorney added TPS/DACA update page.”
+
+B) Job Postings
+Use Miami-specific roles:
+	•	“Hiring bilingual office assistant (Miami / Coral Gables).”
+	•	“Roofing contractor hiring estimator for Broward County.”
+	•	“HVAC tech wanted — must speak Spanish.”
+
+C) Review Events
+Use culturally relevant phrasing:
+	•	“New Spanish-language review praising fast turnaround.”
+	•	“Negative review citing scheduling delays (common Miami pain point).”
+
+D) Local Permitting / Weather Signals (Synthetic)
+	•	“Hurricane preparedness advisory increased local roofing demand.”
+	•	“New building permit approved in Little Havana area.”
+
+Each signal produces:
+	•	context_summary via LLM
+	•	A derived LeadEvent with:
+	•	Miami-specific category labels:
+	•	“HURRICANE_SEASON”
+	•	“COMPETITOR_SHIFT”
+	•	“GROWTH_SIGNAL”
+	•	“MIAMI_PRICE_MOVE”
+	•	“BILINGUAL_OPPORTUNITY”
+	•	“REPUTATION_CHANGE”
+	•	urgency_score biased 50–80 for time-sensitive industries (roofing, HVAC, immigration)
+
+────────────────────────────────────────
+
+SECTION 3 — BizDev Agent Upgrade: Miami Template Pack
+
+Modify run_bizdev_agent() to generate outreach from LeadEvents, and incorporate Miami linguistic norms:
+
+Add a new template pack: miami_local
+
+Stored in something like: bizdev_templates.py
+
+MIAMI OUTBOUND RULES:
+	1.	Lead with the observed moment:
+“Saw you just posted a bilingual office assistant role in Coral Gables…”
+	2.	Tie to Miami context:
+“Here in South Florida, that usually signals growth or a shift in your intake volume…”
+	3.	Offer clarity:
+“I can send a competitor snapshot (local pricing, positioning, ad strategies) by this afternoon.”
+	4.	Keep tone casual, confident, respectful:
+“Let me know — happy to send it over.”
+	5.	Add optional Spanish-friendly bump:
+“Si prefieres que te lo mande en español, me avisas.”
+
+SUBJECT LINES (rotate):
+	•	“Quick one about your Miami competitors”
+	•	“Saw your recent update in Broward”
+	•	“Small heads-up on the South Florida market”
+	•	“Fast snapshot for {{company_name}}”
+
+BODY TEMPLATE:
+
+Noticed {{signal_summary}} — usually in Miami that means {{inferred_implication}}.
+
+I run an autonomous research engine that gives quick competitive snapshots for businesses here in South Florida. If you'd like, I can send one today covering:
+- competitor pricing signals
+- Google/Meta ad positioning
+- local demand trends
+- opportunities specific to your neighborhood
+
+If you'd prefer Spanish, let me know — happy to send it that way too.
+
+Want me to send it?
+
+Preserve DRY_RUN behavior for now.
+
+────────────────────────────────────────
+
+SECTION 4 — Ops Agent (Miami Competitive Snapshot)
+
+Modify Ops agent deliverables to return Miami-flavored intel:
+
+Include:
+	1.	Competitor list within a 10-mile radius
+	2.	Pricing heuristics (synthetic but plausible)
+	3.	Instagram content strategies (Miami-heavy visual culture)
+	4.	Weather-season effects (HVAC + roofing)
+	5.	Spanish-language market segment effects
+	6.	Local review sentiment
+	7.	Quick actionable recommendations:
+
+	•	“Offer a hurricane-season discount bundle.”
+	•	“Highlight bilingual staff on homepage — big ROI in Miami.”
+	•	“Your closest competitor leans heavily into IG Reels; easy win here.”
+
+────────────────────────────────────────
+
+SECTION 5 — Customer Portal: Add “Today’s Opportunities” (Miami Tuned)
+
+Add a panel that reads:
+
+Today’s Miami Opportunities
+Automatically identified from public signals around your business and competitors.
+
+Show:
+	•	summary
+	•	category
+	•	urgency (🔥 icon for 70+)
+	•	timestamp
+	•	what the system recommends next
+	•	outbound status (“Queued”, “Contacted”, “Ready”)
+
+Make this the FIRST thing a customer sees.
+
+────────────────────────────────────────
+
+SECTION 6 — Admin Console Upgrades
+
+As in original prompt:
+	•	Add Signals table
+	•	Add LeadEvents table
+	•	Add “Run Signals Agent” button
+	•	Add Miami-specific status tags (color-coded)
+
+────────────────────────────────────────
+
+SECTION 7 — Miami Defaults (Environment Variables)
+
+Modify app config to auto-load these if missing:
+
+LEAD_GEOGRAPHY = "Miami, Miami-Dade County, Fort Lauderdale, Broward County, South Florida"
+LEAD_NICHE = "med spa, hvac, roofing, immigration attorney, realtor, insurance broker, marketing agency"
+BIZDEV_NICHE_TEMPLATE = "miami_local"
+MAX_NEW_LEADS_PER_CYCLE = 20
+EMAIL_MODE = "DRY_RUN"
+
+────────────────────────────────────────
+
+SECTION 8 — Safe Integration + Summary Output
+
+Before finishing:
+	•	Confirm DB migrations succeed
+	•	Confirm BizDev uses LeadEvents
+	•	Confirm Signals agent generates Miami-flavored data
+	•	Confirm portal shows Miami Opportunities section
+	•	Confirm DRY_RUN email previews reflect Miami context
+	•	Confirm no existing flows break (signup, login, admin, billing, tasks, ops)
+
+Output a summary of modified + created files.
+
+────────────────────────────────────────
+
+END OF MIAMI-INFUSED MASTER PROMPT
+
+When you run this in Replit Assistant, the system will evolve from:
+
+SaaS with automations → a Miami-native contextual intelligence machine.
+
+When you’re ready to expand beyond Miami, we tweak the template pack and the signal heuristics — architecture stays the same.
+
+If you want, I can also generate:
+	•	The non-Miami nationwide template pack
+	•	The international expansion heuristic
+	•	The Signal Providers Roadmap (permit APIs, job boards, news scrapers, review feeds, zoning data, etc.)
+
+Just say the word, Hoss.

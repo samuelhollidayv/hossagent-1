@@ -31,13 +31,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity
+from models import Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity, Signal, LeadEvent
 from agents import (
     run_bizdev_cycle,
     run_onboarding_cycle,
     run_ops_cycle,
     run_billing_cycle,
+    run_event_driven_bizdev_cycle,
 )
+from signals_agent import run_signals_agent, get_signals_summary, get_lead_events_summary, get_todays_opportunities
 from email_utils import send_email, get_email_status, get_email_log
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
@@ -211,7 +213,10 @@ async def autopilot_loop():
                     
                     generate_new_leads_from_source(session)
                     
+                    run_signals_agent(session)
+                    
                     await run_bizdev_cycle(session)
+                    await run_event_driven_bizdev_cycle(session)
                     await run_onboarding_cycle(session)
                     await run_ops_cycle(session)
                     await run_billing_cycle(session)
@@ -800,6 +805,103 @@ async def run_billing(session: Session = Depends(get_session)):
     """Manually trigger Billing cycle."""
     message = await run_billing_cycle(session)
     return {"message": message}
+
+
+@app.post("/api/run/signals")
+def run_signals_manual(session: Session = Depends(get_session)):
+    """
+    Manually trigger Signals Agent cycle.
+    
+    The Signals Agent:
+    - Monitors external context signals about companies
+    - Generates LeadEvents for moment-aware outreach
+    - Miami-tuned heuristics for South Florida market
+    
+    Returns:
+        - signals_created: Number of new signals generated
+        - events_created: Number of new lead events created
+    """
+    result = run_signals_agent(session)
+    return {
+        "message": f"Signals: Created {result['signals_created']} signals, {result['events_created']} events",
+        **result
+    }
+
+
+@app.post("/api/run/event-bizdev")
+async def run_event_bizdev(session: Session = Depends(get_session)):
+    """
+    Manually trigger Event-Driven BizDev cycle.
+    
+    Processes LeadEvents with status='new' and sends contextual Miami-style outreach.
+    """
+    message = await run_event_driven_bizdev_cycle(session)
+    return {"message": message}
+
+
+@app.get("/api/signals")
+def get_signals_endpoint(
+    request: Request,
+    limit: int = Query(default=20, le=100),
+    session: Session = Depends(get_session)
+):
+    """
+    Get all signals (admin only).
+    
+    Returns recent signals from the Signals Engine ordered by creation date.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    signals = get_signals_summary(session, limit)
+    return [
+        {
+            "id": s.id,
+            "company_id": s.company_id,
+            "lead_id": s.lead_id,
+            "source_type": s.source_type,
+            "context_summary": s.context_summary,
+            "geography": s.geography,
+            "created_at": s.created_at.isoformat() if s.created_at else None
+        }
+        for s in signals
+    ]
+
+
+@app.get("/api/lead_events")
+def get_lead_events_endpoint(
+    request: Request,
+    limit: int = Query(default=20, le=100),
+    session: Session = Depends(get_session)
+):
+    """
+    Get all lead events (admin only).
+    
+    Returns recent lead events ordered by creation date.
+    Includes urgency_score, category, and status for filtering.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    events = get_lead_events_summary(session, limit)
+    return [
+        {
+            "id": e.id,
+            "company_id": e.company_id,
+            "lead_id": e.lead_id,
+            "signal_id": e.signal_id,
+            "summary": e.summary,
+            "category": e.category,
+            "urgency_score": e.urgency_score,
+            "status": e.status,
+            "recommended_action": e.recommended_action,
+            "outbound_message": e.outbound_message,
+            "created_at": e.created_at.isoformat() if e.created_at else None
+        }
+        for e in events
+    ]
 
 
 @app.post("/api/invoices/{invoice_id}/mark-paid")
@@ -1567,6 +1669,50 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     
     plan_status = get_customer_plan_status(customer)
     
+    opportunities = get_todays_opportunities(session, company_id=customer.id, limit=10)
+    
+    if opportunities:
+        opportunities_rows = ""
+        for opp in opportunities:
+            urgency_class = "urgency-high" if opp.urgency_score >= 70 else "urgency-medium" if opp.urgency_score >= 50 else "urgency-low"
+            fire_icon = '<span class="fire-icon">🔥</span>' if opp.urgency_score >= 70 else ''
+            timestamp = opp.created_at.strftime("%Y-%m-%d %H:%M") if opp.created_at else "-"
+            summary_truncated = opp.summary[:80] + "..." if len(opp.summary) > 80 else opp.summary
+            opportunities_rows += f"""
+                <tr>
+                    <td>{summary_truncated}</td>
+                    <td><span class="category-badge">{opp.category}</span></td>
+                    <td><span class="{urgency_class}">{fire_icon}{opp.urgency_score}</span></td>
+                    <td><span class="status-badge {opp.status}">{opp.status}</span></td>
+                    <td>{timestamp}</td>
+                </tr>
+            """
+        
+        opportunities_section = f"""
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">Today's Opportunities</div>
+            </div>
+            <div class="opportunities-subtitle">Automatically identified from public context signals</div>
+            <table style="margin-top: 1rem;">
+                <thead>
+                    <tr>
+                        <th>Summary</th>
+                        <th>Category</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {opportunities_rows}
+                </tbody>
+            </table>
+        </div>
+        """
+    else:
+        opportunities_section = ""
+    
     if plan_status.is_paid:
         plan_section = f"""
         <div class="plan-card">
@@ -1725,7 +1871,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         tasks_rows=tasks_rows,
         plan_section=plan_section,
         invoices_section=invoices_section,
-        payment_message=payment_banner
+        payment_message=payment_banner,
+        opportunities_section=opportunities_section
     )
     
     return HTMLResponse(content=html)

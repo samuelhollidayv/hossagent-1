@@ -16,7 +16,7 @@ import asyncio
 import secrets
 from datetime import datetime
 from sqlmodel import Session, select
-from models import Lead, Customer, Task, Invoice, TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT
+from models import Lead, Customer, Task, Invoice, LeadEvent, TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT
 from email_utils import (
     send_email,
     get_email_mode,
@@ -360,3 +360,191 @@ async def run_billing_cycle(session: Session) -> str:
     msg = f"Billing: Generated {invoices_created} invoices, {payment_links_created} payment links.{stripe_status}{trial_info} " + ("; ".join(msg_parts) if msg_parts else "None.")
     print(f"[CYCLE] {msg}")
     return msg
+
+
+async def run_event_driven_bizdev_cycle(session: Session) -> str:
+    """
+    Event-Driven BizDev Cycle: Send contextual outreach based on LeadEvents from Signals Engine.
+    
+    This is a moment-aware outreach system that:
+    1. Selects LeadEvents with status='new' ordered by urgency_score (highest first)
+    2. Generates Miami-style contextual emails based on event.summary and event.recommended_action
+    3. Updates event status to 'contacted' and stores the outbound_message
+    
+    Miami-Style Template Language:
+    - Lead with the observed moment (the signal)
+    - Tie to Miami context (local relevance, bilingual, hurricane season, etc.)
+    - Offer clarity and next step
+    
+    Safe to call repeatedly - only processes events with status='new'.
+    """
+    max_events = get_max_emails_per_cycle()
+    email_status = get_email_status()
+    effective_mode = email_status["mode"]
+    
+    new_events = session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.status == "new")
+        .order_by(LeadEvent.urgency_score.desc())
+        .limit(max_events)
+    ).all()
+    
+    if not new_events:
+        msg = "Event-Driven BizDev: No new lead events to process."
+        print(f"[CYCLE] {msg}")
+        return msg
+    
+    events_processed = 0
+    events_contacted = 0
+    events_failed = 0
+    contacted_summaries = []
+
+    for event in new_events:
+        lead = None
+        customer = None
+        contact_email = None
+        contact_name = None
+        company_name = None
+        niche = "small business"
+        
+        if event.lead_id:
+            lead = session.exec(
+                select(Lead).where(Lead.id == event.lead_id)
+            ).first()
+            if lead:
+                contact_email = lead.email
+                contact_name = lead.name
+                company_name = lead.company
+                niche = lead.niche or niche
+        
+        if event.company_id and not lead:
+            customer = session.exec(
+                select(Customer).where(Customer.id == event.company_id)
+            ).first()
+            if customer:
+                contact_email = customer.contact_email
+                contact_name = customer.contact_name or customer.company
+                company_name = customer.company
+                niche = customer.niche or niche
+        
+        if not contact_email or not company_name:
+            print(f"[EVENT-BIZDEV] Event {event.id}: No contact found, skipping")
+            continue
+        
+        events_processed += 1
+        
+        subject, body = generate_miami_contextual_email(
+            contact_name=contact_name or "there",
+            company_name=company_name,
+            niche=niche,
+            event_summary=event.summary,
+            recommended_action=event.recommended_action or "contextual outreach",
+            category=event.category,
+            urgency_score=event.urgency_score
+        )
+        
+        email_result = send_email(
+            to_email=contact_email,
+            subject=subject,
+            body=body,
+            lead_name=contact_name,
+            company=company_name
+        )
+        
+        event.outbound_message = body
+        
+        if email_result.actually_sent:
+            event.status = "contacted"
+            events_contacted += 1
+            contacted_summaries.append(f"{company_name} ({event.category})")
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: CONTACTED (urgency={event.urgency_score})")
+        elif email_result.result in ("dry_run", "fallback"):
+            event.status = "contacted"
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: DRY_RUN (mode={email_result.mode})")
+        else:
+            events_failed += 1
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: FAILED error=\"{email_result.error}\"")
+        
+        session.add(event)
+
+    session.commit()
+    
+    summaries_str = ", ".join(contacted_summaries[:5]) if contacted_summaries else "None"
+    if len(contacted_summaries) > 5:
+        summaries_str += f" (+{len(contacted_summaries) - 5} more)"
+    
+    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}. Mode: {effective_mode}. Companies: {summaries_str}"
+    print(f"[CYCLE] {msg}")
+    return msg
+
+
+def generate_miami_contextual_email(
+    contact_name: str,
+    company_name: str,
+    niche: str,
+    event_summary: str,
+    recommended_action: str,
+    category: str,
+    urgency_score: int
+) -> tuple[str, str]:
+    """
+    Generate Miami-style contextual email based on signal event.
+    
+    Miami-Style Template Structure:
+    1. Lead with the observed moment (the signal)
+    2. Tie to Miami context (local market, bilingual advantage, weather, etc.)
+    3. Offer clarity and a clear next step
+    
+    Returns: (subject, body) tuple
+    """
+    import os
+    sender_name = os.environ.get("BIZDEV_SENDER_NAME", "HossAgent")
+    
+    category_intros = {
+        "HURRICANE_SEASON": f"With hurricane season in full swing here in South Florida",
+        "COMPETITOR_SHIFT": f"I noticed some movement in the local {niche} market",
+        "GROWTH_SIGNAL": f"Saw some positive signals coming from {company_name}",
+        "BILINGUAL_OPPORTUNITY": f"The Miami market rewards bilingual operations",
+        "REPUTATION_CHANGE": f"Your online reputation is currency in Miami",
+        "MIAMI_PRICE_MOVE": f"Pricing is shifting in the local {niche} space",
+        "OPPORTUNITY": f"Something caught my attention about {company_name}"
+    }
+    
+    category_closers = {
+        "HURRICANE_SEASON": "Miami businesses that prepare early win when the storms come. Let me show you how we help.",
+        "COMPETITOR_SHIFT": "Staying ahead of local competition is everything here. Happy to share what I'm seeing.",
+        "GROWTH_SIGNAL": "Growth is good - but it needs infrastructure. That's where we come in.",
+        "BILINGUAL_OPPORTUNITY": "The bilingual edge is real ROI in South Florida. Let's talk about capturing it.",
+        "REPUTATION_CHANGE": "Your online presence shapes your pipeline. I can help you control the narrative.",
+        "MIAMI_PRICE_MOVE": "Market moves create opportunities for those paying attention. Are you?",
+        "OPPORTUNITY": "When I see moments like this, I reach out. Sometimes timing is everything."
+    }
+    
+    intro = category_intros.get(category, category_intros["OPPORTUNITY"])
+    closer = category_closers.get(category, category_closers["OPPORTUNITY"])
+    
+    urgency_flag = ""
+    if urgency_score >= 75:
+        urgency_flag = " [Time-Sensitive]"
+    elif urgency_score >= 60:
+        urgency_flag = ""
+    
+    subject = f"{company_name} - noticed something{urgency_flag}"
+    
+    body = f"""Hi {contact_name},
+
+{intro}, I wanted to reach out.
+
+Here's what I observed: {event_summary}
+
+My recommendation: {recommended_action}
+
+{closer}
+
+Would a quick 15-minute call this week make sense? I'll come prepared with specifics.
+
+- {sender_name}
+
+P.S. I work with {niche} businesses across Miami-Dade and Broward. This isn't a mass email - I'm reaching out because the timing seems right."""
+
+    return subject, body

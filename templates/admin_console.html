@@ -568,6 +568,60 @@
         </table>
     </div>
 
+    <div class="lead-source-panel" id="signals-panel">
+        <div class="lead-source-header">
+            <h2>SIGNALS ENGINE</h2>
+            <div class="lead-source-stats">
+                <div class="lead-source-stat">
+                    <span>Total Signals:</span>
+                    <span class="lead-source-value" id="signals-count">0</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Total Events:</span>
+                    <span class="lead-source-value" id="events-count">0</span>
+                </div>
+            </div>
+        </div>
+        <div style="margin: 1rem 0; display: flex; gap: 1rem;">
+            <button class="agent-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="runSignalsAgent()">RUN SIGNALS AGENT</button>
+            <button class="agent-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="runEventBizdev()">RUN EVENT BIZDEV</button>
+        </div>
+        <div class="config-hint">Signals Engine monitors external context signals and generates actionable LeadEvents for moment-aware outreach.</div>
+        
+        <h3>RECENT SIGNALS</h3>
+        <table id="signals-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Source Type</th>
+                    <th>Context Summary</th>
+                    <th>Geography</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="5" class="empty-row">No signals yet</td></tr>
+            </tbody>
+        </table>
+        
+        <h3>LEAD EVENTS</h3>
+        <table id="lead-events-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Summary</th>
+                    <th>Category</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="6" class="empty-row">No lead events yet</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <div class="data-section">
         <h2>RECENT TASKS</h2>
         <table id="tasks-table">
@@ -1094,6 +1148,101 @@
             }
         }
 
+        async function refreshSignals() {
+            try {
+                const res = await fetch('/api/signals?limit=20');
+                const signals = await res.json();
+                
+                const tbody = document.getElementById('signals-table').querySelector('tbody');
+                document.getElementById('signals-count').textContent = signals.length;
+                
+                if (!signals || signals.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No signals yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = signals.map(s => {
+                    const summary = s.context_summary ? 
+                        (s.context_summary.length > 60 ? s.context_summary.substring(0, 60) + '...' : s.context_summary) : 
+                        '-';
+                    const created = s.created_at ? new Date(s.created_at).toLocaleString() : '-';
+                    return `
+                        <tr>
+                            <td>${s.id}</td>
+                            <td><span class="status-badge">${s.source_type}</span></td>
+                            <td>${summary}</td>
+                            <td>${s.geography || '-'}</td>
+                            <td>${created}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Signals refresh error:', e);
+            }
+        }
+
+        async function refreshLeadEvents() {
+            try {
+                const res = await fetch('/api/lead_events?limit=20');
+                const events = await res.json();
+                
+                const tbody = document.getElementById('lead-events-table').querySelector('tbody');
+                document.getElementById('events-count').textContent = events.length;
+                
+                if (!events || events.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No lead events yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = events.map(e => {
+                    const summary = e.summary ? 
+                        (e.summary.length > 50 ? e.summary.substring(0, 50) + '...' : e.summary) : 
+                        '-';
+                    const created = e.created_at ? new Date(e.created_at).toLocaleString() : '-';
+                    const urgencyColor = e.urgency_score >= 70 ? 'color:#f00;' : 
+                                        e.urgency_score >= 50 ? 'color:#f90;' : 'color:#0f0;';
+                    const fireIcon = e.urgency_score >= 70 ? '🔥 ' : '';
+                    return `
+                        <tr>
+                            <td>${e.id}</td>
+                            <td>${summary}</td>
+                            <td><span class="status-badge">${e.category}</span></td>
+                            <td style="${urgencyColor}font-weight:bold;">${fireIcon}${e.urgency_score}</td>
+                            <td><span class="status-badge ${e.status}">${e.status}</span></td>
+                            <td>${created}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Lead events refresh error:', e);
+            }
+        }
+
+        async function runSignalsAgent() {
+            try {
+                addLog('Running Signals Agent...');
+                const res = await fetch('/api/run/signals', { method: 'POST' });
+                const data = await res.json();
+                addLog(`Signals Agent: ${data.message}`, 'success');
+                refreshSignals();
+                refreshLeadEvents();
+            } catch (e) {
+                addLog(`Signals Agent error: ${e.message}`, 'error');
+            }
+        }
+
+        async function runEventBizdev() {
+            try {
+                addLog('Running Event BizDev...');
+                const res = await fetch('/api/run/event-bizdev', { method: 'POST' });
+                const data = await res.json();
+                addLog(`Event BizDev: ${data.message}`, 'success');
+                refreshLeadEvents();
+            } catch (e) {
+                addLog(`Event BizDev error: ${e.message}`, 'error');
+            }
+        }
+
         loadSettingsWithHourly();
         refreshData();
         refreshEmailLog();
@@ -1102,6 +1251,8 @@
         refreshBizdevTemplates();
         refreshSubscriptionStatus();
         refreshCustomerPlans();
+        refreshSignals();
+        refreshLeadEvents();
         setInterval(refreshData, 10000);
         setInterval(refreshEmailLog, 15000);
         setInterval(refreshLeadSource, 15000);
@@ -1109,6 +1260,8 @@
         setInterval(refreshBizdevTemplates, 30000);
         setInterval(refreshSubscriptionStatus, 30000);
         setInterval(refreshCustomerPlans, 30000);
+        setInterval(refreshSignals, 30000);
+        setInterval(refreshLeadEvents, 30000);
         setInterval(loadSettingsWithHourly, 60000);
     </script>
 </body>
