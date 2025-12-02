@@ -6,7 +6,8 @@ A minimal autonomous research agent that pulls tasks from a queue, uses an LLM (
 ## Project Structure
 ```
 hoss-agent-mvp/
-├── main.py         # Entrypoint - loops over tasks, runs agent, prints metrics
+├── app.py          # FastAPI web application with API endpoints
+├── main.py         # CLI entrypoint (legacy) - loops over tasks, runs agent
 ├── agent.py        # ReAct-style agent with OpenAI ChatCompletion API
 ├── tools.py        # Web tools: web_search (DuckDuckGo) and web_fetch (BeautifulSoup)
 ├── tasks.py        # In-memory task queue management
@@ -14,14 +15,32 @@ hoss-agent-mvp/
 └── requirements.txt
 ```
 
+## Web Application
+
+### Running the Web App
+The web app runs automatically via the workflow. Access it through the Replit webview or public URL.
+
+### API Endpoints
+- `GET /` - Serves the main HTML dashboard
+- `GET /api/tasks` - Returns all tasks with metrics
+- `POST /api/run-once` - Runs the agent on the next pending task
+
+### Features
+- Dark-themed dashboard showing all tasks
+- Real-time status updates (Idle/Running)
+- Metrics cards: Tasks Completed, Total Reward, Total Profit
+- Task table with status, costs, and profit
+- Modal to view full research results
+- "Run Agent on Next Task" button to process tasks
+
 ## How It Works
 
 ### Task Flow
-1. `main.py` fetches open tasks from the queue
-2. For each task, it runs the agent with the task description
+1. User clicks "Run Agent on Next Task"
+2. Backend finds the next pending task
 3. Agent uses ReAct-style reasoning with tool commands
 4. Results are stored with cost/profit calculations
-5. Summary is printed at the end
+5. Dashboard updates with new metrics
 
 ### Agent Protocol
 The agent uses these commands in its responses:
@@ -34,17 +53,10 @@ The agent uses these commands in its responses:
 - Default cost: 0.15 cents per 1K tokens
 - Profit = Reward - Cost
 
-## Running the Agent
-
-### Prerequisites
-Set the `OPENAI_API_KEY` environment variable (use Secrets tab in Replit)
-
-### Run
-```bash
-python main.py
-```
-
 ## Configuration
+
+### Environment Variables
+- `OPENAI_API_KEY` - Required for the agent to work (set in Secrets tab)
 
 ### Modify Tasks
 Edit `tasks.py` to add/modify the `TASKS` list with:
@@ -57,6 +69,7 @@ Edit `tasks.py` to add/modify the `TASKS` list with:
 - `cost_per_1k_tokens_cents` in `accounting.py`: Cost calculation rate
 
 ## Recent Changes
+- Added FastAPI web dashboard (Dec 2025)
 - Added real DuckDuckGo search (Dec 2025)
 - Added BeautifulSoup for HTML parsing (Dec 2025)
 - Added error handling for OpenAI API errors (Dec 2025)

@@ -1,0 +1,102 @@
+I want to turn this console-based research agent into a simple demo web app that looks like a real product, not a toy.
+
+Goal of the page:
+Show a non-technical stakeholder that an autonomous “Hoss Agent” can:
+	•	pick up research tasks,
+	•	complete them autonomously,
+	•	and do so profitably (reward – cost > 0).
+
+The page should answer, at a glance:
+	•	“What does this agent do?”
+	•	“What has it done so far?”
+	•	“How much did it cost and how much did it earn?”
+	•	“What happens when I click Run?”
+
+⸻
+
+1. Architecture
+	•	Add a FastAPI backend in a new file, e.g. app.py.
+	•	Reuse the existing agent logic and tasks; do NOT throw them away.
+	•	Move the current agent loop into a function like run_next_task() that:
+	•	finds the next pending task,
+	•	runs the agent steps,
+	•	updates reward, cost, profit, result, and status,
+	•	returns the updated task data.
+
+⸻
+
+2. API endpoints
+
+Implement these endpoints in FastAPI:
+	•	GET /api/tasks
+	•	Returns a JSON list of all tasks with fields:
+	•	id, description, status, reward, cost, profit, result (string, may be truncated)
+	•	POST /api/run-once
+	•	Calls run_next_task() to process the next pending task (if any).
+	•	Returns the updated task plus a summary message like "processed task_2, status=completed".
+	•	GET /
+	•	Serves a static HTML page (see UI spec below).
+
+Keep tasks in memory or in the current Python structures for now; persistence is not required for this demo.
+
+⸻
+
+3. UI / UX requirements (single-page app)
+
+Build a very simple HTML/CSS/JS front-end (no framework needed) that:
+
+Overall layout
+	•	Dark theme to match Replit.
+	•	Centered content, max-width around 900px.
+	•	Use one clear headline and a short subheadline explaining the value.
+
+Header section
+	•	Title: Hoss Agent – Autonomous Research Worker
+	•	Subtitle: Picks up research tasks, runs them with AI, and shows you reward, cost, and profit.
+	•	A small “status pill” that shows either:
+	•	Idle (no task currently running), or
+	•	Running… when POST /api/run-once is in progress.
+
+Metrics strip (top, just under header)
+	•	Show 3 simple metrics as cards:
+	1.	Total Tasks Completed
+	2.	Total Reward Earned (sum of rewards of completed tasks)
+	3.	Total Profit (sum of profit)
+	•	These should update whenever we fetch /api/tasks.
+
+Tasks table
+	•	Below the metrics, show a table with columns:
+	•	Task ID
+	•	Description
+	•	Status (Pending / Running / Completed)
+	•	Reward (in cents)
+	•	Cost (in cents)
+	•	Profit (in cents)
+	•	For completed tasks, include a way to see the result: either
+	•	a “View” link that opens a small modal, or
+	•	a collapsible row / details section showing the first 300 characters of the agent’s summary.
+
+Controls
+	•	A primary button labeled: Run Agent on Next Task
+	•	On click, it should:
+	•	disable itself,
+	•	call POST /api/run-once,
+	•	show Running… in the header status pill,
+	•	when the request finishes, re-enable the button and refresh the tasks + metrics via GET /api/tasks.
+	•	A secondary button labeled: Refresh that just calls GET /api/tasks again.
+
+Copy / storytelling
+	•	Somewhere near the top, add one short paragraph of explanatory copy:
+	•	Explain that each task is priced with a reward, the agent calls the OpenAI API to complete it, we track exact token cost, and we compute profit per task.
+	•	Emphasize that the point of the demo is to show an autonomous worker doing paid tasks with real cost accounting.
+
+⸻
+
+4. Implementation details
+	•	Keep the styling simple: use basic CSS in a <style> block in the HTML. No external frameworks required.
+	•	Use fetch() in vanilla JavaScript to call /api/tasks and /api/run-once.
+	•	Make sure the page loads with an initial GET to /api/tasks so the table and metrics populate on first load.
+	•	Configure the Replit run command so that starting the project runs uvicorn app:app --host 0.0.0.0 --port 8000.
+	•	Ensure the Replit web preview shows this page correctly so I can click the public URL and demo it live.
+
+Please implement all of this step by step, updating or creating any files needed, and then run the app so I can preview it.
