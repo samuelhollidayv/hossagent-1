@@ -1,0 +1,392 @@
+Please upgrade the existing HossAgent codebase with a real OpenAI-backed Ops Agent while keeping everything else intact.
+
+Goals:
+	•	Use the actual OpenAI API in run_ops_agent instead of fake summaries
+	•	Keep the noir UI and current architecture exactly as-is
+	•	Make OpenAI usage configurable via environment variable OPENAI_API_KEY
+	•	Keep token usage minimal and safe
+
+Detailed requirements:
+	1.	Dependencies and config
+
+	•	Add the official OpenAI Python client as a dependency (update requirements file as needed).
+	•	In the backend, read OPENAI_API_KEY from environment variables.
+	•	If OPENAI_API_KEY is missing, run_ops_agent should gracefully fall back to a deterministic fake summary and log a warning like: “OPENAI_API_KEY not set, using mock summary.”
+
+	2.	Update run_ops_agent in agents.py:
+
+	•	Current behavior:
+	•	Picks the next pending task
+	•	Marks it running
+	•	Generates a fake summary
+	•	Sets a hardcoded cost_cents
+	•	Marks as done and computes profit
+	•	New behavior:
+	•	Still pick the next pending task and mark it “running”.
+	•	Construct a prompt from the Task.description and optionally any related Customer info (company name, plan, notes).
+Example: “You are an AI research worker. The customer is {company}. Task description: {description}. Produce a concise, high-value result they can actually use.”
+	•	If OPENAI_API_KEY is present:
+	•	Call OpenAI with a small, cost-effective model (e.g. gpt-4.1-mini or gpt-4o-mini – whatever is appropriate).
+	•	Limit the output length to something like 300–400 words.
+	•	Parse the response text into result_summary.
+	•	Approximate token cost and convert to cost_cents. It’s fine to estimate: for now, assume a small flat cost like 3–5 cents per task and leave a comment where to plug in real pricing math later.
+	•	If OPENAI_API_KEY is missing:
+	•	Use the current fake summary approach, but clearly label in the text that it is a mock result.
+	•	Set cost_cents based on the above.
+	•	Compute profit_cents = reward_cents – cost_cents (never negative; clamp to 0 if necessary).
+	•	Mark status=“done”, set completed_at, store result_summary, cost_cents, profit_cents.
+	•	Log clearly to the console what happened: which task ID, which customer, cost, profit, and whether OpenAI or mock mode was used.
+
+	3.	API and UI preservation
+
+	•	Keep all existing endpoints and routes the same.
+	•	Keep the control room UI the same, but:
+	•	If it already shows cost_cents and profit_cents in the Tasks table, make sure those values are populated correctly from the updated run_ops_agent.
+	•	No major visual redesign here; just wire in the new data.
+
+	4.	Comments:
+
+	•	In agents.py, add a clear comment block above run_ops_agent indicating:
+	•	where real OpenAI models are called
+	•	where to adjust model name and pricing logic later
+
+After implementing this, run the app and make sure:
+	•	POST /api/run/ops picks a pending task, calls OpenAI when the key is set, and updates the DB.
+	•	The control room shows non-zero cost_cents and profit_cents for completed tasks.
+
+⸻
+
+STEP 2 – Real BizDev Outbound (email pipeline stub + optional real send)
+
+After Step 1 works, paste this:
+
+Now extend HossAgent’s BizDev agent so it starts to look like a real outbound engine.
+
+Goals:
+	•	Upgrade run_bizdev_agent so it can:
+	•	still create fake leads for demo
+	•	optionally send REAL outbound emails when SMTP/SendGrid creds are present
+	•	Keep everything configurable via environment variables
+	•	Do NOT hardcode any secrets
+
+Detailed requirements:
+	1.	Config and deps:
+
+	•	Add a lightweight email sending utility, using one of:
+	•	Python’s smtplib for basic SMTP, OR
+	•	a simple SendGrid client via environment variables (SENDGRID_API_KEY, SENDGRID_FROM_EMAIL), OR
+	•	whichever is simplest and most robust in this environment.
+	•	Read email configuration via env vars. For example:
+	•	BIZDEV_EMAIL_FROM
+	•	BIZDEV_SMTP_HOST / BIZDEV_SMTP_PORT / BIZDEV_SMTP_USER / BIZDEV_SMTP_PASSWORD
+OR
+	•	SENDGRID_API_KEY / SENDGRID_FROM_EMAIL
+	•	If these env vars are missing, run_bizdev_agent should operate in “lead generation only” mode and log that no outbound email config is set.
+
+	2.	Update run_bizdev_agent in agents.py:
+
+	•	Current behavior:
+	•	Inserts 1–2 fake Lead rows with status=“new” and generated company/email.
+	•	New behavior:
+	•	Keep the fake lead generation (good for demo and internal testing).
+	•	For each new lead:
+	•	Generate a simple outbound email subject and body. Use OpenAI if available, else fall back to a deterministic template. Example:
+Subject: “Quick idea for your team at {company}”
+Body: Short 3–5 sentence email explaining HossAgent as an autonomous AI worker that does research/tasks and reports cost and profit.
+	•	If email config is present:
+	•	Actually send the email to lead.email.
+	•	Mark status=“contacted”.
+	•	Set last_contacted_at to now.
+	•	Log success or failure.
+	•	If no email config:
+	•	Just log the “would send” email, store status=“new” (or “created”), and leave last_contacted_at null or set depending on your choice. Clearly log that this is a dry run.
+
+	3.	API and UI:
+
+	•	Keep /api/run/bizdev the same.
+	•	In the control room, wherever Leads are shown:
+	•	Ensure status and last_contacted_at are visible.
+	•	Consider adding a minimal note somewhere on the control room page (small text) stating:
+	•	“If email configuration is set, BizDev agent will send real outbound emails. Otherwise it operates in dry-run mode.”
+
+	4.	Comments:
+
+	•	Add comments in agents.py above run_bizdev_agent explaining:
+	•	How to configure real outbound via environment variables.
+	•	Where to plug in more sophisticated list building or enrichment later.
+
+Make sure:
+	•	POST /api/run/bizdev creates leads.
+	•	If email config is present, it attempts to send email.
+	•	UI shows updated status and timestamps.
+
+⸻
+
+STEP 3 – Smarter Onboarding Agent (turn replies into customers + tasks)
+
+After BizDev is upgraded, paste this:
+
+Now upgrade run_onboarding_agent so it behaves like a real conversion engine from lead → customer → work pipeline.
+
+Goals:
+	•	Take leads that have “responded” (or some “ready” status)
+	•	Create Customers from them
+	•	Attach a meaningful starter set of Tasks
+	•	Move the lead into “qualified” or similar status
+
+Detailed requirements:
+	1.	Lead → Customer mapping:
+
+	•	In run_onboarding_agent, change the selection logic to:
+	•	Find the next Lead with a status in [“responded”, “qualified_candidate”] or some reasonable pre-onboarding state, and that does NOT yet have a corresponding Customer.
+	•	When such a lead is found:
+	•	Create a Customer row with:
+	•	company = lead.company
+	•	contact_email = lead.email
+	•	plan = “starter” (for now; comment where to change later)
+	•	status = “active” or “trial” based on your design (I suggest “active” for simplicity)
+	•	notes = a short note summarizing how they came in (e.g., “Created automatically by onboarding agent from lead {id}.”)
+
+	2.	Starter Task templates:
+
+	•	For each new Customer, create 2–3 template Tasks such as:
+	•	“Initial market research for {company}”
+	•	“Competitive landscape review for {company}”
+	•	“Draft executive summary for {company}”
+	•	Each Task:
+	•	status = “pending”
+	•	reward_cents: pick a reasonable demo value (e.g. 50–100 cents)
+	•	cost_cents = 0 initially
+	•	profit_cents = 0 initially
+	•	description = a clear instruction HossAgent can act on
+	•	created_at = now
+	•	customer_id set correctly
+
+	3.	Lead status update:
+
+	•	After successfully creating Customer + Tasks:
+	•	Set Lead.status = “qualified”
+	•	Optionally set last_contacted_at if it’s null.
+	•	Log in the console exactly what happened:
+	•	Lead → Customer ID
+	•	Number of tasks created
+	•	Any notes
+
+	4.	UI:
+
+	•	In the control room:
+	•	Confirm that Customers table shows newly created customers.
+	•	Confirm that Tasks table shows the starter tasks.
+	•	No major layout changes; just ensure data flows correctly.
+
+	5.	Idempotency / safety:
+
+	•	Make run_onboarding_agent safe to call multiple times:
+	•	It should skip leads already converted to customers.
+	•	It should not create duplicate Customers for the same Lead.
+
+After implementing:
+	•	You should be able to:
+	•	Use BizDev to create leads.
+	•	Manually mark a lead’s status to “responded” via DB or a quick temporary endpoint, OR add a small API or toggle for this if you’d like.
+	•	Run Onboarding agent to convert that lead into a customer + tasks.
+	•	See the end-to-end pipeline: Lead → Customer → Tasks.
+
+⸻
+
+STEP 4 – Stripe-ready Billing Agent (real money hooks)
+
+After onboarding is upgraded, paste this:
+
+Now enhance run_billing_agent to be Stripe-ready, while still running safely in a demo environment.
+
+Goals:
+	•	Compute invoice amounts from completed Tasks
+	•	Create Invoice rows that are “real enough” to send
+	•	Provide a clean integration point for Stripe Checkout/Invoices, but do not hard-wire live secrets
+
+Detailed requirements:
+	1.	Data and logic:
+
+	•	For each active Customer:
+	•	Find all Tasks with status=“done” that:
+	•	Have not yet been invoiced.
+	•	You can track this via either:
+	•	A new boolean field on Task (e.g. invoiced = False/True), OR
+	•	A junction table, OR
+	•	Notes in Invoice storing which task IDs are included.
+	•	Use a simple, safe approach: add a nullable invoice_id FK on Task that points to the Invoice it was billed in.
+	•	Sum reward_cents for those tasks → amount_cents.
+	•	If amount_cents > 0:
+	•	Create an Invoice with:
+	•	customer_id
+	•	amount_cents
+	•	status = “draft”
+	•	created_at = now
+	•	notes = short text summarizing number of tasks and total reward.
+	•	Update those Tasks to set invoice_id to the new Invoice’s id.
+
+	2.	Stripe integration hook:
+
+	•	Add a small utility module or function, e.g. stripe_utils.py, that contains:
+	•	A placeholder function create_stripe_checkout_session(invoice: Invoice, customer: Customer) -> Optional[str]
+	•	It should:
+	•	Read STRIPE_API_KEY and STRIPE_PRICE_ID (or equivalent) from env vars.
+	•	If not set, return None and log “Stripe not configured; skipping checkout session.”
+	•	If set, use the Stripe Python client (add dependency if needed) to create a simple Checkout Session for the invoice amount (or using a price ID) and return the URL.
+	•	In run_billing_agent:
+	•	After creating the Invoice row:
+	•	Call this helper.
+	•	If it returns a URL, store it in Invoice.notes or another dedicated field like checkout_url (add the field if needed).
+	•	Status remains “draft” or perhaps “sent” once a URL is created; comment your choice.
+
+	3.	UI:
+
+	•	In the control room Invoices table:
+	•	Show:
+	•	id
+	•	customer_id or company
+	•	amount_cents (formatted as dollars if you want)
+	•	status
+	•	created_at
+	•	a short indicator if a Stripe checkout_url is present (e.g., “link created”).
+	•	Optionally, for now just show the raw URL in a details view or notes column.
+
+	4.	Manual status updates:
+
+	•	Add a simple endpoint like:
+	•	POST /api/invoices/{invoice_id}/mark_paid
+	•	This sets status=“paid” and paid_at = now.
+	•	You can use this after a Stripe payment is confirmed OR manually during tests.
+
+	5.	Comments:
+
+	•	Clearly document in the code where Stripe integration happens and what env vars are needed.
+	•	Make sure the system behaves safely if Stripe is not configured (i.e., no crashes, just logs).
+
+After implementing, you should be able to:
+	•	Complete some Tasks via the Ops agent.
+	•	Run the Billing agent.
+	•	See draft Invoices appear with correct amounts and associated tasks.
+	•	Optionally generate Stripe checkout URLs when env vars are provided.
+
+⸻
+
+STEP 5 – Scheduler (agents run themselves)
+
+After billing is wired, paste this:
+
+Now add a basic scheduler so agents can run automatically without clicking buttons in the UI.
+
+Goals:
+	•	Use FastAPI’s startup event or a lightweight scheduler to:
+	•	Periodically run BizDev, Onboarding, Ops, and Billing.
+	•	Keep it simple and safe for Replit.
+
+Detailed requirements:
+	1.	Scheduler choice:
+
+	•	Use one of:
+	•	A simple background task loop via FastAPI’s @app.on_event("startup") that spins off asyncio tasks with asyncio.sleep intervals, OR
+	•	APScheduler or similar (if you prefer), as long as it works reliably in this environment.
+	•	Prefer minimal dependencies: a small async loop is fine.
+
+	2.	Behavior:
+
+	•	On app startup:
+	•	Start a background coroutine that:
+	•	Every X minutes runs BizDev agent (e.g. every 30 minutes).
+	•	Every Y minutes runs Onboarding agent (e.g. every 10 minutes).
+	•	Every Z seconds/minutes runs Ops agent (e.g. every 2–5 minutes).
+	•	Once or twice per day runs Billing agent (e.g. every 12 hours).
+	•	Each run should:
+	•	Open a DB session.
+	•	Call the corresponding run_*_agent function.
+	•	Catch and log exceptions so one failure doesn’t kill the loop.
+
+	3.	Config:
+
+	•	Make the intervals configurable via environment variables, e.g.:
+	•	SCHED_BIZDEV_INTERVAL_MINUTES
+	•	SCHED_ONBOARDING_INTERVAL_MINUTES
+	•	SCHED_OPS_INTERVAL_SECONDS
+	•	SCHED_BILLING_INTERVAL_MINUTES
+	•	Provide sensible defaults in code if env vars are missing.
+
+	4.	Safety:
+
+	•	Ensure the scheduler does not block the main FastAPI event loop.
+	•	Ensure multiple overlapping runs are unlikely; you can:
+	•	Keep each agent run short and idempotent.
+	•	Optionally add a simple “lock” mechanism in the DB or memory to avoid re-entrancy.
+
+	5.	UI:
+
+	•	In the control room, add a tiny textual note at the top or near the metrics indicating:
+	•	“Agents may also be running on a background schedule. Use the buttons to trigger manual runs.”
+
+This should give you a system that, once started, continues to:
+	•	Generate leads
+	•	Convert some to customers/tasks (assuming statuses are updated)
+	•	Execute tasks
+	•	Generate invoices
+without you constantly clicking buttons.
+
+⸻
+
+STEP 6 – Multi-agent Worker Pool (parallel Ops for real throughput)
+
+After scheduler works, paste this:
+
+Finally, extend the Ops side so we can process multiple tasks in parallel: a small worker pool.
+
+Goals:
+	•	Allow the system to run multiple Ops “workers” in parallel to drain the pending Task queue faster.
+	•	Keep cost under control and logic simple.
+
+Detailed requirements:
+	1.	Worker count:
+
+	•	Add an environment variable, e.g. OPS_WORKER_COUNT, defaulting to 3.
+	•	This represents how many tasks can be processed concurrently when the Ops agent runs in “batch mode.”
+
+	2.	Code changes:
+
+	•	Instead of run_ops_agent processing exactly one task and returning, add a helper:
+	•	run_ops_batch(db_session, max_workers: int)
+	•	Behavior:
+	•	Query up to max_workers Tasks with status=“pending” ordered by created_at.
+	•	For each task:
+	•	Mark status=“running”.
+	•	For each selected task, call a refactored function run_ops_single_task(db_session, task) that:
+	•	Contains the existing logic of calling OpenAI / mock, computing cost/profit, and marking as done.
+	•	Use asyncio.gather or concurrent.futures (whatever is simplest given your code) to process them concurrently, while being mindful of DB session usage. You may:
+	•	Use a separate DB session per task in the worker function, OR
+	•	Keep it simple and process sequentially but still structured as “batch”; if concurrency is too complex for now, comment where to add it later.
+	•	Update /api/run/ops endpoint to:
+	•	Either still call the single-task version, OR:
+	•	Add a query parameter or separate endpoint /api/run/ops_batch that calls run_ops_batch with OPS_WORKER_COUNT.
+	•	Ensure the scheduler uses the batch version so the system can scale.
+
+	3.	Logging and metrics:
+
+	•	Log how many tasks were picked up in each batch.
+	•	Log per-task results (ID, cost, profit).
+	•	In the control room, if you already show pending vs done tasks, the parallelism will just show up as faster draining of the queue.
+
+	4.	Comments:
+
+	•	Document in the code:
+	•	Where to tune OPS_WORKER_COUNT.
+	•	Where to later add rate limiting or backoff if OpenAI usage needs control.
+
+After this, you’ll have:
+	•	A lead → customer → task → invoice pipeline
+	•	Real OpenAI-backed work
+	•	Optional real outbound email
+	•	Optional Stripe billing
+	•	Background scheduling
+	•	A small worker pool for throughput
+
+That’s not a mockup.
+That’s a business engine.
