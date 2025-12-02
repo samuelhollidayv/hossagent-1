@@ -94,7 +94,7 @@
         .agents {
             margin: 2rem 0;
         }
-        .agents h2, .email-health h2 {
+        .agents h2, .email-health h2, .lead-source-panel h2 {
             font-size: 1rem;
             font-weight: normal;
             letter-spacing: 1px;
@@ -103,9 +103,60 @@
         }
         .agent-buttons {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 1rem;
             margin-bottom: 2rem;
+        }
+        .lead-source-panel {
+            margin: 2rem 0;
+            border: 1px solid #333;
+            padding: 1.5rem;
+        }
+        .lead-source-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .lead-source-stats {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.85rem;
+            color: #999;
+        }
+        .lead-source-stat {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .lead-source-value {
+            color: #fff;
+        }
+        .lead-source-config {
+            display: flex;
+            gap: 3rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        .config-item {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .config-label {
+            color: #666;
+        }
+        .config-value {
+            color: #fff;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .lead-source-panel h3 {
+            font-size: 0.85rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+            margin: 1.5rem 0 1rem 0;
+            color: #666;
         }
         .agent-btn {
             background: #fff;
@@ -279,11 +330,61 @@
     <div class="agents">
         <h2>AUTONOMOUS AGENTS</h2>
         <div class="agent-buttons">
+            <button class="agent-btn" onclick="runAgent('lead-source')">RUN LEAD SOURCE</button>
             <button class="agent-btn" onclick="runAgent('bizdev')">RUN BIZDEV</button>
             <button class="agent-btn" onclick="runAgent('onboarding')">RUN ONBOARDING</button>
             <button class="agent-btn" onclick="runAgent('ops')">RUN OPS</button>
             <button class="agent-btn" onclick="runAgent('billing')">RUN BILLING</button>
         </div>
+    </div>
+
+    <div class="lead-source-panel">
+        <div class="lead-source-header">
+            <h2>LEAD SOURCE</h2>
+            <div class="lead-source-stats">
+                <div class="lead-source-stat">
+                    <span>Provider:</span>
+                    <span class="lead-source-value" id="lead-provider">-</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Max/Cycle:</span>
+                    <span class="lead-source-value" id="lead-max-cycle">-</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Last Run:</span>
+                    <span class="lead-source-value" id="lead-last-run">-</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Created:</span>
+                    <span class="lead-source-value" id="lead-last-created">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="lead-source-config">
+            <div class="config-item">
+                <span class="config-label">Niche:</span>
+                <span class="config-value" id="lead-niche">-</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Geography:</span>
+                <span class="config-value" id="lead-geography">Not specified</span>
+            </div>
+        </div>
+        <div class="config-hint" id="lead-source-hint">Configure LEAD_NICHE and LEAD_GEOGRAPHY in Secrets</div>
+        <h3>AUTO-CREATED LEADS</h3>
+        <table id="auto-leads-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Company</th>
+                    <th>Email</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="4" class="empty-row">No auto-created leads yet</td></tr>
+            </tbody>
+        </table>
     </div>
 
     <div class="log-panel" id="log-panel">
@@ -475,6 +576,55 @@
             }
         }
 
+        async function refreshLeadSource() {
+            try {
+                const res = await fetch('/api/lead-source');
+                const data = await res.json();
+                
+                document.getElementById('lead-provider').textContent = data.provider || 'DummySeed';
+                document.getElementById('lead-max-cycle').textContent = data.max_new_leads_per_cycle || 10;
+                document.getElementById('lead-niche').textContent = data.niche || 'Not configured';
+                document.getElementById('lead-geography').textContent = data.geography || 'Not specified';
+                document.getElementById('lead-last-created').textContent = data.last_created_count || 0;
+                
+                if (data.last_run) {
+                    const lastRunDate = new Date(data.last_run);
+                    document.getElementById('lead-last-run').textContent = lastRunDate.toLocaleTimeString();
+                } else {
+                    document.getElementById('lead-last-run').textContent = 'Never';
+                }
+                
+                const hintEl = document.getElementById('lead-source-hint');
+                if (data.provider_configured) {
+                    hintEl.textContent = 'Connected to external search API';
+                    hintEl.style.color = '#0f0';
+                } else if (data.niche && data.niche !== 'small B2B agencies doing recurring service work') {
+                    hintEl.textContent = 'Using DummySeed provider (set LEAD_SEARCH_API_URL for real leads)';
+                    hintEl.style.color = '#f90';
+                }
+                
+                const tbody = document.getElementById('auto-leads-table').querySelector('tbody');
+                if (!data.recent_leads || data.recent_leads.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No auto-created leads yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.recent_leads.reverse().slice(0, 10).map(l => {
+                    const time = new Date(l.created_at).toLocaleTimeString();
+                    return `
+                        <tr>
+                            <td>${time}</td>
+                            <td>${l.company}</td>
+                            <td>${l.email || '-'}</td>
+                            <td>${l.source || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Lead source refresh error:', e);
+            }
+        }
+
         async function refreshData() {
             try {
                 const [leads, customers, tasks, invoices] = await Promise.all([
@@ -541,8 +691,10 @@
         loadSettings();
         refreshData();
         refreshEmailLog();
+        refreshLeadSource();
         setInterval(refreshData, 10000);
         setInterval(refreshEmailLog, 15000);
+        setInterval(refreshLeadSource, 15000);
     </script>
 </body>
 </html>

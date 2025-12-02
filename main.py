@@ -317,6 +317,8 @@ def get_leads(session: Session = Depends(get_session)):
             "company": l.company,
             "niche": l.niche,
             "status": l.status,
+            "website": l.website,
+            "source": l.source,
             "last_contacted_at": l.last_contacted_at.isoformat()
             if l.last_contacted_at
             else None,
