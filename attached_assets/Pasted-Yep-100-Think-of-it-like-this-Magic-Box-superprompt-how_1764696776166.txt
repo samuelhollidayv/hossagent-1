@@ -1,0 +1,256 @@
+Yep, 100%.
+
+Think of it like this:
+	•	Magic Box / superprompt = “how the system should be wired, what env vars it expects, how flows work.”
+	•	Secrets panel (you) = “actual keys and passwords, set by a human.”
+
+So we tell the agent what variables exist and how to use them, but never give it the real values. You then go flip those switches yourself.
+
+⸻
+
+How to structure this in the next superprompt
+
+You want the next superprompt to do three things:
+	1.	Lock in architecture + flows
+	•	Lead gen + outreach + ops/research + billing loop.
+	•	Autopilot / cron-y feel.
+	•	Admin vs customer UX separation.
+	2.	Standardize config + secrets
+	•	Clearly define which env vars exist (e.g., ADMIN_PASSWORD, SESSION_SECRET, STRIPE_API_KEY, etc.).
+	•	Tell the agent to read them via os.getenv, never hard-code.
+	3.	Leave “holes” for you to fill
+	•	Agent adds comments in README / setup instructions like:
+“Set ADMIN_PASSWORD in your hosting environment’s secrets panel.”
+	•	You go fill values in Replit Secrets after the build runs.
+
+⸻
+
+Concrete: a Superprompt you can paste into Magic Box
+
+Here’s a fully loaded superprompt you can drop in and tweak. Anything secret you’ll handle manually later.
+
+⸻
+
+SUPERPROMPT FOR MAGIC BOX (HOSSAGENT MVP)
+
+You are upgrading an existing FastAPI + HTML/CSS app called HossAgent.
+
+0. What HossAgent is
+	•	It’s an autonomous ops worker for small B2B agencies.
+	•	It runs as an automated loop that:
+	1.	Generates qualified leads.
+	2.	Writes and (optionally) sends personalized outbound emails.
+	3.	Creates and runs “ops tasks” (e.g., market research, competitive analysis, etc.).
+	4.	Generates draft invoices for completed work.
+	5.	Exposes a customer portal showing:
+	•	Plan & billing status
+	•	Recent work completed
+	•	Invoices & payment history
+	•	There are two main user roles:
+	1.	Operator / Admin (me, the founder)
+	•	Uses /admin/login → /admin (Hoss Control Room)
+	•	Can start/stop loops, run modules manually, view customer plans, click “View as customer”
+	2.	End customer (agency owner)
+	•	Has a magic-link portal at /portal/{portal_token}
+	•	Sees plan, recent work, invoices, and billing link.
+
+1. High-level product flows
+
+You will make sure the following flows exist and are coherent:
+
+1.1 Admin / Operator
+	•	Admin login
+	•	Route: GET /admin/login, POST /admin/login
+	•	Uses a single password read from env var ADMIN_PASSWORD.
+	•	On success, sets a session/cookie and redirects to /admin.
+	•	On failure, shows an error message.
+	•	Admin console: /admin
+	•	Shows:
+	•	Top metrics (total leads, customers, pending tasks, draft invoices).
+	•	Buttons:
+	•	Run Lead Source
+	•	Run BizDev
+	•	Run Onboarding
+	•	Run Ops
+	•	Run Billing
+	•	Stripe billing block:
+	•	Shows if Stripe is enabled and keys are loaded.
+	•	Button: Regenerate Payment Links (for draft invoices without links).
+	•	Subscription plan section:
+	•	Shows current global plan (e.g., $99/month, 7-day free trial).
+	•	Customer plans table:
+	•	Company
+	•	Plan (TRIAL / PAID / CANCELED)
+	•	Status (Active / Inactive)
+	•	Tasks used / limit
+	•	Leads used / limit
+	•	Days left (for trial)
+	•	Column: Portal → a “View as customer” link to /portal/{portal_token}.
+	•	Autopilot
+	•	There is a flag / setting (e.g., AUTOPILOT_ON) that the operator can toggle.
+	•	When enabled, the main loop periodically:
+	•	Runs lead gen
+	•	Runs BizDev (outreach)
+	•	Runs Ops (tasks / research)
+	•	Runs Billing (creates/updates invoices)
+	•	Logs a clear cycle summary in the console.
+
+1.2 Customer portal
+	•	Route pattern: GET /portal/{portal_token}
+	•	Uses a unique token stored on the Customer record.
+	•	No password; the tokenized URL is the “login.”
+
+Portal layout:
+	•	Header: “Your HossAgent Ops Portal”
+	•	Plan & Billing section at top:
+	•	Shows: plan name (e.g., “HossAgent Pro”), price ($99/month), and trial status.
+	•	If plan is TRIAL:
+	•	Badge like “7 days left in trial”.
+	•	CTA: Upgrade Subscription → opens Stripe Checkout.
+	•	If plan is PAID:
+	•	Badge like “Active subscription”.
+	•	Button: Manage Billing → Stripe customer portal.
+	•	Recent Work section:
+	•	List of recent tasks with:
+	•	Date
+	•	Task description
+	•	Status (DONE / IN PROGRESS)
+	•	Invoices section:
+	•	Table of invoices:
+	•	Invoice ID (e.g., INV-3)
+	•	Amount
+	•	Status (DRAFT / SENT / PAID)
+	•	Date
+	•	Action:
+	•	If Stripe payment link exists: Pay Now button.
+	•	If not: Awaiting payment link…
+	•	Payment history section:
+	•	List of PAID invoices with amount + paid date.
+	•	Footer: “Powered by HossAgent”
+
+2. Implementation goals for this session
+
+You should:
+	1.	Stabilize authentication and sessions
+	•	Ensure /admin/login uses ADMIN_PASSWORD env var.
+	•	Ensure session or cookie-based auth protects /admin and other operator routes.
+	•	Add a small hint somewhere (README or comment) telling the human:
+	•	“Set ADMIN_PASSWORD in your environment / secrets panel.”
+	2.	Standardize configuration and secrets via env vars
+	•	Read the following only via os.getenv:
+	•	OPENAI_API_KEY
+	•	STRIPE_API_KEY
+	•	STRIPE_PUBLIC_KEY
+	•	STRIPE_WEBHOOK_SECRET
+	•	SESSION_SECRET
+	•	ADMIN_PASSWORD
+	•	ENABLE_STRIPE (e.g., "true" / "false")
+	•	EMAIL_MODE (e.g., "DRY_RUN" vs "LIVE")
+	•	LEAD_NICHE (default niche description)
+	•	LEAD_GEOGRAPHY (default geography)
+	•	Do not hardcode real keys or passwords.
+	•	It’s OK to provide safe defaults for local dev, like:
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
+EMAIL_MODE = os.getenv("EMAIL_MODE", "DRY_RUN")
+ENABLE_STRIPE = os.getenv("ENABLE_STRIPE", "false")
+
+
+	•	In comments and any user-facing setup text, remind the human to set the real values in their hosting environment.
+
+	3.	Verify / polish the core agent loop
+	•	Confirm there is a clear function or “cycle” that:
+	•	Generates new leads (or uses dummy seed if in dev).
+	•	Creates outreach emails (DRY_RUN mode by default).
+	•	Creates tasks for completed or accepted leads.
+	•	Runs ops/research tasks using the AI.
+	•	Generates draft invoices for completed tasks.
+	•	(If Stripe is enabled and keys are valid) creates Stripe Price(s) and Payment Links for draft invoices.
+	•	Make sure logs are readable and labeled, e.g.:
+	•	[LEADS]
+	•	[BIZDEV]
+	•	[OPS]
+	•	[BILLING]
+	•	[CYCLE]
+	4.	Keep the customer and admin UX clean and separated
+	•	"/" = marketing/landing page
+	•	Explains what HossAgent does.
+	•	CTA: “Start 7-Day Free Trial” → sign-up flow.
+	•	Secondary CTA: “Book a Demo”.
+	•	"/admin/login" = operator login.
+	•	"/admin" = operator control room.
+	•	"/portal/{portal_token}" = per-customer portal.
+	•	Don’t expose admin-specific controls (like “Run Lead Source”) in the customer portal.
+	5.	Demo / time-lapse friendliness
+	•	Add clear log messages and visible counters so that a time-lapse recording of:
+	•	Running an admin cycle, and
+	•	Opening the customer portal
+	•	visibly shows:
+	•	Leads being created
+	•	Emails being prepared (even if DRY_RUN)
+	•	Tasks being executed
+	•	Invoices moving from “draft / awaiting payment link” to “has Payment Link” (when Stripe is configured).
+
+3. How to treat secrets and environment
+
+Important constraints:
+	•	Do NOT:
+	•	Hard-code real API keys or passwords.
+	•	Print full secrets to logs.
+	•	DO:
+	•	Use os.getenv for all sensitive & deployment-specific values.
+	•	If a required env var is missing for production behavior (e.g., STRIPE_API_KEY), either:
+	•	Run in “disabled / DRY_RUN” mode, or
+	•	Show a clear warning in logs and UI (Stripe Billing section in admin).
+	•	Leave clear comments like:
+
+# NOTE: Set ADMIN_PASSWORD, OPENAI_API_KEY, STRIPE_API_KEY, etc.
+# in your hosting platform's secrets panel.
+
+
+
+4. Things to clean up / remove
+	•	Remove or hide any old UX elements that don’t fit the new business model:
+	•	Random metrics that don’t map to the loop (e.g., irrelevant profit widgets if not wired up).
+	•	Old copy about per-task pricing if present.
+	•	Align all marketing language with the current value prop:
+	•	Lead Generation
+	•	Smart Outreach
+	•	Ops / Research Tasks
+	•	Auto Billing
+	•	Customer Portal for clients
+
+5. Style and quality expectations
+	•	Keep the existing dark, minimal look and feel.
+	•	Ensure mobile responsiveness – everything you add should render cleanly on a phone viewport.
+	•	Prefer simple, explicit code over clever abstractions.
+	•	Add short, helpful comments where behavior might not be obvious.
+
+When you are done, you should be able to:
+	1.	Set env vars / secrets manually (ADMIN_PASSWORD, Stripe keys, etc.).
+	2.	Log in at /admin/login with the admin password.
+	3.	Run a full cycle from /admin (either manually or via autopilot).
+	4.	Click “View as customer” for a test customer to see:
+	•	Plan
+	•	Recent work
+	•	Invoices with correct statuses
+	•	Payment link buttons (when Stripe is correctly configured).
+
+⸻
+
+You can paste that straight into Magic Box.
+
+Then, in parallel, you:
+	•	Go to the Replit Secrets panel.
+	•	Add / update:
+	•	ADMIN_PASSWORD
+	•	SESSION_SECRET
+	•	OPENAI_API_KEY
+	•	STRIPE_API_KEY
+	•	STRIPE_PUBLIC_KEY
+	•	STRIPE_WEBHOOK_SECRET
+	•	ENABLE_STRIPE (true/false)
+	•	EMAIL_MODE (DRY_RUN while testing)
+	•	LEAD_NICHE, LEAD_GEOGRAPHY if you want real-ish seed text.
+
+That gives the agent a solid contract to build against, while you stay the only person who actually knows the keys to the kingdom.

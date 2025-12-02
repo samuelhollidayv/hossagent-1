@@ -980,9 +980,18 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T17:30:48.235572",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-02T17:25:47.623146",
+  "last_run": "2025-12-02T17:30:48.235572",
   "last_created_count": 0,
   "recent_leads": [
     {
