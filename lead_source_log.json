@@ -17,10 +17,55 @@
       "candidates_fetched": 10,
       "leads_created": 4,
       "leads_skipped": 6
+    },
+    {
+      "timestamp": "2025-12-02T09:09:44.436156",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T09:14:44.539770",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 1,
+      "leads_skipped": 9
+    },
+    {
+      "timestamp": "2025-12-02T09:19:44.580223",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T09:27:41.352822",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T09:32:41.475415",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-02T09:04:44.406307",
-  "last_created_count": 4,
+  "last_run": "2025-12-02T09:32:41.475415",
+  "last_created_count": 0,
   "recent_leads": [
     {
       "id": 27,
@@ -119,6 +164,13 @@
       "email": "amanda@summitdigital.io",
       "source": "dummy_seed",
       "created_at": "2025-12-02T09:04:44.390225"
+    },
+    {
+      "id": 45,
+      "company": "Forge Strategic Partners",
+      "email": "david@forgestrategic.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:14:44.497939"
     }
   ]
 }

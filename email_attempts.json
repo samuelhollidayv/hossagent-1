@@ -58,5 +58,65 @@
     "mode": "DRY_RUN",
     "result": "dry-run",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:09:44.444273",
+    "lead_name": "Victoria",
+    "company": "Apex Ventures LLC",
+    "to_email": "victoria@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:09:44.445654",
+    "lead_name": "Chris",
+    "company": "Sterling Operations LLC",
+    "to_email": "chris@sterlingoperationsllc.com",
+    "subject": "Quick idea for Sterling Operations LLC",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:14:44.550942",
+    "lead_name": "Emily",
+    "company": "Catalyst Growth Co",
+    "to_email": "emily@catalystgrowthco.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:19:44.589247",
+    "lead_name": "David",
+    "company": "Vector Capital Group",
+    "to_email": "david@vectorcapitalgroup.com",
+    "subject": "Quick idea for Vector Capital Group",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:27:41.357110",
+    "lead_name": "Chris",
+    "company": "Summit Holdings LLC",
+    "to_email": "chris@summitholdingsllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:32:41.486091",
+    "lead_name": "Sarah",
+    "company": "Titan Logistics Inc",
+    "to_email": "sarah@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
   }
 ]

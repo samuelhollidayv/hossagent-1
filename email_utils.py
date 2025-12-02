@@ -18,15 +18,16 @@ Environment Variables:
     
   Throttling:
     MAX_EMAILS_PER_CYCLE (default: 10)
+    MAX_EMAILS_PER_HOUR (default: 50)
 """
 import os
 import smtplib
 import json
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -45,11 +46,12 @@ class EmailAttempt:
     to_email: str
     subject: str
     mode: str
-    result: str  # "success", "failed", "dry-run"
+    result: str  # "success", "failed", "dry-run", "throttled"
     error: Optional[str] = None
 
 
 EMAIL_LOG_FILE = Path("email_attempts.json")
+HOURLY_COUNTER_FILE = Path("email_hourly_counter.json")
 MAX_LOG_ENTRIES = 50
 
 
@@ -85,6 +87,69 @@ def get_email_log(limit: int = 10) -> List[Dict[str, Any]]:
     """Get the last N email attempts for display in admin console."""
     entries = _load_email_log()
     return entries[-limit:]
+
+
+def _load_hourly_counter() -> Dict[str, Any]:
+    """Load hourly email counter from file."""
+    try:
+        if HOURLY_COUNTER_FILE.exists():
+            with open(HOURLY_COUNTER_FILE, "r") as f:
+                data = json.load(f)
+                hour_key = datetime.utcnow().strftime("%Y-%m-%d-%H")
+                if data.get("hour") == hour_key:
+                    return data
+    except Exception:
+        pass
+    return {"hour": datetime.utcnow().strftime("%Y-%m-%d-%H"), "count": 0}
+
+
+def _save_hourly_counter(data: Dict[str, Any]) -> None:
+    """Save hourly email counter to file."""
+    try:
+        with open(HOURLY_COUNTER_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"[EMAIL] Warning: Could not save hourly counter: {e}")
+
+
+def get_max_emails_per_hour() -> int:
+    """Get the maximum number of emails to send per hour."""
+    try:
+        return int(os.getenv("MAX_EMAILS_PER_HOUR", "50"))
+    except ValueError:
+        return 50
+
+
+def check_hourly_limit() -> Tuple[bool, int, int]:
+    """
+    Check if hourly email limit has been reached.
+    
+    Returns:
+        (can_send, current_count, max_count)
+    """
+    counter = _load_hourly_counter()
+    max_per_hour = get_max_emails_per_hour()
+    current = counter.get("count", 0)
+    return current < max_per_hour, current, max_per_hour
+
+
+def increment_hourly_counter() -> None:
+    """Increment the hourly email counter after a successful send."""
+    counter = _load_hourly_counter()
+    counter["count"] = counter.get("count", 0) + 1
+    _save_hourly_counter(counter)
+
+
+def get_hourly_counter_status() -> Dict[str, Any]:
+    """Get current hourly counter status for admin display."""
+    counter = _load_hourly_counter()
+    max_per_hour = get_max_emails_per_hour()
+    return {
+        "hour": counter.get("hour"),
+        "count": counter.get("count", 0),
+        "max": max_per_hour,
+        "remaining": max_per_hour - counter.get("count", 0)
+    }
 
 
 def get_email_mode() -> EmailMode:
@@ -337,6 +402,8 @@ def send_email(
     Determines the effective mode (with validation/fallback),
     then dispatches to the appropriate sender.
     
+    Enforces both per-cycle and per-hour throttling limits.
+    
     Args:
         to_email: Recipient email address
         subject: Email subject line
@@ -353,12 +420,34 @@ def send_email(
         
         if effective_mode == EmailMode.DRY_RUN:
             return send_email_dry_run(to_email, subject, body, lead_name, company)
-        elif effective_mode == EmailMode.SENDGRID:
-            return send_email_sendgrid(to_email, subject, body, lead_name, company)
+        
+        can_send, current, max_hour = check_hourly_limit()
+        if not can_send:
+            print(f"[EMAIL][THROTTLE] Hourly limit reached ({current}/{max_hour}). Skipping send to {to_email}")
+            log_email_attempt(EmailAttempt(
+                timestamp=datetime.utcnow().isoformat(),
+                lead_name=lead_name,
+                company=company,
+                to_email=to_email,
+                subject=subject,
+                mode=effective_mode.value,
+                result="throttled",
+                error=f"Hourly limit reached: {current}/{max_hour}"
+            ))
+            return False
+        
+        success = False
+        if effective_mode == EmailMode.SENDGRID:
+            success = send_email_sendgrid(to_email, subject, body, lead_name, company)
         elif effective_mode == EmailMode.SMTP:
-            return send_email_smtp(to_email, subject, body, lead_name, company)
+            success = send_email_smtp(to_email, subject, body, lead_name, company)
         else:
-            return send_email_dry_run(to_email, subject, body, lead_name, company)
+            success = send_email_dry_run(to_email, subject, body, lead_name, company)
+        
+        if success:
+            increment_hourly_counter()
+        
+        return success
             
     except Exception as e:
         print(f"[EMAIL] Unexpected error: {e}")
@@ -374,15 +463,20 @@ def get_email_status() -> Dict[str, Any]:
         - configured_mode: What EMAIL_MODE env var says
         - is_valid: Whether config is valid
         - message: Status message
-        - max_per_cycle: Throttle limit
+        - max_per_cycle: Throttle limit per cycle
+        - max_per_hour: Throttle limit per hour
+        - hourly: Current hourly counter status
     """
     configured_mode = os.getenv("EMAIL_MODE", "DRY_RUN").upper()
     effective_mode, is_valid, message = validate_email_config()
+    hourly_status = get_hourly_counter_status()
     
     return {
         "mode": effective_mode.value,
         "configured_mode": configured_mode,
         "is_valid": is_valid,
         "message": message,
-        "max_per_cycle": get_max_emails_per_cycle()
+        "max_per_cycle": get_max_emails_per_cycle(),
+        "max_per_hour": get_max_emails_per_hour(),
+        "hourly": hourly_status
     }

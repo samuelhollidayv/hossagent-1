@@ -1,0 +1,304 @@
+Buckle up, Hoss.
+Here is the revised, perfected, sharpened-to-a-razor Master Prompt — incorporating every safeguard, guardrail, enhancement, and anti-disaster clause from your notes and mine.
+
+This is the version you paste verbatim into the Replit Magic Bucket.
+
+No commentary.
+No fences.
+No apologies.
+Just the One Prompt To Rule Them All™.
+
+============================================================
+🚨 THE SUPERPROMPT — FINAL CUT (COPY/PASTE INTO REPLIT AGENT EXACTLY AS IS)
+
+Replit Agent — I’m ready for the next major upgrade of HossAgent. The system already runs autonomously with lead generation, BizDev outreach, onboarding, ops execution, and billing. Now implement the next 5 features to move this from MVP to revenue-producing autonomy:
+
+I need you to deliver ALL of the following without breaking any existing behavior:
+
+A) Full production outbound emailing (SENDGRID + SMTP) with robust DRY_RUN fallback
+B) Real lead ingestion via external Lead Search API
+C) Niche-tuned BizDev template engine
+D) Stripe billing integration (payment links + webhook)
+E) Customer Portal 2.0 (read-only MVP for clients)
+
+You MUST:
+
+• Inspect the whole codebase (models.py, agents.py, email_utils.py, lead_sources.py, lead_service.py, main.py, database.py, templates/*, replit.md)
+• Add these subsystems modularly, safely, and without regression
+• Preserve DRY_RUN mode as the default and iron law of the system
+• Use environment variables ONLY — never hardcode configuration
+• Auto-migrate DB schema if needed
+• Add logging across all new behavior
+• Update admin console in the existing noir minimal style
+• Ensure autopilot loop NEVER crashes due to config issues
+• Provide a final summary of all file changes, required env vars, and test steps
+
+============================================================
+A) REAL OUTBOUND EMAIL SYSTEM (SENDGRID + SMTP + DRY_RUN)
+	1.	In email_utils.py, expand to include:
+
+• DRY_RUN mode (must ALWAYS work, even if everything else fails)
+• SENDGRID sending (via API)
+• SMTP sending (TLS)
+• Unified send_email(…) entrypoint
+• Central config loader for EMAIL_MODE with automatic fallback:
+	•	If ANY required variable for SENDGRID or SMTP is missing/invalid → fall back to DRY_RUN
+	•	Log: [DRY_RUN_FALLBACK] <reason>
+
+• Add send throttling using BOTH:
+	•	MAX_EMAILS_PER_CYCLE (env)
+	•	MAX_EMAILS_PER_HOUR (env)
+
+• Maintain an hourly counter (DB table or small JSON file).
+• If threshold reached → skip sending for remainder of hour, log event.
+
+• Add structured log entries:
+[EMAIL][<MODE>][<SUCCESS|FAIL>][lead=<id>][company=<company>]
+
+• If send fails:
+	•	Never crash
+	•	Return failure result to BizDev agent
+
+	2.	BizDev agent integration:
+
+• Replace legacy logic with unified send_email()
+• Lead status rules:
+	•	success → CONTACTED
+	•	fail → EMAIL_FAILED
+	•	dry_run → leave status NEW
+
+• Save:
+	•	last_contacted_at
+	•	email subject + preview
+
+	3.	Admin Console:
+
+• Show outbound mode indicator with color:
+	•	DRY_RUN → orange
+	•	SENDGRID / SMTP → green
+
+• Add Outbound Log table (last 20 entries):
+	•	timestamp
+	•	company
+	•	email
+	•	subject
+	•	mode
+	•	result
+
+	4.	Documentation in replit.md:
+
+• All required env vars for SENDGRID/SMTP
+• Example Secrets config
+• Testing with /admin/send-test-email
+
+============================================================
+B) REAL LEAD SEARCH API INTEGRATION
+
+Goal: Replace DummySeed when credentials exist.
+	1.	In lead_sources.py:
+
+• Implement SearchApiLeadSourceProvider using:
+	•	LEAD_SEARCH_API_URL
+	•	LEAD_SEARCH_API_KEY
+	•	LEAD_NICHE
+	•	LEAD_GEOGRAPHY
+	•	MAX_NEW_LEADS_PER_CYCLE
+
+• Safe request handling (GET or POST depending on provider)
+• DRY_RUN fallback if credentials missing
+• Extract:
+	•	company
+	•	contact name
+	•	email
+	•	website/domain
+	•	industry
+
+• Idempotent dedupe:
+	•	Skip inserting leads where email matches existing
+	•	Skip inserting leads where (company, domain) matches existing
+	•	Treat existing leads with status != “invalid” as authoritative
+
+	2.	lead_service.py:
+
+• Provider selection using env LEAD_SOURCE_PROVIDER:
+	•	DUMMY_SEED (default)
+	•	SEARCH_API
+
+• Add source field to lead: “dummy_seed” or “search_api”
+
+• Log all new leads to lead_source_log.json
+• Cap log file to last 5,000 entries (prevent runaway disk usage)
+	3.	Admin Console:
+
+• Show active provider
+• Show API configuration health
+• Show last run timestamp
+• Display errors if API misconfigured
+	4.	Update replit.md:
+
+• Document full configuration for real Lead API provider
+
+============================================================
+C) NICHE-TUNED BIZDEV TEMPLATE ENGINE
+	1.	Add bizdev_templates.py:
+
+• A dict of template packs keyed by niche (BIZDEV_NICHE_TEMPLATE)
+• Each pack contains:
+	•	subject_lines: list[str]
+	•	body_templates: list[str]
+
+• Templates use placeholders:
+{{first_name}}, {{company_name}}, {{industry}}, {{offer}}, {{niche}}, {{sender_name}}, {{sender_email}}, {{dashboard_url}}
+	2.	Add env var:
+BIZDEV_NICHE_TEMPLATE=
+	3.	In BizDev agent:
+
+• Load template pack based on env
+• Randomize subject + body template
+• Substitute placeholders
+• Truncate preview for logs
+• Log generated copy to email_log.json
+• Cap that log to last 5,000 entries
+	4.	Admin Console:
+
+• Show active BizDev template pack
+• Show last ~10 generated templates (subject + snippet)
+• Display LEAD_NICHE + LEAD_GEOGRAPHY values in Lead Source panel
+	5.	Update replit.md:
+
+• How to choose/add template packs
+
+============================================================
+D) STRIPE BILLING INTEGRATION (PAYMENT LINKS + WEBHOOK)
+	1.	Add stripe_utils.py:
+
+• create_payment_link(amount_cents, customer_id, description)
+• create_draft_invoice(customer_id, line_items)
+• Validate Stripe credentials
+• Errors → DRY fallback without crashing
+	2.	Required env vars:
+STRIPE_API_KEY
+STRIPE_WEBHOOK_SECRET
+STRIPE_DEFAULT_CURRENCY (default: usd)
+ENABLE_STRIPE=TRUE/FALSE
+	3.	Billing agent changes:
+
+• After local DB draft invoice creation:
+If ENABLE_STRIPE == TRUE:
+	•	Create Stripe payment link
+	•	Save URL to invoice.payment_url
+
+• Add invoice amount safety clamp:
+	•	Only allow $1–$500 by default
+	•	Skip + log if outside bounds
+
+	4.	Add /stripe/webhook route:
+
+• Validate signature
+• On payment event:
+	•	invoice.status = paid
+	•	invoice.paid_at = now
+
+• Log all webhook events
+	5.	Admin Console:
+
+• Stripe indicator (Enabled/Disabled)
+• Show payment link inline
+• Show paid status updates
+	6.	Update replit.md:
+
+• Full Stripe setup
+• How to expose webhook URL
+
+============================================================
+E) CUSTOMER PORTAL 2.0 (READ-ONLY)
+	1.	Add new route:
+/portal/<public_token>
+
+Do NOT use raw DB IDs.
+Use a stable public_token field added to Customer. Generate automatically if missing.
+
+Portal must show:
+• Customer name
+• Recent tasks (status + summaries)
+• Outstanding invoices + payment links
+• Paid invoices
+• Basic revenue summary
+	2.	Add templates/customer_portal.html:
+
+• Noir theme (Tailwind CDN)
+• Minimal, clean layout
+• Payment link buttons
+• Task summaries
+	3.	Navigation rules:
+
+• Do NOT show portal link globally
+• Page accessible only by direct URL
+	4.	DB updates:
+
+• Add public_token to Customer if missing
+• Add payment_url to Invoice
+	5.	Update replit.md with instructions for customers
+
+============================================================
+F) DATABASE MIGRATIONS
+
+Auto-create/update schema on startup.
+
+Add/ensure fields exist:
+
+Lead:
+• website
+• source
+
+Invoice:
+• payment_url
+
+Customer:
+• public_token
+
+Add log files (JSON) with rotation/truncation:
+• email_log.json
+• lead_source_log.json
+
+============================================================
+G) IRON-CLAD SAFETY RULES
+	1.	DRY_RUN must NEVER be bypassed if configuration is missing.
+If SENDGRID, SMTP, Lead API, or Stripe credentials are missing or invalid, the system MUST:
+	•	fall back silently to DRY_RUN
+	•	never crash
+	•	never attempt real sends/charges
+	•	log [DRY_RUN_FALLBACK] <reason>
+	2.	NEVER exceed MAX_EMAILS_PER_CYCLE or MAX_EMAILS_PER_HOUR.
+Track hourly counts and skip sends when limits reached.
+	3.	All failures MUST degrade gracefully without interrupting the autopilot loop.
+
+============================================================
+H) FINAL DELIVERABLES
+
+When you finish:
+
+• List all files added/modified
+• List ALL required environment variables
+• Provide manual test steps for:
+	•	Outbound email
+	•	Lead API
+	•	BizDev templates
+	•	Stripe payments + webhook
+	•	Customer portal
+• Provide summary of new behaviors
+
+Begin now.
+
+============================================================
+END OF PROMPT
+
+⸻
+
+If you want, I can also produce:
+
+🔥 A 10-minute full system smoke test
+🔥 A disaster-proof rollback plan
+🔥 A Phase 3 spec (“HossAgent Hires More Hosses”)
+
+Just say the word.

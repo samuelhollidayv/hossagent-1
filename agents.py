@@ -19,108 +19,66 @@ from email_utils import (
     get_email_status,
     EmailMode
 )
+from bizdev_templates import (
+    generate_email,
+    log_template_generation,
+    get_template_status
+)
 import random
-
-
-SUBJECT_TEMPLATES = [
-    "Taking the grunt work off your plate",
-    "Quick idea to de-risk your pipeline",
-    "You + 1 autonomous ops brain",
-    "Quick idea for {company}",
-]
-
-BODY_TEMPLATE = """Hi {first_name},
-
-I've been looking at small shops like {company} that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash coming in.
-
-I built something for that: an autonomous "back office" that does three things on repeat:
-- Finds and contacts qualified leads for you
-- Tracks what work is being done for whom
-- Generates invoices and shows you, in one dashboard, where the money is
-
-It's not a CRM and it's not an agency. Think of it as a self-driving ops assistant that only cares about two things: pipeline and cash. You see everything in a control room; it handles the boring parts.
-
-If you gave it one current offer (e.g., how you usually package {niche} work), it could start running a small, controlled experiment for you this month.
-
-Would you be open to a 15-minute call so I can show you what that looks like with real numbers from your world?
-
-- HossAgent"""
 
 
 async def run_bizdev_cycle(session: Session) -> str:
     """
-    BizDev Cycle: Generate leads AND send outbound emails.
+    BizDev Cycle: Send outbound emails to NEW leads using template engine.
     
     Steps:
-    1. Generate 1-2 new leads with corporate names
-    2. For each NEW lead, attempt to send outbound email (respecting throttle limit)
+    1. Find leads with status='new' that haven't been contacted
+    2. For each NEW lead, generate personalized email from template pack
     3. If email succeeds, mark lead as 'contacted'
-    4. If email fails (or dry-run), keep as 'new'
+    4. If email fails, mark as 'email_failed'
+    5. If dry-run, keep as 'new'
     
-    Throttling: Respects MAX_EMAILS_PER_CYCLE environment variable.
+    Throttling: Respects MAX_EMAILS_PER_CYCLE and MAX_EMAILS_PER_HOUR.
     Safe to call repeatedly - only emails leads with status='new'.
     """
-    companies = [
-        "Stratton Industries",
-        "Nexus Capital Partners",
-        "Meridian Solutions Group",
-        "Apex Ventures LLC",
-        "Titan Logistics Inc",
-        "Quantum Dynamics",
-        "Atlas Enterprise Group",
-        "Blackstone Analytics",
-        "Vector Capital Group",
-        "Summit Holdings LLC",
-        "Pinnacle Advisory Group",
-        "Frontier Tech Partners",
-        "Catalyst Growth Co",
-        "Ironclad Consulting",
-        "Sterling Operations LLC",
-    ]
-    niches = ["SaaS", "Enterprise Software", "FinTech", "Operations", "Research", "Analytics", "Marketing Strategy", "RevOps"]
-    first_names = ["James", "Sarah", "Michael", "Emily", "David", "Rachel", "Alex", "Victoria", "Chris", "Amanda"]
-
     max_emails = get_max_emails_per_cycle()
     email_status = get_email_status()
     effective_mode = email_status["mode"]
+    template_status = get_template_status()
     
-    num_leads = random.randint(1, 2)
-    created = []
+    new_leads = session.exec(
+        select(Lead).where(Lead.status == "new").limit(max_emails)
+    ).all()
+    
+    if not new_leads:
+        msg = "BizDev: No new leads to contact."
+        print(f"[CYCLE] {msg}")
+        return msg
+    
     emails_sent = 0
+    emails_failed = 0
     emails_attempted = 0
+    contacted_companies = []
 
-    for _ in range(num_leads):
+    for lead in new_leads:
         if emails_attempted >= max_emails:
             print(f"[BIZDEV] Throttle limit reached ({max_emails} emails per cycle)")
             break
-            
-        company = random.choice(companies)
-        niche = random.choice(niches)
-        first_name = random.choice(first_names)
         
-        lead = Lead(
-            name=first_name,
-            email=f"{first_name.lower()}@{company.lower().replace(' ', '')}.com",
-            company=company,
-            niche=niche,
-            status="new",
-        )
-        session.add(lead)
-        session.flush()
-        created.append(lead.company)
-        
-        subject = random.choice(SUBJECT_TEMPLATES).format(company=lead.company)
-        body = BODY_TEMPLATE.format(
+        generated = generate_email(
             first_name=lead.name,
-            company=lead.company,
-            niche=lead.niche
+            company_name=lead.company,
+            niche=lead.niche,
+            email=lead.email
         )
+        
+        log_template_generation(generated, lead.id, lead.email)
 
         emails_attempted += 1
         email_sent = send_email(
             to_email=lead.email,
-            subject=subject,
-            body=body,
+            subject=generated.subject,
+            body=generated.body,
             lead_name=lead.name,
             company=lead.company
         )
@@ -129,16 +87,21 @@ async def run_bizdev_cycle(session: Session) -> str:
             lead.status = "contacted"
             lead.last_contacted_at = datetime.utcnow()
             emails_sent += 1
-            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: CONTACTED")
-        else:
-            lead.last_contacted_at = None
+            contacted_companies.append(lead.company)
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: CONTACTED (template={generated.template_pack})")
+        elif effective_mode == "DRY_RUN":
             print(f"[BIZDEV] Lead {lead.name} at {lead.company}: status=new (mode={effective_mode})")
+        else:
+            lead.status = "email_failed"
+            emails_failed += 1
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: EMAIL_FAILED")
 
         session.add(lead)
 
     session.commit()
     
-    msg = f"BizDev: Generated {len(created)} leads ({', '.join(created)}). Emails: {emails_sent}/{emails_attempted} sent [{effective_mode}]"
+    companies_str = ", ".join(contacted_companies) if contacted_companies else "None"
+    msg = f"BizDev: Contacted {emails_sent}/{emails_attempted} leads ({companies_str}). Failed: {emails_failed}. Mode: {effective_mode}, Template: {template_status['active_pack']}"
     print(f"[CYCLE] {msg}")
     return msg
 
