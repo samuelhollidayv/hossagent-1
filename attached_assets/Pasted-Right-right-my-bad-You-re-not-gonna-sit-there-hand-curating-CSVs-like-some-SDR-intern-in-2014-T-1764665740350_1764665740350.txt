@@ -1,0 +1,276 @@
+Right, right — my bad.
+You’re not gonna sit there hand-curating CSVs like some SDR intern in 2014. The whole point of HossAgent is:
+
+You define the niche + constraints once. The machine finds leads, contacts them, and shows you the money.
+
+So we need to promote “lead gen” to a first-class autonomous subsystem, not “something Hoss copy-pastes into a DB.”
+
+Here’s exactly what you paste into the magic Replit box next.
+
+⸻
+
+🧠 One-shot prompt for “self-driving lead gen” (copy-paste this into Replit Agent)
+
+PROMPT TO REPLIT AGENT (FULL TEXT)
+
+I’m building an autonomous system called HossAgent. It already has:
+	•	Agents for BizDev, ops, invoicing, etc.
+	•	A lead object and statuses.
+	•	An admin console.
+	•	A DRY-RUN vs real email backend.
+
+Now I want to remove as much human friction as possible.
+I DO NOT want to manually paste or upload leads.
+My job as the human should be:
+
+Define the niche + constraints once.
+The system finds leads, contacts them, and I just watch the dashboard + bank account.
+
+Your job in this task:
+	1.	Introduce a Lead Source subsystem (config + code) so the app can automatically generate a stream of leads on its own.
+	2.	Make it easy to start with a simple provider now (e.g. search-based / API-based) and plug in more later.
+	3.	Keep everything admin-configurable via env + a small bit of UI. No per-lead manual data entry.
+
+⸻
+
+1️⃣ Inspect current lead model and BizDev flow
+
+First, review the existing code:
+	•	Lead model / schema (wherever leads are stored: ORM model, Pydantic, etc.).
+	•	Any lead ingest code (CSV upload, manual creation, etc.).
+	•	BizDev agent:
+	•	Where it pulls “next lead”
+	•	How it decides status transitions: NEW → CONTACTED → RESPONDED → QUALIFIED, etc.
+	•	Any existing “autopilot loop” or cron for BizDev.
+
+Summarize for yourself:
+	•	What fields a Lead currently has (company_name, contact_name, email, website, notes, etc.).
+	•	How a NEW lead currently gets created.
+
+Do not break existing behavior; we’re adding a new path for automatically creating leads.
+
+⸻
+
+2️⃣ Create a LeadSourceConfig concept
+
+Introduce a small, explicit configuration layer that describes:
+	•	What kind of businesses we’re targeting.
+	•	In what geography, niche, and size range.
+	•	How aggressively we want to acquire leads.
+
+You can do this via:
+	•	A Python config object or Pydantic model, e.g.:
+
+class LeadSourceConfig(BaseModel):
+    niche: str
+    geography: str | None = None
+    min_company_size: int | None = None
+    max_company_size: int | None = None
+    max_new_leads_per_cycle: int = 10
+
+	•	Backed by environment variables, for example:
+	•	LEAD_NICHE – e.g. “small B2B marketing agencies that sell retainers”
+	•	LEAD_GEOGRAPHY – e.g. “US & Canada”
+	•	LEAD_MIN_COMPANY_SIZE
+	•	LEAD_MAX_COMPANY_SIZE
+	•	MAX_NEW_LEADS_PER_CYCLE – cap how many new leads we generate per cron cycle (separate from MAX_EMAILS_PER_CYCLE).
+
+Create a helper like:
+
+def get_lead_source_config() -> LeadSourceConfig:
+    # Reads env vars, applies defaults, returns config
+
+
+⸻
+
+3️⃣ Implement a pluggable LeadSource provider module
+
+Create a module, e.g. lead_sources.py, that defines a clean interface:
+
+from abc import ABC, abstractmethod
+from typing import List
+
+class LeadCandidate(BaseModel):
+    company_name: str
+    contact_name: str | None = None
+    email: str | None = None
+    website: str | None = None
+    source: str | None = None  # e.g. "search_api", "dummy_seed"
+    raw_data: dict | None = None
+
+class LeadSourceProvider(ABC):
+    @abstractmethod
+    def fetch_candidates(self, config: LeadSourceConfig, limit: int) -> List[LeadCandidate]:
+        ...
+
+Then implement at least two concrete providers:
+
+a) DummySeedLeadSourceProvider (for dev / DRY_RUN)
+	•	Reads from a small hardcoded list of sample businesses (in code) that match the niche style.
+	•	Returns 3–5 LeadCandidate objects with fake but realistic data.
+	•	Only used if no external API config is provided.
+
+b) SearchApiLeadSourceProvider (real-ish, API based)
+Design this in a way that it works with a generic search/lead API, using env vars like:
+	•	LEAD_SEARCH_API_URL – endpoint that takes a query and returns JSON with companies.
+	•	LEAD_SEARCH_API_KEY – auth key.
+	•	Optionally LEAD_SEARCH_API_PROVIDER – to document which service is used.
+
+Simple behavior:
+	•	Construct a query string based on LeadSourceConfig, e.g.:
+"small B2B marketing agencies in {geography}" (fall back to just the niche if no geo).
+	•	Call the API via requests with the key.
+	•	Parse the response into LeadCandidate objects.
+
+You do not need to integrate a specific vendor by name; just make the code:
+	•	Easy to adapt to a real provider.
+	•	Clearly documented in replit.md so I know how to wire in a specific API later (Clearbit, Apollo, custom internal API, etc.).
+
+Finally, create a small factory like:
+
+def get_lead_source_provider() -> LeadSourceProvider:
+    if os.getenv("LEAD_SEARCH_API_URL") and os.getenv("LEAD_SEARCH_API_KEY"):
+        return SearchApiLeadSourceProvider()
+    else:
+        return DummySeedLeadSourceProvider()
+
+
+⸻
+
+4️⃣ Auto-create leads from candidates
+
+Add a function somewhere central (e.g. lead_service.py or wherever you handle leads) that:
+
+def generate_new_leads_from_source():
+    config = get_lead_source_config()
+    provider = get_lead_source_provider()
+    max_new = config.max_new_leads_per_cycle
+
+    candidates = provider.fetch_candidates(config, limit=max_new)
+
+    # For each candidate, check if a similar lead already exists
+    # (by email or website + company_name).
+    # If not, insert as a NEW lead with status="NEW" and
+    # fields mapped from LeadCandidate.
+
+Behavior requirements:
+	•	Idempotent: If the same candidate appears again, don’t create duplicates.
+	•	Each new lead starts as NEW.
+	•	Log what you did, e.g.:
+
+[LEADS][SOURCE] Created 5 new leads (provider=SearchApiLeadSourceProvider, niche="...", geo="...")
+
+
+
+⸻
+
+5️⃣ Integrate into the autopilot loop
+
+Find the main scheduler / autopilot loop that already runs BizDev / invoicing. Modify it to:
+	1.	First call generate_new_leads_from_source() once per cycle.
+	2.	Then let BizDev process NEW leads and send emails with the unified send_email(...).
+
+Respect both caps:
+	•	MAX_NEW_LEADS_PER_CYCLE (lead generation)
+	•	MAX_EMAILS_PER_CYCLE (outbound sending)
+
+This ensures we:
+	•	Slowly but steadily generate fresh leads.
+	•	Slowly but steadily email them without domain suicide.
+
+Document the sequence clearly in comments and in replit.md.
+
+⸻
+
+6️⃣ Admin console updates for lead source
+
+In templates/admin_console.html (or equivalent):
+
+Add a small “Lead Source” status section that shows:
+	•	Current niche: value from LEAD_NICHE
+	•	Geography: from LEAD_GEOGRAPHY
+	•	Provider: DummySeed vs SearchApiLeadSourceProvider
+	•	Max new leads per cycle: from MAX_NEW_LEADS_PER_CYCLE
+	•	Last lead source run time
+	•	Number of leads created in last run
+
+Also add a simple table or log snippet:
+	•	Last 10 auto-created leads:
+	•	timestamp
+	•	company_name
+	•	email (if any)
+	•	provider
+	•	status
+
+No need for full CRUD UI; read-only view is fine. I’m not manually editing leads, I just want visibility.
+
+⸻
+
+7️⃣ Documentation update (replit.md)
+
+Add a “Lead Source Setup” section that explains:
+	1.	Base environment variables
+	•	LEAD_NICHE – freeform text description of the target ICP.
+	•	LEAD_GEOGRAPHY – optional region constraint.
+	•	LEAD_MIN_COMPANY_SIZE / LEAD_MAX_COMPANY_SIZE – optional.
+	•	MAX_NEW_LEADS_PER_CYCLE – default 10.
+	2.	Provider selection
+	•	If LEAD_SEARCH_API_URL + LEAD_SEARCH_API_KEY are present → use SearchApiLeadSourceProvider.
+	•	Otherwise → use DummySeedLeadSourceProvider for dev and demo.
+	3.	API provider expectations
+	•	Document what shape the JSON should have for SearchApiLeadSourceProvider to work (e.g. [{ "company_name": "...", "website": "...", "email": "..." }]).
+	•	Note that swapping to a specific provider just means adjusting this mapping code.
+	4.	Autopilot behavior
+	•	Every cron cycle:
+	1.	generate_new_leads_from_source() runs and may create up to MAX_NEW_LEADS_PER_CYCLE NEW leads.
+	2.	BizDev agent picks up NEW leads, sends emails (up to MAX_EMAILS_PER_CYCLE), and updates statuses.
+
+⸻
+
+8️⃣ Safety + verification
+
+Before assuming this is working in production mode:
+	1.	Run app in DRY_RUN email mode and with the DummySeed provider.
+	•	Set LEAD_NICHE, LEAD_GEOGRAPHY, MAX_NEW_LEADS_PER_CYCLE = 3.
+	•	Trigger one autopilot cycle.
+	•	Confirm in logs and admin console:
+	•	New leads auto-created.
+	•	BizDev attempted to send DRY_RUN emails to them.
+	•	Lead statuses updated.
+	2.	Then set up a real LEAD_SEARCH_API_URL + LEAD_SEARCH_API_KEY but keep EMAIL_MODE=DRY_RUN.
+	•	Confirm we can fetch real-ish leads from the provider.
+	•	Confirm no duplicates on repeated cycles.
+	3.	Only after that, switch EMAIL_MODE to SENDGRID or SMTP for real outbound,
+keeping MAX_NEW_LEADS_PER_CYCLE and MAX_EMAILS_PER_CYCLE conservative.
+
+When done, summarize:
+	•	What files you created/modified.
+	•	How the lead source provider selection works.
+	•	How the autopilot loop now flows from “generate leads” → “email leads.”
+	•	How to read Lead Source status in the admin UI.
+
+End PROMPT.
+
+⸻
+
+TL;DR in human terms
+
+You don’t:
+	•	Manually scrape lists
+	•	Upload CSVs
+	•	Type in “Acme Marketing” 400 times
+
+You:
+	•	Set LEAD_NICHE = “small B2B agencies doing recurring service work”
+	•	Set LEAD_GEOGRAPHY and max per cycle
+	•	Plug in a lead API URL + key once
+
+The box:
+	•	Finds candidates
+	•	Creates leads
+	•	Emails them
+	•	Shows you the graph of “here’s who we found / contacted / invoiced”
+
+If you want, once this is in place, next step we can define:
+	•	The exact JSON shape your lead provider should return
+	•	A couple of canned “search query recipes” for different verticals (e.g. fractional CMOs vs RevOps shops vs indie SaaS) that you just swap by flipping LEAD_NICHE.

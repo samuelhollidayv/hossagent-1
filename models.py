@@ -16,6 +16,8 @@ class Lead(SQLModel, table=True):
     company: str
     niche: str
     status: str = "new"  # new, contacted, responded, qualified, dead
+    website: Optional[str] = None
+    source: Optional[str] = None  # dummy_seed, search_api, manual
     last_contacted_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
