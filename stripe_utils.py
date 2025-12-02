@@ -408,15 +408,22 @@ def validate_stripe_at_startup() -> None:
     """
     Validate Stripe configuration at startup and print status banner.
     Called from main.py during app initialization.
+    
+    Logs presence/absence of keys without exposing values.
     """
     is_enabled = is_stripe_enabled()
-    is_valid, message = validate_stripe_config()
+    api_key = get_stripe_api_key()
+    webhook_secret = get_stripe_webhook_secret()
+    
+    api_key_present = api_key is not None and len(api_key) > 0
+    webhook_secret_present = webhook_secret is not None and len(webhook_secret) > 0
     
     if is_enabled:
-        if is_valid:
-            print(f"[STRIPE][STARTUP] Stripe ENABLED and configured")
+        if api_key_present:
+            print(f"[STRIPE][STARTUP] Stripe ENABLED - API key present, webhook secret {'present' if webhook_secret_present else 'NOT SET'}")
+            print(f"[STRIPE][STARTUP] Currency: {get_default_currency().upper()}, Limits: ${get_min_invoice_cents()/100:.2f}-${get_max_invoice_cents()/100:.2f}")
         else:
-            print(f"[STRIPE][DISABLED_MISCONFIG] ENABLE_STRIPE=TRUE but {message} - invoices will not have payment links")
+            print(f"[STRIPE][STARTUP][WARNING] ENABLE_STRIPE=TRUE but STRIPE_API_KEY is missing - falling back to DRY_RUN")
     else:
         print(f"[STRIPE][STARTUP] Stripe disabled (ENABLE_STRIPE != TRUE)")
 

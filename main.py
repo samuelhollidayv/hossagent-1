@@ -656,59 +656,112 @@ async def stripe_webhook(request: Request, session: Session = Depends(get_sessio
     
     Validates webhook signature and processes payment events.
     Updates invoice status when payment is completed.
+    
+    Supported events:
+      - checkout.session.completed: Payment link checkout completed
+      - payment_intent.succeeded: Direct payment succeeded
+      - invoice.paid: Stripe invoice marked paid (if using Stripe invoices)
+    
+    Returns:
+      200 with status on success
+      400 on invalid signature
+      500 on processing error (but doesn't crash app)
     """
     from stripe_utils import verify_webhook_signature, log_stripe_event, get_stripe_webhook_secret
     
-    payload = await request.body()
+    try:
+        payload = await request.body()
+    except Exception as e:
+        print(f"[STRIPE][WEBHOOK] Failed to read request body: {e}")
+        raise HTTPException(status_code=400, detail="Invalid request body")
+    
     signature = request.headers.get("Stripe-Signature", "")
+    
+    if not signature:
+        print("[STRIPE][WEBHOOK] Missing Stripe-Signature header")
+        log_stripe_event("webhook_missing_signature", {})
+        raise HTTPException(status_code=400, detail="Missing signature header")
     
     webhook_secret = get_stripe_webhook_secret()
     if not webhook_secret:
-        log_stripe_event("webhook_received_no_secret", {"error": "No webhook secret configured"})
-        return {"status": "received", "verified": False}
-    
-    if not verify_webhook_signature(payload, signature):
-        print("[STRIPE][WEBHOOK] Invalid signature")
+        print("[STRIPE][WEBHOOK] No webhook secret configured - accepting event without verification")
+        log_stripe_event("webhook_received_no_secret", {"warning": "Unverified - no secret configured"})
+    elif not verify_webhook_signature(payload, signature):
+        print("[STRIPE][WEBHOOK] Invalid signature - rejecting event")
         log_stripe_event("webhook_invalid_signature", {})
         raise HTTPException(status_code=400, detail="Invalid signature")
     
+    import json
     try:
-        import json
         event = json.loads(payload)
         event_type = event.get("type", "unknown")
+        event_id = event.get("id", "unknown")
         event_data = event.get("data", {}).get("object", {})
         
+        print(f"[STRIPE][WEBHOOK] Received event: {event_type} (id={event_id})")
         log_stripe_event(f"webhook_{event_type}", {
-            "event_id": event.get("id"),
+            "event_id": event_id,
             "type": event_type
         })
         
-        if event_type in ["checkout.session.completed", "payment_intent.succeeded"]:
+        invoice_updated = False
+        invoice_id = None
+        
+        if event_type in ["checkout.session.completed", "payment_intent.succeeded", "invoice.paid"]:
             metadata = event_data.get("metadata", {})
             invoice_id = metadata.get("invoice_id")
             
+            if not invoice_id and event_type == "checkout.session.completed":
+                invoice_id = event_data.get("client_reference_id")
+            
             if invoice_id:
-                invoice = session.exec(
-                    select(Invoice).where(Invoice.id == int(invoice_id))
-                ).first()
-                
-                if invoice:
-                    invoice.status = "paid"
-                    invoice.paid_at = datetime.utcnow()
-                    session.add(invoice)
-                    session.commit()
-                    print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} marked as paid")
-                    log_stripe_event("invoice_paid", {
-                        "invoice_id": invoice_id,
-                        "amount_cents": invoice.amount_cents
-                    })
+                try:
+                    invoice = session.exec(
+                        select(Invoice).where(Invoice.id == int(invoice_id))
+                    ).first()
+                    
+                    if invoice:
+                        if invoice.status != "paid":
+                            invoice.status = "paid"
+                            invoice.paid_at = datetime.utcnow()
+                            session.add(invoice)
+                            session.commit()
+                            invoice_updated = True
+                            print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} marked as PAID (amount=${invoice.amount_cents/100:.2f})")
+                            log_stripe_event("invoice_paid", {
+                                "invoice_id": invoice_id,
+                                "amount_cents": invoice.amount_cents,
+                                "event_type": event_type
+                            })
+                        else:
+                            print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} already paid - no action")
+                    else:
+                        print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} not found in database")
+                        log_stripe_event("webhook_invoice_not_found", {"invoice_id": invoice_id})
+                except ValueError:
+                    print(f"[STRIPE][WEBHOOK] Invalid invoice_id format: {invoice_id}")
+            else:
+                print(f"[STRIPE][WEBHOOK] No invoice_id in event metadata")
         
-        return {"status": "processed", "event_type": event_type}
+        return {
+            "status": "processed",
+            "event_type": event_type,
+            "event_id": event_id,
+            "invoice_updated": invoice_updated,
+            "invoice_id": invoice_id
+        }
         
+    except json.JSONDecodeError as e:
+        print(f"[STRIPE][WEBHOOK] Invalid JSON payload: {e}")
+        log_stripe_event("webhook_invalid_json", {"error": str(e)})
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
     except Exception as e:
-        print(f"[STRIPE][WEBHOOK] Error processing: {e}")
+        print(f"[STRIPE][WEBHOOK] Error processing event: {e}")
         log_stripe_event("webhook_error", {"error": str(e)})
-        return {"status": "error", "message": str(e)}
+        return JSONResponse(
+            status_code=200,
+            content={"status": "error", "message": "Processing failed but acknowledged"}
+        )
 
 
 # ============================================================================

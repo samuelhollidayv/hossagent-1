@@ -87,15 +87,17 @@ BIZDEV_SENDER_EMAIL=hello@yourdomain.com
 BIZDEV_OFFER=autonomous business operations
 ```
 
-### Stripe Billing
+### Stripe Billing (Required for Live Payments)
 ```
-ENABLE_STRIPE=TRUE|FALSE           # Default: FALSE
-STRIPE_API_KEY=sk_...              # Secret key (starts with sk_)
-STRIPE_WEBHOOK_SECRET=whsec_...
+ENABLE_STRIPE=TRUE|FALSE           # Default: FALSE - set TRUE to enable payments
+STRIPE_API_KEY=sk_...              # Stripe secret key (starts with sk_live_ or sk_test_)
+STRIPE_WEBHOOK_SECRET=whsec_...    # Webhook signing secret (optional but recommended)
 STRIPE_DEFAULT_CURRENCY=usd        # Default: usd
 STRIPE_MIN_AMOUNT_CENTS=100        # Minimum invoice amount (default: $1.00)
 STRIPE_MAX_AMOUNT_CENTS=50000      # Maximum invoice amount (default: $500.00)
 ```
+
+**IMPORTANT: These are secrets and must be set in Replit Secrets, never in code.**
 
 ### Release Mode
 ```
@@ -210,14 +212,68 @@ STRIPE_MAX_AMOUNT_CENTS=50000      # Default: $500.00
 - Invoices table with LINK OK / MISSING LINK badges
 - Webhook configuration status
 
-### Testing Stripe Payments
-1. Set `ENABLE_STRIPE=TRUE` and `STRIPE_API_KEY` to a valid test key
-2. Create or trigger a new invoice via Billing agent
-3. Verify:
-   - Admin Console shows payment_url for that invoice
-   - Customer Portal shows PAY NOW button
-4. Use Stripe test mode to simulate payment
-5. Confirm invoice status updates to PAID and button disappears
+### Stripe Smoke Test (Manual End-to-End)
+
+**Prerequisites:**
+- ENABLE_STRIPE=TRUE in Secrets
+- STRIPE_API_KEY set to a valid test key (sk_test_...)
+- STRIPE_WEBHOOK_SECRET set (optional but recommended)
+- Restart the workflow after adding secrets
+
+**Step 1: Verify Startup**
+Check the server logs for:
+```
+[STRIPE][STARTUP] Stripe ENABLED - API key present, webhook secret present
+[STRIPE][STARTUP] Currency: USD, Limits: $1.00-$500.00
+```
+If you see `[STRIPE][STARTUP][WARNING]`, your API key is missing.
+
+**Step 2: Confirm Admin Console Status**
+1. Open `/admin` in browser
+2. Find the "STRIPE BILLING" panel
+3. Verify it shows:
+   - Status: ENABLED (green)
+   - Currency: USD
+   - Limits: $1.00-$500.00
+   - Webhook: CONFIGURED (if secret is set)
+
+**Step 3: Create a Test Invoice**
+1. In Admin Console, click "RUN ONBOARDING" to create a test customer
+2. Click "RUN OPS" to generate tasks
+3. Click "RUN BILLING" to generate invoices with payment links
+4. Check the invoices table for "LINK OK" badge
+
+**Step 4: Verify Customer Portal**
+1. In Admin Console, find a customer with invoices
+2. Copy their `public_token` from the customers API: `/api/customers`
+3. Open `/portal/<public_token>` in browser
+4. Verify:
+   - Outstanding Invoices section shows invoices
+   - Each unpaid invoice has a "PAY NOW" button
+   - Account Summary shows correct totals
+
+**Step 5: Test Payment (Stripe Test Mode)**
+1. Click "PAY NOW" on an invoice
+2. Use Stripe test card: `4242 4242 4242 4242`
+3. Any future expiry, any CVC
+4. Complete payment
+
+**Step 6: Verify Webhook Updates**
+After payment, the invoice should:
+1. Show as "PAID" in Admin Console
+2. Have "PAY NOW" button replaced with "PAID" badge in portal
+3. Appear in Payment History section
+
+**Webhook Configuration (Stripe Dashboard):**
+1. Go to Stripe Dashboard > Developers > Webhooks
+2. Add endpoint: `https://your-repl-url.replit.app/stripe/webhook`
+3. Select events: `checkout.session.completed`, `payment_intent.succeeded`
+4. Copy the signing secret to STRIPE_WEBHOOK_SECRET
+
+**Troubleshooting:**
+- No payment links created: Check STRIPE_API_KEY is valid
+- Webhook not updating invoices: Check STRIPE_WEBHOOK_SECRET matches
+- Invoice outside limits: Check STRIPE_MIN/MAX_AMOUNT_CENTS
 
 ### Error Handling
 - All agent cycles catch and log exceptions
