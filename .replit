@@ -5,6 +5,7 @@ integrations = ["python_openai:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["cargo", "libiconv", "libxcrypt", "rustc"]
 
 [workflows]
 runButton = "Project"
@@ -45,10 +46,6 @@ externalPort = 3001
 [[ports]]
 localPort = 35969
 externalPort = 3002
-
-[[ports]]
-localPort = 38951
-externalPort = 5000
 
 [[ports]]
 localPort = 44065

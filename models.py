@@ -24,7 +24,7 @@ class Lead(SQLModel, table=True):
 
 class Customer(SQLModel, table=True):
     """
-    Customer model with subscription/trial support.
+    Customer model with subscription/trial support and authentication.
     
     Plan Types:
     - "trial": 7-day restricted trial (limited tasks/leads, DRY_RUN email, no billing)
@@ -40,6 +40,9 @@ class Customer(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     company: str
     contact_email: str
+    contact_name: Optional[str] = None
+    
+    password_hash: Optional[str] = None
     
     plan: str = "trial"  # trial, paid, trial_expired
     billing_plan: str = "starter"  # starter, pro, enterprise (legacy)
@@ -51,6 +54,9 @@ class Customer(SQLModel, table=True):
     subscription_status: str = "none"  # none, active, past_due, canceled
     stripe_customer_id: Optional[str] = None
     stripe_subscription_id: Optional[str] = None
+    
+    niche: Optional[str] = None
+    geography: Optional[str] = None
     
     tasks_this_period: int = Field(default=0)
     leads_this_period: int = Field(default=0)

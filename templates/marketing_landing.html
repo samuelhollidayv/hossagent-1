@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HossAgent - Autonomous AI Business Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: Georgia, serif;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 0;
+            border-bottom: 1px solid #222;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: normal;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .nav-links a {
+            color: #999;
+            text-decoration: none;
+            margin-left: 2rem;
+            font-size: 0.9rem;
+        }
+        .nav-links a:hover {
+            color: #fff;
+        }
+        .hero {
+            text-align: center;
+            padding: 6rem 0;
+            border-bottom: 1px solid #222;
+        }
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: normal;
+            margin-bottom: 1.5rem;
+            letter-spacing: 2px;
+            line-height: 1.2;
+        }
+        .hero .tagline {
+            font-size: 1.4rem;
+            color: #888;
+            font-style: italic;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            background: #fff;
+            color: #0a0a0a;
+            padding: 1rem 2.5rem;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: bold;
+            border: 2px solid #fff;
+            cursor: pointer;
+            font-family: Georgia, serif;
+        }
+        .btn-primary:hover {
+            background: transparent;
+            color: #fff;
+        }
+        .btn-secondary {
+            background: transparent;
+            color: #999;
+            padding: 1rem 2.5rem;
+            text-decoration: none;
+            font-size: 1rem;
+            border: 1px solid #444;
+            font-family: Georgia, serif;
+        }
+        .btn-secondary:hover {
+            border-color: #fff;
+            color: #fff;
+        }
+        .how-it-works {
+            padding: 5rem 0;
+            border-bottom: 1px solid #222;
+        }
+        .how-it-works h2 {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: normal;
+            margin-bottom: 3rem;
+            color: #888;
+        }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+        }
+        @media (max-width: 768px) {
+            .steps {
+                grid-template-columns: 1fr;
+            }
+        }
+        .step {
+            text-align: center;
+            padding: 2rem;
+            border: 1px solid #222;
+        }
+        .step-number {
+            font-size: 2.5rem;
+            color: #444;
+            margin-bottom: 1rem;
+            font-family: 'Courier New', monospace;
+        }
+        .step h3 {
+            font-size: 1.1rem;
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+        }
+        .step p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .features {
+            padding: 5rem 0;
+            border-bottom: 1px solid #222;
+        }
+        .features h2 {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: normal;
+            margin-bottom: 3rem;
+            color: #888;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+        @media (max-width: 768px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .feature {
+            padding: 2rem;
+            border: 1px solid #222;
+        }
+        .feature h3 {
+            font-size: 1.1rem;
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+        }
+        .feature p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        .pricing {
+            padding: 5rem 0;
+            text-align: center;
+            border-bottom: 1px solid #222;
+        }
+        .pricing h2 {
+            font-size: 1.8rem;
+            font-weight: normal;
+            margin-bottom: 1rem;
+            color: #888;
+        }
+        .price-card {
+            max-width: 400px;
+            margin: 2rem auto;
+            padding: 3rem;
+            border: 2px solid #333;
+        }
+        .price-name {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .price-amount {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        .price-period {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        .price-trial {
+            color: #0f0;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+        .price-features {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+        .price-features li {
+            color: #999;
+            margin-bottom: 0.5rem;
+            list-style: none;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        .price-features li:before {
+            content: "+";
+            position: absolute;
+            left: 0;
+            color: #0f0;
+        }
+        footer {
+            padding: 3rem 0;
+            text-align: center;
+            color: #444;
+            font-size: 0.85rem;
+        }
+        footer a {
+            color: #666;
+            text-decoration: none;
+        }
+        footer a:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="logo">HossAgent</div>
+            <div class="nav-links">
+                <a href="/login">Login</a>
+                <a href="/signup">Start Trial</a>
+            </div>
+        </nav>
+        
+        <section class="hero">
+            <h1>Autonomous AI Workers,<br>Designed to Earn</h1>
+            <p class="tagline">
+                HossAgent finds leads, sends outreach, executes tasks, and bills clients.
+                Your business runs while you sleep.
+            </p>
+            <div class="cta-buttons">
+                <a href="/signup" class="btn-primary">Start 7-Day Free Trial</a>
+                <a href="mailto:hello@hossagent.com" class="btn-secondary">Book a Demo</a>
+            </div>
+        </section>
+        
+        <section class="how-it-works">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">01</div>
+                    <h3>Lead Generation</h3>
+                    <p>AI finds qualified prospects in your target market</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">02</div>
+                    <h3>Smart Outreach</h3>
+                    <p>Personalized emails sent at optimal times</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">03</div>
+                    <h3>Task Execution</h3>
+                    <p>AI completes work and tracks time</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">04</div>
+                    <h3>Auto Billing</h3>
+                    <p>Invoices generated and sent automatically</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="features">
+            <h2>Built for B2B Agencies</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>Autonomous Agents</h3>
+                    <p>Four specialized AI agents work in concert: BizDev, Onboarding, Operations, and Billing. They coordinate to grow your business.</p>
+                </div>
+                <div class="feature">
+                    <h3>Real-Time Profit Tracking</h3>
+                    <p>See revenue, costs, and profit for every task. Know exactly what each client is worth.</p>
+                </div>
+                <div class="feature">
+                    <h3>Stripe Integration</h3>
+                    <p>Payment links generated automatically. Clients pay with one click. Subscriptions handled seamlessly.</p>
+                </div>
+                <div class="feature">
+                    <h3>Full Control Panel</h3>
+                    <p>Toggle agents on/off, monitor email health, adjust lead sources. You stay in command.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="pricing">
+            <h2>Simple Pricing</h2>
+            <div class="price-card">
+                <div class="price-name">HossAgent Pro</div>
+                <div class="price-amount">$99</div>
+                <div class="price-period">per month</div>
+                <div class="price-trial">7-day free trial included</div>
+                <ul class="price-features">
+                    <li>Unlimited leads</li>
+                    <li>Unlimited tasks</li>
+                    <li>Autonomous outreach</li>
+                    <li>Stripe billing integration</li>
+                    <li>Real-time analytics</li>
+                    <li>Autopilot mode</li>
+                </ul>
+                <a href="/signup" class="btn-primary" style="display: block;">Start Free Trial</a>
+            </div>
+        </section>
+        
+        <footer>
+            <p>HossAgent &copy; 2024. Built for founders who ship.</p>
+            <p style="margin-top: 0.5rem;"><a href="/admin">Operator Console</a></p>
+        </footer>
+    </div>
+</body>
+</html>

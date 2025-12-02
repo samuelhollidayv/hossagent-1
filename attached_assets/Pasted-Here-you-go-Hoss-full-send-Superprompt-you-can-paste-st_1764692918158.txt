@@ -1,0 +1,394 @@
+Here you go, Hoss — full send Superprompt you can paste straight into the Replit Agent “Build” box.
+
+⸻
+
+SUPERPROMPT FOR HOSSAGENT UI / AUTH / BILLING CLEANUP
+
+You are working on a FastAPI + Jinja + Stripe project called HossAgent running on Replit. The app currently has:
+	•	An internal operator console at /admin (“Hoss Control Room”) with:
+	•	Lead pipeline
+	•	Tasks, invoices, email health
+	•	Stripe billing panel (with “REGENERATE PAYMENT LINKS”)
+	•	Subscription plan config and a Customer Plans table with “View as customer” links
+	•	A customer portal at /portal/<public_token> which currently shows:
+	•	“Your HossAgent Ops Portal”
+	•	Plan section with “HossAgent Pro – $99/month – Manage Billing”
+	•	Recent work
+	•	Invoices (DRAFT / Awaiting payment link…)
+	•	Payment history (“No paid invoices yet”)
+	•	“Powered by HossAgent” footer
+	•	Stripe has been wired up with:
+	•	ENABLE_STRIPE flag
+	•	STRIPE_API_KEY (secret key)
+	•	STRIPE_PUBLIC_KEY
+	•	Optional STRIPE_WEBHOOK_SECRET
+	•	Logic that can generate Stripe Payment Links for invoices
+	•	New subscription model: $99/month, 7-day free trial, trial usage limits (15 tasks, 20 leads), unlimited for paid users.
+	•	A TrialIdentity model for basic trial-abuse prevention.
+	•	Customer records with fields to store subscription / plan info, trial dates, and usage.
+
+You have already:
+	•	Added subscription utilities (subscription_utils.py or similar) for handling plan logic.
+	•	Added a Stripe test harness that can validate config, payment links, and portal templates.
+	•	Added “View as customer” links from the admin console into the customer portal.
+
+Now I need you to perform a coherent, end-to-end UX + architecture pass with a focus on:
+	1.	Clear separation between “internal Hoss console” and “customer portal”
+	2.	Simple, secure customer authentication + onboarding flow
+	3.	Subscription-first billing UX using Stripe (checkout + customer portal)
+	4.	Removing vestigial UI from the old “per-task micro-invoice” model
+	5.	Keeping the codebase organized and well-documented so I can maintain it
+
+⸻
+
+1. ROUTES & ROLES: ADMIN VS CUSTOMER
+
+Goal: Make it crystal clear what’s for me (the operator) vs what’s for the paying customer.
+
+Admin / Operator side (me, the Hoss):
+	•	/admin remains the Hoss Control Room with:
+	•	Stats tiles (total leads, total customers, pending tasks, draft invoices)
+	•	Run buttons (Run Lead Source, Run BizDev, Run Onboarding, Run Ops, Run Billing)
+	•	Email health, auto-created leads, etc.
+	•	Stripe Billing panel
+	•	Subscription Plan panel
+	•	Customer Plans table
+
+Tasks:
+	1.	Keep /admin auth-protected (whatever minimal auth we already have — session, hardcoded password, etc). If it’s not protected yet, add a simple but explicit admin auth layer.
+	2.	In the Customer Plans table, ensure each row has:
+	•	Company
+	•	Plan (Trial / Pro)
+	•	Status (Active / Trialing / Canceled)
+	•	Trial days left (if applicable)
+	•	Tasks used / Leads used (with unlimited indicator for paid)
+	•	Portal link: “View as customer”
+	•	Action dropdown: at minimum “Upgrade to paid”, “Cancel subscription”, and “Impersonate (view portal as this customer)”.
+	3.	Make sure /admin never leaks customer “public tokens” in a way that breaks security. If a public_token is used for portals:
+	•	It should be non-guessable.
+	•	It’s fine to display it only in admin and to embed it into links, but treat it as a capability URL.
+
+Customer side (the paying client):
+We want two core experiences:
+	1.	Marketing / sign-up / onboarding (no login yet, or “create account”)
+	2.	Customer Ops Portal (logged-in account or at least magic-link style auth)
+
+Routes to define/refine:
+	•	/
+	•	This should be a marketing + sign-up landing page, not the internal dashboard.
+	•	Content:
+	•	Short hero (“Autonomous AI workers, designed to earn” is fine, but tweak copy if helpful).
+	•	Simple explanation of what HossAgent does for a small B2B agency / consultancy.
+	•	Clear primary CTA: “Start 7-day free trial” → leads to sign-up + Stripe checkout.
+	•	Secondary CTA: “Book a demo” (can be a mailto or placeholder link for now).
+	•	Optionally, a short “How it works” section: Leads → Outreach → Tasks → Reports.
+	•	/signup (or /start)
+	•	Simple sign-up form:
+	•	Company name
+	•	Contact name
+	•	Email
+	•	Niche (optional)
+	•	Geography (optional)
+	•	On submit:
+	•	Create a Customer record (trialing state).
+	•	Create a TrialIdentity entry with email/IP/etc for basic abuse prevention (re-use the existing logic).
+	•	Redirect the user to Stripe Checkout for a $0 first 7 days then $99/month subscription (Stripe free-trial subscription).
+	•	After success, Stripe should redirect them to /portal (or /portal/<token>).
+	•	/login
+	•	Minimal login/auth flow for customers.
+	•	Options (choose one and implement cleanly):
+	1.	Email + magic link: They enter email, we email them a one-time login link with a signed token.
+	2.	Email + password: simplest classic auth.
+	•	For now, OK to pick the simplest robust pattern you can fully implement: if password, we must hash it; if magic link, we must sign and validate tokens.
+	•	/portal or /portal/<public_token>
+	•	This is the customer ops portal.
+	•	It should either:
+	•	Require login session, OR
+	•	Accept a non-guessable public_token tied to the customer record.
+	•	If both mechanisms exist, enforce a clean rule:
+	•	Logged-in customers see /portal with their data.
+	•	Admin “View as customer” uses /portal/<public_token> to impersonate that customer.
+
+Task:
+	•	Audit all existing routes and templates.
+	•	Rename/redirect as needed so:
+	•	/admin = operator console
+	•	/ = marketing + trial sign-up entry
+	•	/signup = account creation + redirect to Stripe checkout
+	•	/login = customer auth
+	•	/portal or /portal/<public_token> = customer operations portal
+	•	Update nav bars and links to match this information architecture.
+
+⸻
+
+2. CUSTOMER AUTHENTICATION
+
+Goal: Customers shouldn’t be dropped into a portal purely via a random token forever. We want a sane, minimal auth story.
+
+Pick one pattern and implement it end-to-end:
+
+Option A: Email + password (simple)
+	•	Customer model gains fields:
+	•	email (already has)
+	•	password_hash
+	•	Add:
+	•	/signup:
+	•	Ask for password + confirm password.
+	•	Hash the password (e.g., using passlib or bcrypt).
+	•	Store in DB.
+	•	/login:
+	•	Check email + password against hashed value.
+	•	Create a session (cookie) marking customer_id as logged in.
+	•	Portal routes:
+	•	Require a logged-in customer session, otherwise redirect to /login.
+	•	Admin “View as customer” is allowed to bypass login via a special admin-only token or query param; make sure that doesn’t get exposed publicly.
+
+Option B: Magic link (email-only, no passwords)
+	•	/login:
+	•	They submit email.
+	•	Generate a signed token (e.g., with itsdangerous or JWT) that encodes the customer id and expiry.
+	•	Email them a login URL like /portal/login?token=....
+	•	That route validates token, sets session, and redirects to /portal.
+	•	This is nicer UX but requires that the existing email system (already in DRY_RUN mode) can send transactional emails to customers. Use whatever existing SMTP/email abstraction is present.
+
+Task:
+	•	Choose A or B based on what’s simplest to implement robustly with current code.
+	•	Implement:
+	•	Data model changes.
+	•	Routes/controllers.
+	•	Templates (login.html, signup.html).
+	•	Session management + logout route.
+	•	Ensure /admin keeps its own auth separate from customer auth (no cross-contamination of sessions).
+
+⸻
+
+3. STRIPE SUBSCRIPTION FLOW (SUBSCRIPTION-FIRST, NOT PER-TASK)
+
+We want a subscription-centric setup:
+	•	One primary product: HossAgent Pro – $99/month, 7-day free trial.
+	•	Stripe responsibilities:
+	•	Host checkout for initial subscription sign-up.
+	•	Manage recurring billing, credit card data.
+	•	Offer Stripe-hosted billing portal for customers to:
+	•	Update card
+	•	Change plan (if we later add tiers)
+	•	Cancel subscription
+
+Tasks:
+	1.	Create Stripe Product & Price programmatically if not present:
+	•	At startup, check for existing product/price IDs in secrets or DB.
+	•	If missing, create:
+	•	Product: “HossAgent Pro”.
+	•	Price: $99/month, with 7-day trial, recurring.
+	•	Store the Stripe product/price IDs in configuration / DB to avoid recreating.
+	2.	Checkout session:
+	•	Implement a backend endpoint like POST /api/create-checkout-session:
+	•	Accepts customer info (or uses the just-created customer record after /signup).
+	•	Creates a Stripe Checkout session for the subscription.
+	•	Uses success_url pointing back to /portal (or /post-checkout?session_id=...).
+	•	Uses cancel_url pointing back to /signup or /.
+	•	Wire /signup to call this endpoint after creating the local Customer.
+	3.	Stripe webhooks:
+	•	We already have STRIPE_WEBHOOK_SECRET wiring partially. Extend it so that when events arrive, we:
+	•	On checkout.session.completed:
+	•	Mark the local customer as plan=PRO, status=active, trial_started_at, trial_ends_at if relevant.
+	•	On customer.subscription.updated / customer.subscription.deleted:
+	•	Update local subscription status (active / canceled / past_due).
+	•	Log these events to console and/or DB for debugging.
+	4.	Stripe Billing Portal link:
+	•	Implement an endpoint like POST /api/create-billing-portal-session for logged-in customers:
+	•	Creates a Stripe Billing Portal Session for that customer.
+	•	Returns a redirect URL.
+	•	On the customer portal, the “Manage Billing” button should:
+	•	Call that endpoint and redirect to the Stripe portal, not a placeholder.
+	•	On the admin console, optionally add a “Manage billing in Stripe” action for each customer.
+	5.	Invoice/payment behavior:
+	•	For now, subscription is the source of truth for payment.
+	•	The old per-task micro-invoices can remain as an internal reporting artifact (profit, cost, reward), but:
+	•	In the customer portal, do not show $1.37 draft invoices as “payable items”.
+	•	Instead, show them as internal line-items / work logs or remove them from customer view entirely.
+	•	Where invoices remain visible in the portal:
+	•	Make it clear they are “internal work summaries, billed through your subscription” — not things they click to pay individually.
+
+⸻
+
+4. CUSTOMER PORTAL UX CLEANUP
+
+Goal: When a customer lands on their portal, they should see three clear things:
+	1.	Plan & billing status
+	2.	What’s been done for them recently
+	3.	What they can do next / how to use the system
+
+Tasks:
+	1.	Plan & Billing card (top of portal):
+	•	Title: “HossAgent Pro” (or “Trial – HossAgent Pro”).
+	•	Show:
+	•	$99/month
+	•	For trial users: “You are in a 7-day free trial. X days remaining.”
+	•	For paid users: “Active subscription” and next billing date (from Stripe if available, or approximate).
+	•	Buttons:
+	•	If trial:
+	•	Primary: “Upgrade to Pro” (goes to Stripe checkout for full subscription if not already).
+	•	If paid:
+	•	Primary: “Manage Billing” (Stripe Billing Portal link).
+	•	Use the existing green “Active Subscription” style if you want, but ensure text matches state.
+	2.	Recent Work section:
+	•	Keep this, but make sure:
+	•	It’s clearly labeled “Recent Work Completed”.
+	•	Each row: date, task description, status.
+	•	If no work yet, show a friendly empty state:
+	•	“As soon as your HossAgent starts working, you’ll see completed tasks here.”
+	3.	Invoices / Payment History section:
+	•	Re-label as something like “Billing History”.
+	•	For subscription model, only list Stripe invoices/charges if we have them.
+	•	If integrating Stripe invoice data is too much for now:
+	•	Hide this section or show a placeholder:
+	•	“Billing is handled via your monthly subscription. Detailed invoices will appear here once available.”
+	•	Remove or hide the $1.37 draft micro-invoices from customer view. Those can remain in admin only.
+	4.	Actions / Help:
+	•	Add a small side or footer section:
+	•	“Need help or want changes? Email hoss@… or book a call.” (placeholder is fine).
+	•	Optionally show a “How to use HossAgent” mini-guide:
+	•	Step 1: Confirm your account and billing.
+	•	Step 2: Define your niche + geography.
+	•	Step 3: Turn on Autopilot (if we expose that in the portal or via support).
+	5.	Mobile UX sanity:
+	•	You’ve been testing on a phone — keep that orientation:
+	•	Ensure main cards (plan, work, billing) stack vertically and are readable.
+	•	Avoid wide tables requiring horizontal scroll for the customer portal.
+
+⸻
+
+5. ADMIN CONSOLE CLEANUP
+
+Goal: The admin console should reflect the subscription model and not confuse you with customer-facing widgets.
+
+Tasks:
+	1.	Stripe Billing panel at /admin:
+	•	Keep:
+	•	ENABLED / DISABLED status
+	•	API key loaded YES/NO
+	•	Webhook secret YES/NO
+	•	Keep “REGENERATE PAYMENT LINKS” only if you still need it for some internal test invoices. Otherwise:
+	•	Replace it with “Run Stripe diagnostics” or similar, which:
+	•	Calls Stripe to verify product/price existence.
+	•	Logs a quick sanity report.
+	2.	Subscription Plan box:
+	•	Show clearly:
+	•	Plan name
+	•	Price
+	•	Trial days
+	•	Product Ready (YES/NO)
+	•	Price Ready (YES/NO)
+	•	Add a short description subtext:
+	•	“Trial users get 7 days, 15 tasks, 20 leads, DRY_RUN emails only. Paid users get unlimited access with live outbound.”
+	3.	Customer Plans table:
+	•	Columns:
+	•	ID
+	•	Company
+	•	Plan (Trial/Pro)
+	•	Status (Active/Trialing/Canceled)
+	•	Tasks used / Leads used
+	•	Days left (for trial)
+	•	Portal link (“View as customer”)
+	•	Actions
+	•	Ensure clicking “View as customer” opens the new, cleaned-up customer portal in Preview mode.
+	4.	Remove customer-facing language from admin dashboard tiles:
+	•	It’s fine to keep “Total revenue / outstanding” etc in /admin but make sure those are clearly labeled as internal metrics. Customers should never see those.
+
+⸻
+
+6. SECURITY & GUARDRAILS
+
+We explicitly want to avoid “candy-ass churn hackers” creating infinite free trials.
+
+Tasks:
+	1.	Trial abuse checks (backed by TrialIdentity):
+	•	On /signup:
+	•	Check for existing trials on same email.
+	•	Check IP/device fingerprint if we have anything.
+	•	If we detect multiple trials, either:
+	•	Gracefully block and show “Looks like you’ve already had a trial; contact us to extend access.”
+	•	Or auto-route them straight to paid checkout without free trial.
+	•	Log these decisions in the DB for observability.
+	2.	Portal access:
+	•	Don’t let someone just guess /portal/<short id>:
+	•	Use long random tokens or require login sessions.
+	•	If a token is invalid or expired:
+	•	Show “This portal link is invalid or expired. Please log in or contact support.”
+	3.	Stripe webhooks:
+	•	Validate the webhook signature with STRIPE_WEBHOOK_SECRET.
+	•	If not set, log a clear warning that webhooks are not secure and perhaps disable them in production mode until configured.
+
+⸻
+
+7. CODE ORGANIZATION & DOCUMENTATION
+
+When you’re done, I need to be able to reason about this app without spelunking for an hour.
+
+Tasks:
+	1.	Add or update a top-level SETUP.md or README.md describing:
+	•	Required secrets:
+	•	SESSION_SECRET
+	•	OPENAI_API_KEY
+	•	ENABLE_STRIPE
+	•	STRIPE_API_KEY
+	•	STRIPE_PUBLIC_KEY
+	•	STRIPE_WEBHOOK_SECRET (optional but recommended)
+	•	How to:
+	•	Run the app on Replit.
+	•	Configure Stripe (test vs live keys).
+	•	Create the subscription product (or note that it’s auto-created).
+	•	Test the signup + login + portal flow.
+	•	Test webhooks (using Stripe CLI, etc).
+	2.	Keep subscription logic centralized:
+	•	E.g., in subscription_utils.py expose clear helpers:
+	•	is_trial_active(customer)
+	•	is_paid(customer)
+	•	get_trial_days_left(customer)
+	•	can_run_agent_for(customer) (respects usage limits & plan).
+	•	Use these helpers from the rest of the code instead of duplicating logic.
+	3.	Make sure templates are clearly separated:
+	•	/templates/admin_* for admin.
+	•	/templates/portal_* for customer.
+	•	/templates/auth_* for signup/login.
+	•	/templates/marketing_* or index.html for the public landing page.
+
+⸻
+
+8. TESTING & ACCEPTANCE CRITERIA
+
+When you finish, please:
+	1.	Run any existing internal test harness / “end-to-end test report” you built earlier and update it if needed to cover:
+	•	Stripe enabled + API key present.
+	•	Subscription product/price ready.
+	•	Auth routes functional.
+	•	Portal accessible as:
+	•	Logged-in customer.
+	•	“View as customer” link from /admin.
+	2.	In your final summary to me, list:
+	•	New routes added/changed.
+	•	New models/fields.
+	•	How to run through this scenario step-by-step on test Stripe:
+	1.	Go to /.
+	2.	Click “Start 7-day free trial”.
+	3.	Fill sign-up form.
+	4.	Complete Stripe Checkout with test card.
+	5.	Land in customer portal.
+	6.	View portal data.
+	7.	Use “Manage Billing” to open Stripe Billing Portal.
+	8.	Cancel subscription and see how portal reflects new status.
+	3.	Confirm that:
+	•	Customers never see the internal Hoss Control Room metrics.
+	•	Admin never has to manually construct URLs to impersonate a customer — they can just click “View as customer” from /admin.
+
+⸻
+
+Important Guardrails:
+	•	Do not break the existing autonomous agent logic (BizDev / Ops / Billing cycles). If you need to stub something, do it explicitly and document it.
+	•	Keep DRY_RUN behavior intact for outbound email in dev mode.
+	•	When in doubt, err on the side of clean UX and a single subscription plan, not clever multi-tier complexity.
+
+⸻
+
+That’s the full spec. Work directly in this Replit project, update routes, templates, and Stripe integration as needed to implement everything above, and then give me a detailed change summary and quick usage guide when you’re done.
