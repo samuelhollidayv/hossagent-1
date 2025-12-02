@@ -1,0 +1,44 @@
+Here is the clean, text-only, copy-paste-ready Replit Agent prompt that will guarantee the PAY NOW button appears in every customer portal and that Stripe payment links are generated correctly for all invoices — including any already created before Stripe was enabled.
+
+Paste this EXACTLY as written:
+
+⸻
+
+PROMPT FOR REPLIT AGENT (COPY–PASTE VERBATIM)
+
+I have now configured Stripe (ENABLE_STRIPE=TRUE, STRIPE_API_KEY set, STRIPE_WEBHOOK_SECRET set). I need you to update HossAgent so all invoices correctly generate Stripe payment links and all customer portals display the PAY NOW button as expected.
+
+Do the following:
+	1.	Rebuild the Stripe billing pipeline to ensure:
+• New invoices ALWAYS call Stripe to generate a payment link.
+• Existing invoices without a payment_url are retroactively updated with a Stripe payment link.
+• If Stripe is enabled, invoice.payment_url must never be null.
+• The admin console should show “payment link available” instead of “MISSING LINK.”
+	2.	Update the customer portal template so:
+• Any invoice with status “draft” or “unpaid” AND with a payment_url shows a visible PAY NOW button.
+• The button links directly to invoice.payment_url.
+• Styling matches the noir theme.
+• No errors occur if an invoice already has a payment_url.
+	3.	Add a maintenance endpoint accessible from admin routes:
+POST /admin/regenerate-payment-links
+This should:
+• Loop through all invoices with missing payment_url.
+• Call Stripe to generate new payment links.
+• Save them into the database.
+• Return a JSON summary.
+	4.	After implementing, run a full test cycle:
+• Create a new invoice → confirm payment_url is created.
+• Visit a customer portal → confirm PAY NOW button appears.
+• Simulate webhook event (if possible) → invoice should mark paid.
+	5.	Update replit.md documentation to reflect:
+• How Stripe payment links are generated.
+• How to use /admin/regenerate-payment-links.
+• How PAY NOW buttons appear in customer portals.
+
+Do NOT change anything else about lead generation, BizDev, onboarding, or ops agents. Only stabilize and finalize the billing/payment link experience.
+
+Begin now.
+
+⸻
+
+If you want, I can also give you a follow-up confirmation script to quickly check if Stripe is truly wired end-to-end.

@@ -645,6 +645,134 @@ Sent at: {datetime.utcnow().isoformat()}
     }
 
 
+@app.post("/admin/regenerate-payment-links")
+def admin_regenerate_payment_links(
+    max_invoices: int = Query(default=100, description="Maximum invoices to process"),
+    session: Session = Depends(get_session)
+):
+    """
+    Regenerate Stripe payment links for all unpaid invoices missing them.
+    
+    Use this endpoint to:
+    - Fix invoices created before Stripe was enabled
+    - Regenerate links after Stripe configuration changes
+    - Bulk update invoices missing payment links
+    
+    Returns JSON summary:
+        - invoices_processed: Number of invoices checked
+        - links_created: Number of new payment links generated
+        - links_failed: Number of link creation failures
+        - invoices_skipped: Number of invoices skipped (already have links or are paid)
+        - details: Per-invoice breakdown
+    """
+    from stripe_utils import ensure_invoice_payment_url, is_stripe_enabled, validate_stripe_config
+    
+    is_valid, config_msg = validate_stripe_config()
+    if not is_valid:
+        return {
+            "success": False,
+            "error": config_msg,
+            "invoices_processed": 0,
+            "links_created": 0,
+            "links_failed": 0,
+            "invoices_skipped": 0,
+            "details": []
+        }
+    
+    invoices = session.exec(
+        select(Invoice).where(
+            Invoice.status.in_(["draft", "sent"])
+        ).limit(max_invoices)
+    ).all()
+    
+    results = {
+        "success": True,
+        "invoices_processed": len(invoices),
+        "links_created": 0,
+        "links_failed": 0,
+        "invoices_skipped": 0,
+        "details": []
+    }
+    
+    for invoice in invoices:
+        if invoice.payment_url and len(invoice.payment_url) > 10:
+            results["invoices_skipped"] += 1
+            results["details"].append({
+                "invoice_id": invoice.id,
+                "status": "skipped",
+                "reason": "Already has payment link"
+            })
+            continue
+        
+        customer = session.exec(
+            select(Customer).where(Customer.id == invoice.customer_id)
+        ).first()
+        
+        if not customer:
+            results["invoices_skipped"] += 1
+            results["details"].append({
+                "invoice_id": invoice.id,
+                "status": "skipped",
+                "reason": "No customer found"
+            })
+            continue
+        
+        try:
+            result = ensure_invoice_payment_url(
+                invoice_id=invoice.id,
+                amount_cents=invoice.amount_cents,
+                customer_id=customer.id,
+                customer_email=customer.contact_email,
+                customer_company=customer.company,
+                invoice_status=invoice.status,
+                existing_payment_url=invoice.payment_url
+            )
+            
+            if result.success and result.payment_url:
+                invoice.payment_url = result.payment_url
+                stripe_id = getattr(result, 'stripe_id', None)
+                if stripe_id:
+                    invoice.stripe_payment_id = stripe_id
+                session.add(invoice)
+                results["links_created"] += 1
+                url_preview = result.payment_url[:50] + "..." if len(result.payment_url) > 50 else result.payment_url
+                results["details"].append({
+                    "invoice_id": invoice.id,
+                    "status": "created",
+                    "payment_url": url_preview
+                })
+            elif result.mode == "dry_run":
+                results["invoices_skipped"] += 1
+                results["details"].append({
+                    "invoice_id": invoice.id,
+                    "status": "skipped",
+                    "reason": f"DRY_RUN: {result.error or 'Stripe not available'}"
+                })
+            else:
+                results["links_failed"] += 1
+                results["details"].append({
+                    "invoice_id": invoice.id,
+                    "status": "failed",
+                    "error": result.error or "Unknown error"
+                })
+        except Exception as e:
+            results["links_failed"] += 1
+            results["details"].append({
+                "invoice_id": invoice.id,
+                "status": "failed",
+                "error": str(e)
+            })
+            print(f"[ADMIN][REGENERATE][ERROR] Invoice {invoice.id}: {e}")
+    
+    session.commit()
+    
+    print(f"[ADMIN][REGENERATE] Processed {results['invoices_processed']} invoices: "
+          f"{results['links_created']} created, {results['links_failed']} failed, "
+          f"{results['invoices_skipped']} skipped")
+    
+    return results
+
+
 # ============================================================================
 # STRIPE WEBHOOK
 # ============================================================================
