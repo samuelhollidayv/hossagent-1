@@ -96,8 +96,15 @@ async def run_once():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_frontend():
-    """Serve the main HTML page."""
+async def serve_landing():
+    """Serve the landing page."""
+    with open("index.html", "r") as f:
+        return f.read()
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def serve_dashboard():
+    """Serve the demo dashboard."""
     html_content = '''<!DOCTYPE html>
 <html lang="en">
 <head>
