@@ -287,7 +287,7 @@ def create_payment_link(
         payment_url = link_data["url"]
         stripe_id = link_data["id"]
         
-        print(f"[STRIPE] Payment link created: {stripe_id} for invoice {invoice_id}")
+        print(f"[STRIPE][PAYMENT_LINK] invoice_id={invoice_id} url={payment_url}")
         log_stripe_event("payment_link_created", {
             "invoice_id": invoice_id,
             "customer_id": customer_id,
@@ -392,6 +392,7 @@ def get_stripe_status() -> Dict[str, Any]:
     """Get current Stripe configuration status for admin display."""
     is_enabled = is_stripe_enabled()
     is_valid, message = validate_stripe_config()
+    api_key = get_stripe_api_key()
     webhook_secret = get_stripe_webhook_secret()
     min_cents = get_min_invoice_cents()
     max_cents = get_max_invoice_cents()
@@ -412,6 +413,7 @@ def get_stripe_status() -> Dict[str, Any]:
         "configured": is_valid,
         "message": message,
         "currency": get_default_currency(),
+        "api_key_present": api_key is not None and len(api_key) > 0,
         "webhook_configured": webhook_secret is not None and len(webhook_secret) > 0,
         "min_amount": f"${min_cents/100:.2f}",
         "max_amount": f"${max_cents/100:.2f}",

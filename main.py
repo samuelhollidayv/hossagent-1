@@ -1124,19 +1124,15 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     if not tasks_rows:
         tasks_rows = '<tr><td colspan="3" class="empty">No tasks yet.</td></tr>'
     
+    stripe_enabled = is_stripe_enabled()
+    
     outstanding_rows = ""
     for i in outstanding_invoices:
         payment_btn = ""
-        if show_pay_buttons and i.payment_url and len(i.payment_url) > 10:
-            try:
-                payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
-            except Exception as e:
-                print(f"[PORTAL][WARNING] Malformed payment_url for invoice {i.id}: {e}")
-                payment_btn = '<span class="payment-unavailable">Payment link unavailable</span>'
-        elif not show_pay_buttons:
-            payment_btn = ''
-        else:
-            payment_btn = '<span class="payment-unavailable">Payment link unavailable</span>'
+        if i.payment_url and len(i.payment_url) > 10:
+            payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
+        elif stripe_enabled:
+            payment_btn = '<span class="payment-unavailable">Awaiting payment link...</span>'
         
         outstanding_rows += f"""
             <tr>
