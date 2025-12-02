@@ -1618,5 +1618,275 @@
     "template_index": 0,
     "subject": "Quick idea to de-risk your pipeline",
     "body_preview": "Hi Lead_6822,\n\nI've been looking at small shops like Atlas Enterprise Group that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash ..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.362695",
+    "lead_id": 4,
+    "lead_email": "contact@strattonindustries.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "Quick idea to de-risk your pipeline",
+    "body_preview": "Hi Lead_3889,\n\nI've been looking at small shops like Stratton Industries that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash com..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.374492",
+    "lead_id": 5,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "body_preview": "Hi Lead_8824,\n\nI've been looking at small shops like Apex Ventures LLC that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash comin..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.383347",
+    "lead_id": 6,
+    "lead_email": "contact@titanlogisticsinc.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "Quick idea to de-risk your pipeline",
+    "body_preview": "Hi Lead_7233,\n\nI've been looking at small shops like Titan Logistics Inc that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash com..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.391507",
+    "lead_id": 7,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Lead_2448,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Research folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue every month.\n\nI..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.400003",
+    "lead_id": 8,
+    "lead_email": "contact@nexuscapitalpartners.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Quick idea for Nexus Capital Partners",
+    "body_preview": "Lead_2714,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Analytics folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue every month.\n\n..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.407465",
+    "lead_id": 9,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "body_preview": "Hi Lead_2406,\n\nRunning a Analytics business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles ..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.420812",
+    "lead_id": 10,
+    "lead_email": "contact@meridiansolutionsgroup.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Quick idea to de-risk your pipeline",
+    "body_preview": "Lead_9797,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Research folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue every month.\n\nI..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.427792",
+    "lead_id": 11,
+    "lead_email": "contact@strattonindustries.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Hi Lead_1981,\n\nRunning a Operations business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.457723",
+    "lead_id": 12,
+    "lead_email": "contact@titanlogisticsinc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Hi Lead_2118,\n\nRunning a Operations business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles..."
+  },
+  {
+    "timestamp": "2025-12-02T10:58:52.474600",
+    "lead_id": 13,
+    "lead_email": "contact@atlasenterprisegroup.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Hi Lead_6822,\n\nI've been looking at small shops like Atlas Enterprise Group that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash ..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.350856",
+    "lead_id": 4,
+    "lead_email": "contact@strattonindustries.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "Stratton Industries - one less thing to worry about",
+    "body_preview": "Hi Lead_3889,\n\nI've been looking at small shops like Stratton Industries that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash com..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.360835",
+    "lead_id": 5,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Lead_8824,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Enterprise Software folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue ever..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.370303",
+    "lead_id": 6,
+    "lead_email": "contact@titanlogisticsinc.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Lead_7233,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Enterprise Software folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue ever..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.376838",
+    "lead_id": 7,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Hi Lead_2448,\n\nRunning a Research business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles t..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.383167",
+    "lead_id": 8,
+    "lead_email": "contact@nexuscapitalpartners.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Hi Lead_2714,\n\nI've been looking at small shops like Nexus Capital Partners that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash ..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.389394",
+    "lead_id": 9,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "body_preview": "Hi Lead_2406,\n\nRunning a Analytics business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles ..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.397849",
+    "lead_id": 10,
+    "lead_email": "contact@meridiansolutionsgroup.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Hi Lead_9797,\n\nRunning a Research business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles t..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.404344",
+    "lead_id": 11,
+    "lead_email": "contact@strattonindustries.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Quick idea for Stratton Industries",
+    "body_preview": "Hi Lead_1981,\n\nRunning a Operations business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.410386",
+    "lead_id": 12,
+    "lead_email": "contact@titanlogisticsinc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Quick idea to de-risk your pipeline",
+    "body_preview": "Hi Lead_2118,\n\nRunning a Operations business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles..."
+  },
+  {
+    "timestamp": "2025-12-02T11:00:41.419954",
+    "lead_id": 13,
+    "lead_email": "contact@atlasenterprisegroup.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Hi Lead_6822,\n\nI've been looking at small shops like Atlas Enterprise Group that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash ..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.174610",
+    "lead_id": 4,
+    "lead_email": "contact@strattonindustries.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Hi Lead_3889,\n\nRunning a Research business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles t..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.181856",
+    "lead_id": 5,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Hi Lead_8824,\n\nRunning a Enterprise Software business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system tha..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.188766",
+    "lead_id": 6,
+    "lead_email": "contact@titanlogisticsinc.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Lead_7233,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Enterprise Software folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue ever..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.197596",
+    "lead_id": 7,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Taking the grunt work off your plate",
+    "body_preview": "Hi Lead_2448,\n\nRunning a Research business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles t..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.206174",
+    "lead_id": 8,
+    "lead_email": "contact@nexuscapitalpartners.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "Quick idea for Nexus Capital Partners",
+    "body_preview": "Hi Lead_2714,\n\nRunning a Analytics business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles ..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.213919",
+    "lead_id": 9,
+    "lead_email": "contact@apexventuresllc.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "body_preview": "Lead_2406,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Analytics folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue every month.\n\n..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.225838",
+    "lead_id": 10,
+    "lead_email": "contact@meridiansolutionsgroup.com",
+    "template_pack": "general",
+    "template_index": 1,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Hi Lead_9797,\n\nRunning a Research business means you're juggling a lot - client work, new leads, invoicing, follow-ups. What if half of that ran itself?\n\nI've built an autonomous system that handles t..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.233137",
+    "lead_id": 11,
+    "lead_email": "contact@strattonindustries.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "You + 1 autonomous ops brain",
+    "body_preview": "Lead_1981,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Operations folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue every month.\n..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.240247",
+    "lead_id": 12,
+    "lead_email": "contact@titanlogisticsinc.com",
+    "template_pack": "general",
+    "template_index": 2,
+    "subject": "Quick idea for Titan Logistics Inc",
+    "body_preview": "Lead_2118,\n\nQuick question: how much time do you spend each week on admin work that isn't billable?\n\nFor most Operations folks I talk to, it's 10-15 hours. That's $2K-$5K in lost revenue every month.\n..."
+  },
+  {
+    "timestamp": "2025-12-02T11:01:44.252712",
+    "lead_id": 13,
+    "lead_email": "contact@atlasenterprisegroup.com",
+    "template_pack": "general",
+    "template_index": 0,
+    "subject": "Atlas Enterprise Group - one less thing to worry about",
+    "body_preview": "Hi Lead_6822,\n\nI've been looking at small shops like Atlas Enterprise Group that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash ..."
   }
 ]

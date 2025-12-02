@@ -714,34 +714,72 @@ async def stripe_webhook(request: Request, session: Session = Depends(get_sessio
             if not invoice_id and event_type == "checkout.session.completed":
                 invoice_id = event_data.get("client_reference_id")
             
-            if invoice_id:
+            stripe_amount = event_data.get("amount_total") or event_data.get("amount") or event_data.get("amount_paid")
+            stripe_currency = (event_data.get("currency") or "").lower()
+            stripe_status = event_data.get("status") or event_data.get("payment_status")
+            
+            from stripe_utils import get_default_currency
+            expected_currency = get_default_currency()
+            
+            payment_successful = False
+            if event_type == "checkout.session.completed":
+                payment_successful = stripe_status in ["complete", "paid"] or event_data.get("payment_status") == "paid"
+            elif event_type == "payment_intent.succeeded":
+                payment_successful = stripe_status == "succeeded" or event_type == "payment_intent.succeeded"
+            elif event_type == "invoice.paid":
+                payment_successful = stripe_status == "paid" or event_data.get("paid") == True
+            
+            if not invoice_id:
+                print(f"[STRIPE][WEBHOOK] No invoice_id in event metadata - cannot process")
+                log_stripe_event("webhook_missing_invoice_id", {"event_type": event_type})
+            elif not payment_successful:
+                print(f"[STRIPE][WEBHOOK] Payment not confirmed (status={stripe_status}) - not marking as paid")
+                log_stripe_event("webhook_payment_not_confirmed", {
+                    "invoice_id": invoice_id,
+                    "status": stripe_status,
+                    "event_type": event_type
+                })
+            else:
                 try:
                     invoice = session.exec(
                         select(Invoice).where(Invoice.id == int(invoice_id))
                     ).first()
                     
-                    if invoice:
-                        if invoice.status != "paid":
-                            invoice.status = "paid"
-                            invoice.paid_at = datetime.utcnow()
-                            session.add(invoice)
-                            session.commit()
-                            invoice_updated = True
-                            print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} marked as PAID (amount=${invoice.amount_cents/100:.2f})")
-                            log_stripe_event("invoice_paid", {
-                                "invoice_id": invoice_id,
-                                "amount_cents": invoice.amount_cents,
-                                "event_type": event_type
-                            })
-                        else:
-                            print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} already paid - no action")
-                    else:
+                    if not invoice:
                         print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} not found in database")
                         log_stripe_event("webhook_invoice_not_found", {"invoice_id": invoice_id})
+                    elif invoice.status == "paid":
+                        print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} already paid - no action")
+                    elif stripe_amount is not None and stripe_amount != invoice.amount_cents:
+                        print(f"[STRIPE][WEBHOOK][SECURITY] Amount mismatch for invoice {invoice_id}: expected {invoice.amount_cents}, got {stripe_amount}")
+                        log_stripe_event("webhook_amount_mismatch", {
+                            "invoice_id": invoice_id,
+                            "expected_amount": invoice.amount_cents,
+                            "received_amount": stripe_amount
+                        })
+                    elif stripe_currency and stripe_currency != expected_currency:
+                        print(f"[STRIPE][WEBHOOK][SECURITY] Currency mismatch for invoice {invoice_id}: expected {expected_currency}, got {stripe_currency}")
+                        log_stripe_event("webhook_currency_mismatch", {
+                            "invoice_id": invoice_id,
+                            "expected_currency": expected_currency,
+                            "received_currency": stripe_currency
+                        })
+                    else:
+                        invoice.status = "paid"
+                        invoice.paid_at = datetime.utcnow()
+                        session.add(invoice)
+                        session.commit()
+                        invoice_updated = True
+                        print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} marked as PAID (amount=${invoice.amount_cents/100:.2f}, currency={stripe_currency or expected_currency})")
+                        log_stripe_event("invoice_paid", {
+                            "invoice_id": invoice_id,
+                            "amount_cents": invoice.amount_cents,
+                            "stripe_amount": stripe_amount,
+                            "stripe_currency": stripe_currency,
+                            "event_type": event_type
+                        })
                 except ValueError:
                     print(f"[STRIPE][WEBHOOK] Invalid invoice_id format: {invoice_id}")
-            else:
-                print(f"[STRIPE][WEBHOOK] No invoice_id in event metadata")
         
         return {
             "status": "processed",

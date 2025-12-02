@@ -332,10 +332,13 @@ def create_payment_link(
 
 def verify_webhook_signature(payload: bytes, signature: str) -> bool:
     """
-    Verify Stripe webhook signature.
+    Verify Stripe webhook signature using raw bytes.
+    
+    Stripe computes HMAC on raw bytes, so we must not decode to UTF-8 before verification.
+    Handles multiple v1 signatures (Stripe may send multiple for key rotation).
     
     Args:
-        payload: Raw request body
+        payload: Raw request body as bytes (NOT decoded)
         signature: Stripe-Signature header value
     
     Returns:
@@ -343,29 +346,42 @@ def verify_webhook_signature(payload: bytes, signature: str) -> bool:
     """
     webhook_secret = get_stripe_webhook_secret()
     if not webhook_secret:
-        print("[STRIPE][WEBHOOK] No webhook secret configured")
+        print("[STRIPE][WEBHOOK] No webhook secret configured - cannot verify")
         return False
     
     try:
         parts = {}
+        v1_signatures = []
+        
         for part in signature.split(","):
+            if "=" not in part:
+                continue
             key, value = part.split("=", 1)
-            parts[key] = value
+            key = key.strip()
+            value = value.strip()
+            if key == "t":
+                parts["t"] = value
+            elif key == "v1":
+                v1_signatures.append(value)
         
         timestamp = parts.get("t")
-        v1_signature = parts.get("v1")
-        
-        if not timestamp or not v1_signature:
+        if not timestamp or not v1_signatures:
+            print("[STRIPE][WEBHOOK] Missing timestamp or v1 signature in header")
             return False
         
-        signed_payload = f"{timestamp}.{payload.decode('utf-8')}"
+        signed_payload_bytes = f"{timestamp}.".encode('utf-8') + payload
         expected_signature = hmac.new(
             webhook_secret.encode('utf-8'),
-            signed_payload.encode('utf-8'),
+            signed_payload_bytes,
             hashlib.sha256
         ).hexdigest()
         
-        return hmac.compare_digest(expected_signature, v1_signature)
+        for v1_sig in v1_signatures:
+            if hmac.compare_digest(expected_signature, v1_sig):
+                return True
+        
+        print("[STRIPE][WEBHOOK] Signature mismatch - none of the v1 signatures matched")
+        return False
         
     except Exception as e:
         print(f"[STRIPE][WEBHOOK] Signature verification error: {e}")
@@ -410,6 +426,7 @@ def validate_stripe_at_startup() -> None:
     Called from main.py during app initialization.
     
     Logs presence/absence of keys without exposing values.
+    Warns if webhook secret is missing (important for payment verification).
     """
     is_enabled = is_stripe_enabled()
     api_key = get_stripe_api_key()
@@ -422,6 +439,9 @@ def validate_stripe_at_startup() -> None:
         if api_key_present:
             print(f"[STRIPE][STARTUP] Stripe ENABLED - API key present, webhook secret {'present' if webhook_secret_present else 'NOT SET'}")
             print(f"[STRIPE][STARTUP] Currency: {get_default_currency().upper()}, Limits: ${get_min_invoice_cents()/100:.2f}-${get_max_invoice_cents()/100:.2f}")
+            if not webhook_secret_present:
+                print(f"[STRIPE][STARTUP][WARNING] STRIPE_WEBHOOK_SECRET not set - webhook events will not be verified!")
+                print(f"[STRIPE][STARTUP][WARNING] This is a SECURITY RISK in production. Set STRIPE_WEBHOOK_SECRET in Secrets.")
         else:
             print(f"[STRIPE][STARTUP][WARNING] ENABLE_STRIPE=TRUE but STRIPE_API_KEY is missing - falling back to DRY_RUN")
     else:
