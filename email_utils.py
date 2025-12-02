@@ -1,70 +1,210 @@
 """
 Outbound email infrastructure for HossAgent.
-Supports SendGrid API, SMTP fallback, and dry-run mode.
+Supports three modes: DRY_RUN, SENDGRID, SMTP
 
 Environment Variables:
-  SendGrid: SENDGRID_API_KEY, SENDGRID_FROM_EMAIL
-  SMTP: SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL
-
-If no credentials are configured, operates in dry-run mode (logs only).
+  EMAIL_MODE = DRY_RUN | SENDGRID | SMTP (defaults to DRY_RUN)
+  
+  For SENDGRID:
+    SENDGRID_API_KEY
+    SENDGRID_FROM_EMAIL
+    
+  For SMTP:
+    SMTP_HOST
+    SMTP_PORT (default: 587)
+    SMTP_USERNAME
+    SMTP_PASSWORD
+    SMTP_FROM_EMAIL
+    
+  Throttling:
+    MAX_EMAILS_PER_CYCLE (default: 10)
 """
 import os
 import smtplib
+import json
+from enum import Enum
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass, asdict
+from pathlib import Path
 
 
-def get_email_mode() -> str:
+class EmailMode(str, Enum):
+    DRY_RUN = "DRY_RUN"
+    SENDGRID = "SENDGRID"
+    SMTP = "SMTP"
+
+
+@dataclass
+class EmailAttempt:
+    timestamp: str
+    lead_name: str
+    company: str
+    to_email: str
+    subject: str
+    mode: str
+    result: str  # "success", "failed", "dry-run"
+    error: Optional[str] = None
+
+
+EMAIL_LOG_FILE = Path("email_attempts.json")
+MAX_LOG_ENTRIES = 50
+
+
+def _load_email_log() -> List[Dict[str, Any]]:
+    """Load email attempt log from file."""
+    try:
+        if EMAIL_LOG_FILE.exists():
+            with open(EMAIL_LOG_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+
+def _save_email_log(entries: List[Dict[str, Any]]) -> None:
+    """Save email attempt log to file."""
+    try:
+        entries = entries[-MAX_LOG_ENTRIES:]
+        with open(EMAIL_LOG_FILE, "w") as f:
+            json.dump(entries, f, indent=2)
+    except Exception as e:
+        print(f"[EMAIL] Warning: Could not save email log: {e}")
+
+
+def log_email_attempt(attempt: EmailAttempt) -> None:
+    """Log an email attempt for admin console visibility."""
+    entries = _load_email_log()
+    entries.append(asdict(attempt))
+    _save_email_log(entries)
+
+
+def get_email_log(limit: int = 10) -> List[Dict[str, Any]]:
+    """Get the last N email attempts for display in admin console."""
+    entries = _load_email_log()
+    return entries[-limit:]
+
+
+def get_email_mode() -> EmailMode:
     """
-    Detect which email mode is available based on environment variables.
-    Returns: 'sendgrid', 'smtp', or 'dry-run'
+    Get the configured email mode from environment.
+    Falls back to DRY_RUN if EMAIL_MODE is not set or invalid.
     """
-    if os.getenv("SENDGRID_API_KEY"):
-        return "sendgrid"
-    if (os.getenv("SMTP_HOST")
-        and os.getenv("SMTP_PORT")
-        and os.getenv("SMTP_USERNAME")
-        and os.getenv("SMTP_PASSWORD")):
-        return "smtp"
-    return "dry-run"
+    mode_str = os.getenv("EMAIL_MODE", "DRY_RUN").upper()
+    try:
+        return EmailMode(mode_str)
+    except ValueError:
+        print(f"[EMAIL] Warning: Invalid EMAIL_MODE '{mode_str}', falling back to DRY_RUN")
+        return EmailMode.DRY_RUN
 
 
-def send_email(recipient: str, subject: str, body: str) -> bool:
+def validate_email_config() -> tuple[EmailMode, bool, str]:
     """
-    Send an email using either SendGrid, SMTP, or dry-run.
-    
-    Args:
-        recipient: Email address to send to
-        subject: Email subject line
-        body: Plain text email body
+    Validate email configuration for the selected mode.
     
     Returns:
-        True if a real email was sent successfully, False otherwise.
-        This function NEVER crashes the app - all exceptions are caught and logged.
+        (effective_mode, is_valid, message)
+        If validation fails, effective_mode will be DRY_RUN.
     """
     mode = get_email_mode()
     
+    if mode == EmailMode.DRY_RUN:
+        return mode, True, "DRY_RUN mode - no credentials required"
+    
+    if mode == EmailMode.SENDGRID:
+        api_key = os.getenv("SENDGRID_API_KEY")
+        from_email = os.getenv("SENDGRID_FROM_EMAIL")
+        
+        if not api_key:
+            msg = "SENDGRID_API_KEY not set - falling back to DRY_RUN"
+            print(f"[EMAIL] Warning: {msg}")
+            return EmailMode.DRY_RUN, False, msg
+        if not from_email:
+            msg = "SENDGRID_FROM_EMAIL not set - falling back to DRY_RUN"
+            print(f"[EMAIL] Warning: {msg}")
+            return EmailMode.DRY_RUN, False, msg
+        
+        return mode, True, "SendGrid configured"
+    
+    if mode == EmailMode.SMTP:
+        host = os.getenv("SMTP_HOST")
+        user = os.getenv("SMTP_USERNAME")
+        password = os.getenv("SMTP_PASSWORD")
+        from_email = os.getenv("SMTP_FROM_EMAIL")
+        
+        missing = []
+        if not host:
+            missing.append("SMTP_HOST")
+        if not user:
+            missing.append("SMTP_USERNAME")
+        if not password:
+            missing.append("SMTP_PASSWORD")
+        if not from_email:
+            missing.append("SMTP_FROM_EMAIL")
+        
+        if missing:
+            msg = f"Missing SMTP config: {', '.join(missing)} - falling back to DRY_RUN"
+            print(f"[EMAIL] Warning: {msg}")
+            return EmailMode.DRY_RUN, False, msg
+        
+        return mode, True, "SMTP configured"
+    
+    return EmailMode.DRY_RUN, True, "Default DRY_RUN mode"
+
+
+def get_max_emails_per_cycle() -> int:
+    """Get the maximum number of emails to send per cycle."""
     try:
-        if mode == "sendgrid":
-            return _send_via_sendgrid(recipient, subject, body)
-        elif mode == "smtp":
-            return _send_via_smtp(recipient, subject, body)
-        else:
-            print(f"[EMAIL] DRY RUN -> To: {recipient}, Subject: {subject}")
-            print(f"[EMAIL] Body preview: {body[:100]}...")
-            return False
-    except Exception as e:
-        print(f"[EMAIL] Error sending email to {recipient}: {e}")
-        return False
+        return int(os.getenv("MAX_EMAILS_PER_CYCLE", "10"))
+    except ValueError:
+        return 10
 
 
-def _send_via_sendgrid(recipient: str, subject: str, body: str) -> bool:
+def send_email_dry_run(
+    to_email: str,
+    subject: str,
+    body: str,
+    lead_name: str = "",
+    company: str = ""
+) -> bool:
+    """
+    Simulate sending email without actually sending.
+    Logs the attempt for visibility.
+    """
+    preview = body[:100].replace('\n', ' ')
+    print(f"[EMAIL][DRY_RUN] to={to_email} subject=\"{subject}\" preview=\"{preview}...\"")
+    
+    log_email_attempt(EmailAttempt(
+        timestamp=datetime.utcnow().isoformat(),
+        lead_name=lead_name,
+        company=company,
+        to_email=to_email,
+        subject=subject,
+        mode="DRY_RUN",
+        result="dry-run"
+    ))
+    
+    return False
+
+
+def send_email_sendgrid(
+    to_email: str,
+    subject: str,
+    body: str,
+    lead_name: str = "",
+    company: str = ""
+) -> bool:
     """Send email via SendGrid API."""
     try:
         import requests
         
-        api_key = os.getenv("SENDGRID_API_KEY")
-        from_email = os.getenv("SENDGRID_FROM_EMAIL", "noreply@hossagent.com")
+        api_key = os.getenv("SENDGRID_API_KEY", "")
+        from_email = os.getenv("SENDGRID_FROM_EMAIL", "")
+        
+        if not api_key or not from_email:
+            raise ValueError("SendGrid credentials not configured")
         
         response = requests.post(
             "https://api.sendgrid.com/v3/mail/send",
@@ -73,7 +213,7 @@ def _send_via_sendgrid(recipient: str, subject: str, body: str) -> bool:
                 "Content-Type": "application/json"
             },
             json={
-                "personalizations": [{"to": [{"email": recipient}]}],
+                "personalizations": [{"to": [{"email": to_email}]}],
                 "from": {"email": from_email},
                 "subject": subject,
                 "content": [{"type": "text/plain", "value": body}]
@@ -82,21 +222,58 @@ def _send_via_sendgrid(recipient: str, subject: str, body: str) -> bool:
         )
         
         if response.status_code in [200, 201, 202]:
-            print(f"[EMAIL] Sent via SendGrid to {recipient}: {subject}")
+            print(f"[EMAIL][SENDGRID] Sent to {to_email}: {subject}")
+            log_email_attempt(EmailAttempt(
+                timestamp=datetime.utcnow().isoformat(),
+                lead_name=lead_name,
+                company=company,
+                to_email=to_email,
+                subject=subject,
+                mode="SENDGRID",
+                result="success"
+            ))
             return True
         else:
-            print(f"[EMAIL] SendGrid error: {response.status_code} - {response.text}")
+            error_msg = f"Status {response.status_code}: {response.text[:200]}"
+            print(f"[EMAIL][SENDGRID] Failed: {error_msg}")
+            log_email_attempt(EmailAttempt(
+                timestamp=datetime.utcnow().isoformat(),
+                lead_name=lead_name,
+                company=company,
+                to_email=to_email,
+                subject=subject,
+                mode="SENDGRID",
+                result="failed",
+                error=error_msg
+            ))
             return False
             
     except ImportError:
-        print("[EMAIL] SendGrid requires 'requests' library")
+        print("[EMAIL][SENDGRID] Error: 'requests' library not available")
         return False
     except Exception as e:
-        print(f"[EMAIL] SendGrid exception: {e}")
+        error_msg = str(e)
+        print(f"[EMAIL][SENDGRID] Exception: {error_msg}")
+        log_email_attempt(EmailAttempt(
+            timestamp=datetime.utcnow().isoformat(),
+            lead_name=lead_name,
+            company=company,
+            to_email=to_email,
+            subject=subject,
+            mode="SENDGRID",
+            result="failed",
+            error=error_msg
+        ))
         return False
 
 
-def _send_via_smtp(recipient: str, subject: str, body: str) -> bool:
+def send_email_smtp(
+    to_email: str,
+    subject: str,
+    body: str,
+    lead_name: str = "",
+    company: str = ""
+) -> bool:
     """Send email via SMTP."""
     try:
         smtp_host = os.getenv("SMTP_HOST", "")
@@ -105,13 +282,12 @@ def _send_via_smtp(recipient: str, subject: str, body: str) -> bool:
         smtp_pass = os.getenv("SMTP_PASSWORD", "")
         from_email = os.getenv("SMTP_FROM_EMAIL") or smtp_user
         
-        if not all([smtp_host, smtp_user, smtp_pass]):
-            print("[EMAIL] SMTP credentials incomplete")
-            return False
+        if not all([smtp_host, smtp_user, smtp_pass, from_email]):
+            raise ValueError("SMTP credentials not configured")
         
         msg = MIMEMultipart()
         msg['From'] = from_email
-        msg['To'] = recipient
+        msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
@@ -120,9 +296,93 @@ def _send_via_smtp(recipient: str, subject: str, body: str) -> bool:
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
         
-        print(f"[EMAIL] Sent via SMTP to {recipient}: {subject}")
+        print(f"[EMAIL][SMTP] Sent to {to_email}: {subject}")
+        log_email_attempt(EmailAttempt(
+            timestamp=datetime.utcnow().isoformat(),
+            lead_name=lead_name,
+            company=company,
+            to_email=to_email,
+            subject=subject,
+            mode="SMTP",
+            result="success"
+        ))
         return True
         
     except Exception as e:
-        print(f"[EMAIL] SMTP exception: {e}")
+        error_msg = str(e)
+        print(f"[EMAIL][SMTP] Exception: {error_msg}")
+        log_email_attempt(EmailAttempt(
+            timestamp=datetime.utcnow().isoformat(),
+            lead_name=lead_name,
+            company=company,
+            to_email=to_email,
+            subject=subject,
+            mode="SMTP",
+            result="failed",
+            error=error_msg
+        ))
         return False
+
+
+def send_email(
+    to_email: str,
+    subject: str,
+    body: str,
+    lead_name: str = "",
+    company: str = ""
+) -> bool:
+    """
+    Unified email sending entrypoint.
+    
+    Determines the effective mode (with validation/fallback),
+    then dispatches to the appropriate sender.
+    
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        body: Plain text email body
+        lead_name: Name of the lead (for logging)
+        company: Company name (for logging)
+    
+    Returns:
+        True if email was actually sent, False otherwise.
+        This function NEVER crashes - all exceptions are caught.
+    """
+    try:
+        effective_mode, is_valid, msg = validate_email_config()
+        
+        if effective_mode == EmailMode.DRY_RUN:
+            return send_email_dry_run(to_email, subject, body, lead_name, company)
+        elif effective_mode == EmailMode.SENDGRID:
+            return send_email_sendgrid(to_email, subject, body, lead_name, company)
+        elif effective_mode == EmailMode.SMTP:
+            return send_email_smtp(to_email, subject, body, lead_name, company)
+        else:
+            return send_email_dry_run(to_email, subject, body, lead_name, company)
+            
+    except Exception as e:
+        print(f"[EMAIL] Unexpected error: {e}")
+        return False
+
+
+def get_email_status() -> Dict[str, Any]:
+    """
+    Get current email configuration status for admin display.
+    
+    Returns dict with:
+        - mode: Current effective mode
+        - configured_mode: What EMAIL_MODE env var says
+        - is_valid: Whether config is valid
+        - message: Status message
+        - max_per_cycle: Throttle limit
+    """
+    configured_mode = os.getenv("EMAIL_MODE", "DRY_RUN").upper()
+    effective_mode, is_valid, message = validate_email_config()
+    
+    return {
+        "mode": effective_mode.value,
+        "configured_mode": configured_mode,
+        "is_valid": is_valid,
+        "message": message,
+        "max_per_cycle": get_max_emails_per_cycle()
+    }

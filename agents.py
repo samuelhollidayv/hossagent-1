@@ -12,8 +12,39 @@ import asyncio
 from datetime import datetime
 from sqlmodel import Session, select
 from models import Lead, Customer, Task, Invoice
-from email_utils import send_email, get_email_mode
+from email_utils import (
+    send_email,
+    get_email_mode,
+    get_max_emails_per_cycle,
+    get_email_status,
+    EmailMode
+)
 import random
+
+
+SUBJECT_TEMPLATES = [
+    "Taking the grunt work off your plate",
+    "Quick idea to de-risk your pipeline",
+    "You + 1 autonomous ops brain",
+    "Quick idea for {company}",
+]
+
+BODY_TEMPLATE = """Hi {first_name},
+
+I've been looking at small shops like {company} that are doing solid work but still relying on a mess of spreadsheets, email threads, and late-night invoicing to keep cash coming in.
+
+I built something for that: an autonomous "back office" that does three things on repeat:
+- Finds and contacts qualified leads for you
+- Tracks what work is being done for whom
+- Generates invoices and shows you, in one dashboard, where the money is
+
+It's not a CRM and it's not an agency. Think of it as a self-driving ops assistant that only cares about two things: pipeline and cash. You see everything in a control room; it handles the boring parts.
+
+If you gave it one current offer (e.g., how you usually package {niche} work), it could start running a small, controlled experiment for you this month.
+
+Would you be open to a 15-minute call so I can show you what that looks like with real numbers from your world?
+
+- HossAgent"""
 
 
 async def run_bizdev_cycle(session: Session) -> str:
@@ -22,10 +53,11 @@ async def run_bizdev_cycle(session: Session) -> str:
     
     Steps:
     1. Generate 1-2 new leads with corporate names
-    2. For each NEW lead, attempt to send outbound email
+    2. For each NEW lead, attempt to send outbound email (respecting throttle limit)
     3. If email succeeds, mark lead as 'contacted'
     4. If email fails (or dry-run), keep as 'new'
     
+    Throttling: Respects MAX_EMAILS_PER_CYCLE environment variable.
     Safe to call repeatedly - only emails leads with status='new'.
     """
     companies = [
@@ -39,15 +71,29 @@ async def run_bizdev_cycle(session: Session) -> str:
         "Blackstone Analytics",
         "Vector Capital Group",
         "Summit Holdings LLC",
+        "Pinnacle Advisory Group",
+        "Frontier Tech Partners",
+        "Catalyst Growth Co",
+        "Ironclad Consulting",
+        "Sterling Operations LLC",
     ]
-    niches = ["SaaS", "Enterprise Software", "FinTech", "Operations", "Research", "Analytics"]
-    first_names = ["James", "Sarah", "Michael", "Emily", "David", "Rachel", "Alex", "Victoria"]
+    niches = ["SaaS", "Enterprise Software", "FinTech", "Operations", "Research", "Analytics", "Marketing Strategy", "RevOps"]
+    first_names = ["James", "Sarah", "Michael", "Emily", "David", "Rachel", "Alex", "Victoria", "Chris", "Amanda"]
 
+    max_emails = get_max_emails_per_cycle()
+    email_status = get_email_status()
+    effective_mode = email_status["mode"]
+    
     num_leads = random.randint(1, 2)
     created = []
     emails_sent = 0
+    emails_attempted = 0
 
     for _ in range(num_leads):
+        if emails_attempted >= max_emails:
+            print(f"[BIZDEV] Throttle limit reached ({max_emails} emails per cycle)")
+            break
+            
         company = random.choice(companies)
         niche = random.choice(niches)
         first_name = random.choice(first_names)
@@ -63,32 +109,36 @@ async def run_bizdev_cycle(session: Session) -> str:
         session.flush()
         created.append(lead.company)
         
-        subject = f"Quick idea for {lead.company}"
-        body = f"""Hi {lead.name},
+        subject = random.choice(SUBJECT_TEMPLATES).format(company=lead.company)
+        body = BODY_TEMPLATE.format(
+            first_name=lead.name,
+            company=lead.company,
+            niche=lead.niche
+        )
 
-I'm reaching out because I think your team at {lead.company} may benefit from autonomous AI workers.
-
-HossAgent runs research, lead generation, analysis, and task execution automatically — then proves its profit in real time.
-
-Let me know if you'd like to see it in action.
-
-- HossAgent"""
-
-        email_sent = send_email(lead.email, subject, body)
+        emails_attempted += 1
+        email_sent = send_email(
+            to_email=lead.email,
+            subject=subject,
+            body=body,
+            lead_name=lead.name,
+            company=lead.company
+        )
         
         if email_sent:
             lead.status = "contacted"
             lead.last_contacted_at = datetime.utcnow()
             emails_sent += 1
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: CONTACTED")
         else:
             lead.last_contacted_at = None
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: status=new (mode={effective_mode})")
 
         session.add(lead)
 
     session.commit()
     
-    email_mode = get_email_mode()
-    msg = f"BizDev: Generated {num_leads} leads ({', '.join(created)}). Emails: {emails_sent} sent [{email_mode}]"
+    msg = f"BizDev: Generated {len(created)} leads ({', '.join(created)}). Emails: {emails_sent}/{emails_attempted} sent [{effective_mode}]"
     print(f"[CYCLE] {msg}")
     return msg
 
@@ -116,7 +166,6 @@ async def run_onboarding_cycle(session: Session) -> str:
         print(f"[CYCLE] {msg}")
         return msg
 
-    # Check if this lead already has a customer
     existing_customer = session.exec(
         select(Customer).where(Customer.contact_email == lead.email)
     ).first()
@@ -125,7 +174,6 @@ async def run_onboarding_cycle(session: Session) -> str:
         print(f"[CYCLE] {msg}")
         return msg
 
-    # Convert lead to customer
     customer = Customer(
         company=lead.company,
         contact_email=lead.email,
@@ -135,9 +183,8 @@ async def run_onboarding_cycle(session: Session) -> str:
         notes=f"Converted from lead: {lead.company}",
     )
     session.add(customer)
-    session.flush()  # Ensure customer gets an ID
+    session.flush()
 
-    # Create template tasks
     task_descriptions = [
         f"Initial market research for {lead.company}",
         f"Competitive landscape review for {lead.niche}",
@@ -153,7 +200,6 @@ async def run_onboarding_cycle(session: Session) -> str:
         session.add(task)
         tasks_created += 1
 
-    # Update lead status
     lead.status = "qualified"
     session.add(lead)
     session.commit()
@@ -174,7 +220,6 @@ async def run_ops_cycle(session: Session) -> str:
     - Call gpt-4-mini or gpt-4o-mini
     - Parse response and estimate token cost
     """
-    # Find next pending task
     statement = select(Task).where(Task.status == "pending").limit(1)
     task = session.exec(statement).first()
 
@@ -183,23 +228,18 @@ async def run_ops_cycle(session: Session) -> str:
         print(f"[CYCLE] {msg}")
         return msg
 
-    # Get customer context
     customer = session.exec(
         select(Customer).where(Customer.id == task.customer_id)
     ).first()
 
-    # Mark running
     task.status = "running"
     session.add(task)
     session.commit()
 
-    # Simulate OpenAI call (ready for real integration)
-    # TODO: Replace with real OpenAI API call when OPENAI_API_KEY is set
     simulated_result = f"Research Summary: Analyzed '{task.description}' for {customer.company if customer else 'Unknown'}. Key findings: market opportunity identified, competitive positioning clear, actionable recommendations provided."
     cost_cents = random.randint(2, 8)
     profit_cents = max(0, task.reward_cents - cost_cents)
 
-    # Update task
     task.status = "done"
     task.cost_cents = cost_cents
     task.profit_cents = profit_cents
@@ -224,7 +264,6 @@ async def run_billing_cycle(session: Session) -> str:
     - When invoice is created, call stripe_utils.create_stripe_checkout_session()
     - Store checkout URL in invoice.notes
     """
-    # Find customers with completed, uninvoiced tasks
     statement = select(Customer).limit(100)
     customers = session.exec(statement).all()
 
@@ -232,7 +271,6 @@ async def run_billing_cycle(session: Session) -> str:
     msg_parts = []
 
     for customer in customers:
-        # Find completed tasks for this customer
         task_statement = select(Task).where(
             (Task.customer_id == customer.id) & (Task.status == "done")
         )
@@ -241,11 +279,9 @@ async def run_billing_cycle(session: Session) -> str:
         if not completed_tasks:
             continue
 
-        # Calculate total reward (invoice amount)
         total_reward = sum(t.reward_cents for t in completed_tasks)
 
         if total_reward > 0:
-            # Check if invoice already exists for this customer (draft status)
             invoice_statement = select(Invoice).where(
                 (Invoice.customer_id == customer.id) & (Invoice.status == "draft")
             )
