@@ -8,10 +8,19 @@
       "candidates_fetched": 10,
       "leads_created": 10,
       "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-02T09:04:44.406307",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 4,
+      "leads_skipped": 6
     }
   ],
-  "last_run": "2025-12-02T09:02:50.454447",
-  "last_created_count": 10,
+  "last_run": "2025-12-02T09:04:44.406307",
+  "last_created_count": 4,
   "recent_leads": [
     {
       "id": 27,
@@ -82,6 +91,34 @@
       "email": "michael@vanguardcg.com",
       "source": "dummy_seed",
       "created_at": "2025-12-02T09:02:50.311758"
+    },
+    {
+      "id": 38,
+      "company": "Precision Demand Gen",
+      "email": "laura@precisiondemand.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:04:44.384025"
+    },
+    {
+      "id": 39,
+      "company": "Pioneer Growth Co",
+      "email": "jordan@pioneergrowth.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:04:44.387919"
+    },
+    {
+      "id": 40,
+      "company": "Horizon Brand Studio",
+      "email": "rachel@horizonbrand.co",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:04:44.389076"
+    },
+    {
+      "id": 41,
+      "company": "Summit Digital Solutions",
+      "email": "amanda@summitdigital.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:04:44.390225"
     }
   ]
 }

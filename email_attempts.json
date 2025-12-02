@@ -48,5 +48,15 @@
     "mode": "DRY_RUN",
     "result": "dry-run",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:04:44.408322",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Quick idea for Vector Capital Group",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
   }
 ]
