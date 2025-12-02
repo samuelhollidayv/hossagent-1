@@ -1,7 +1,7 @@
 # HossAgent - Autonomous AI Business Engine
 
 ## Overview
-HossAgent is an autonomous AI business system designed with a noir aesthetic. It features four autonomous agents (BizDev, Onboarding, Ops, Billing), SQLite persistence, and dual UI interfaces: a customer-facing dashboard and an admin console with autopilot control. The system performs self-driving cycles to continuously find leads, convert them into customers, execute tasks autonomously, and generate invoices, all while tracking real-time profit. The vision is to provide a fully automated business operation, from lead generation to billing, with minimal human intervention.
+HossAgent is an autonomous AI business system designed with a noir aesthetic. It features four autonomous agents (BizDev, Onboarding, Ops, Billing), SQLite persistence, and dual UI interfaces: a customer-facing dashboard, an admin console with autopilot control, and a customer portal for invoice viewing/payment. The system performs self-driving cycles to continuously find leads, convert them into customers, execute tasks autonomously, and generate invoices with Stripe payment links, all while tracking real-time profit.
 
 ## User Preferences
 Not specified.
@@ -9,52 +9,175 @@ Not specified.
 ## System Architecture
 
 ### Core Design
-HossAgent operates as a FastAPI backend, integrating routes, an autopilot mechanism, and autonomous agents. Data persistence is managed via SQLite, with schema auto-creation on the first run. The system is structured around `SQLModel` for data models and asynchronous cycle functions for agent operations, ensuring idempotency.
+HossAgent operates as a FastAPI backend, integrating routes, an autopilot mechanism, and autonomous agents. Data persistence is managed via SQLite, with schema auto-creation and auto-migration on startup. The system is structured around `SQLModel` for data models and asynchronous cycle functions for agent operations, ensuring idempotency.
 
 ### Directory Structure
-- `main.py`: FastAPI application, routes, and autopilot loop.
-- `models.py`: Defines SQLModel data models (SystemSettings, Lead, Customer, Task, Invoice).
-- `database.py`: Handles SQLite setup and schema initialization.
-- `agents.py`: Contains the logic for the four autonomous agent cycles.
-- `email_utils.py`: Manages email infrastructure (SendGrid, SMTP, DRY_RUN modes).
+- `main.py`: FastAPI application, routes, autopilot loop, webhook handlers.
+- `models.py`: SQLModel data models (SystemSettings, Lead, Customer, Task, Invoice).
+- `database.py`: SQLite setup, schema initialization, and auto-migrations.
+- `agents.py`: Logic for the four autonomous agent cycles.
+- `email_utils.py`: Email infrastructure (SendGrid, SMTP, DRY_RUN) with hourly throttling.
 - `lead_sources.py`: Lead source providers (DummySeed for dev, SearchApi for production).
 - `lead_service.py`: Lead generation service with deduplication and logging.
-- `templates/`: Stores `dashboard.html` (customer-facing) and `admin_console.html` (operator control).
+- `bizdev_templates.py`: Niche-tuned email template engine with multiple packs.
+- `stripe_utils.py`: Stripe payment link creation and webhook handling.
+- `templates/`: HTML templates (dashboard, admin_console, customer_portal).
 
 ### Data Models
-- **SystemSettings**: Stores global system flags like `autopilot_enabled`.
-- **Lead**: Tracks prospecting records through statuses (new, contacted, responded, qualified, dead). Includes `website` and `source` fields for lead source tracking.
-- **Customer**: Represents converted leads, including billing information and `stripe_customer_id`.
-- **Task**: Units of work, tracking reward, cost, and profit.
-- **Invoice**: Aggregates completed tasks for billing purposes.
+- **SystemSettings**: Global system flags like `autopilot_enabled`.
+- **Lead**: Prospecting records with statuses (new, contacted, responded, qualified, email_failed, dead). Includes `website` and `source` fields.
+- **Customer**: Converted leads with billing info, `stripe_customer_id`, and `public_token` for portal access.
+- **Task**: Units of work tracking reward, cost, and profit.
+- **Invoice**: Billing records with `payment_url` for Stripe payment links and `stripe_payment_id`.
 
 ### Autonomous Agents
-The system features four idempotent, asynchronous agents:
-1.  **BizDev Cycle**: Generates and contacts new leads.
-2.  **Onboarding Cycle**: Converts qualified leads to customers and creates initial tasks.
-3.  **Ops Cycle**: Executes pending tasks and calculates profit (with a placeholder for OpenAI integration).
-4.  **Billing Cycle**: Aggregates completed tasks and generates draft invoices.
+1. **BizDev Cycle**: Sends outreach emails to NEW leads using template engine.
+2. **Onboarding Cycle**: Converts contacted/responded leads to customers with initial tasks.
+3. **Ops Cycle**: Executes pending tasks and calculates profit.
+4. **Billing Cycle**: Generates invoices and creates Stripe payment links.
 
 ### UI/UX Design
-The system employs a "black-label noir" aesthetic, characterized by a deep black background (`#0a0a0a`), premium minimal typography (Georgia serif for headings, Courier for admin console), and stark white/green/red accents. No gradients or playful UI elements are used.
+The system employs a "black-label noir" aesthetic: deep black background (`#0a0a0a`), Georgia serif for customer UI, Courier monospace for admin console, stark white/green/red accents. No gradients or emojis.
 
--   **Customer Dashboard (`/`)**: A clean, professional, read-only interface displaying summary metrics, recent work, invoices, and lead pipeline, with auto-refresh every 30 seconds.
--   **Admin Console (`/admin`)**: A control room with a monospace font, metric cards, prominent agent control buttons, a live execution log, and data tables. It allows toggling autopilot and manually triggering agent cycles.
+- **Customer Dashboard (`/`)**: Read-only metrics, recent work, invoices, lead pipeline.
+- **Admin Console (`/admin`)**: Control room with agent buttons, system status panels, data tables.
+- **Customer Portal (`/portal/<token>`)**: Client-facing invoice view with Stripe payment buttons.
 
-### Autopilot Loop
-A background `autopilot_loop` runs every 5 minutes when enabled, executing all agent cycles sequentially. It is designed to be idempotent and robust against errors.
+## Environment Variables
+
+### Email Configuration
+```
+EMAIL_MODE=DRY_RUN|SENDGRID|SMTP  # Default: DRY_RUN
+
+# For SENDGRID mode:
+SENDGRID_API_KEY=sg_...
+SENDGRID_FROM_EMAIL=you@domain.com
+
+# For SMTP mode:
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your_user
+SMTP_PASSWORD=your_pass
+SMTP_FROM_EMAIL=you@domain.com
+
+# Throttling:
+MAX_EMAILS_PER_CYCLE=10    # Default: 10
+MAX_EMAILS_PER_HOUR=50     # Default: 50
+```
 
 ### Lead Generation
-HossAgent supports self-driving lead generation, configurable via environment variables (`LEAD_NICHE`, `LEAD_GEOGRAPHY`, `LEAD_MIN_COMPANY_SIZE`, `LEAD_MAX_COMPANY_SIZE`, `MAX_NEW_LEADS_PER_CYCLE`). It can use a `DummySeedLeadSourceProvider` for development or a `SearchApiLeadSourceProvider` for production, integrating with external lead search APIs. Leads are deduplicated by email or company+website to prevent duplicates.
+```
+LEAD_NICHE=small B2B marketing agencies that sell retainers
+LEAD_GEOGRAPHY=US & Canada
+LEAD_MIN_COMPANY_SIZE=5
+LEAD_MAX_COMPANY_SIZE=50
+MAX_NEW_LEADS_PER_CYCLE=10
 
-### Email System
-Supports `DRY_RUN`, `SENDGRID`, and `SMTP` modes, configurable via `EMAIL_MODE` environment variables. It includes a fallback to `DRY_RUN` if credentials for `SENDGRID` or `SMTP` are missing. The system logs email attempts and integrates email sending into the BizDev cycle.
+# For real lead API:
+LEAD_SEARCH_API_URL=https://api.leadprovider.com/search
+LEAD_SEARCH_API_KEY=your_api_key
+```
+
+### BizDev Templates
+```
+BIZDEV_NICHE_TEMPLATE=general  # Options: general, agency, saas, consulting, revops
+BIZDEV_SENDER_NAME=HossAgent
+BIZDEV_SENDER_EMAIL=hello@yourdomain.com
+BIZDEV_OFFER=autonomous business operations
+```
+
+### Stripe Billing
+```
+ENABLE_STRIPE=TRUE|FALSE       # Default: FALSE
+STRIPE_API_KEY=sk_...          # Secret key (starts with sk_)
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_DEFAULT_CURRENCY=usd    # Default: usd
+```
+
+## API Endpoints
+
+### Pages
+- `GET /` - Customer Dashboard
+- `GET /admin` - Admin Console
+- `GET /portal/<public_token>` - Customer Portal
+
+### Data APIs
+- `GET /api/leads` - All leads
+- `GET /api/customers` - All customers
+- `GET /api/tasks` - All tasks
+- `GET /api/invoices` - All invoices
+- `GET /api/settings` - System settings + email status
+- `GET /api/email-log` - Recent email attempts
+- `GET /api/lead-source` - Lead source status
+- `GET /api/stripe/status` - Stripe configuration status
+- `GET /api/bizdev/templates` - Template engine status
+
+### Admin Actions
+- `POST /admin/autopilot?enabled=true|false` - Toggle autopilot
+- `POST /admin/send-test-email?to_email=...` - Test email config
+- `POST /api/run/lead-source` - Run lead generation
+- `POST /api/run/bizdev` - Run BizDev cycle
+- `POST /api/run/onboarding` - Run Onboarding cycle
+- `POST /api/run/ops` - Run Ops cycle
+- `POST /api/run/billing` - Run Billing cycle
+- `POST /api/invoices/<id>/mark-paid` - Mark invoice paid (testing)
+
+### Webhooks
+- `POST /stripe/webhook` - Stripe payment webhook (configure in Stripe dashboard)
+
+## Safety Rules
+
+### DRY_RUN Fallback
+The system NEVER sends real emails or creates real charges if configuration is missing:
+- Missing SENDGRID/SMTP credentials -> DRY_RUN mode
+- Missing STRIPE_API_KEY -> No payment links created
+- All failures logged with `[DRY_RUN_FALLBACK]` prefix
+
+### Throttling
+- Per-cycle limit: MAX_EMAILS_PER_CYCLE (default 10)
+- Per-hour limit: MAX_EMAILS_PER_HOUR (default 50)
+- Limits enforced regardless of mode
+
+### Invoice Safety
+- Stripe payment links only created for amounts $1-$500
+- Outside bounds: logged and skipped, no crash
+
+### Error Handling
+- All agent cycles catch and log exceptions
+- Autopilot loop never crashes
+- Webhook signature validation on all Stripe events
+
+## Testing
+
+### Test Email Configuration
+```bash
+curl -X POST "http://localhost:5000/admin/send-test-email?to_email=test@example.com"
+```
+
+### Test Stripe Webhook (local)
+Use Stripe CLI:
+```bash
+stripe listen --forward-to localhost:5000/stripe/webhook
+```
+
+### Customer Portal Access
+Each customer has a `public_token`. Access portal at:
+```
+/portal/<public_token>
+```
+
+## Autopilot Flow
+When enabled, runs every 5 minutes:
+1. **Lead Generation** - Fetch candidates, deduplicate, create leads
+2. **BizDev** - Send personalized emails to NEW leads
+3. **Onboarding** - Convert contacted leads to customers
+4. **Ops** - Execute pending tasks
+5. **Billing** - Generate invoices + payment links
 
 ## External Dependencies
-
--   **FastAPI**: Web framework for the backend.
--   **SQLModel**: Used for defining data models and ORM functionalities with SQLite.
--   **SQLite**: Primary database for persistence (`hossagent.db`).
--   **SendGrid (Optional)**: For sending real emails (`SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`).
--   **SMTP Server (Optional)**: For sending real emails via SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`).
--   **External Lead Search API (Optional)**: For real lead generation (`LEAD_SEARCH_API_URL`, `LEAD_SEARCH_API_KEY`). Expected to return JSON with company and contact information.
+- **FastAPI**: Web framework
+- **SQLModel**: ORM with SQLite
+- **SendGrid (Optional)**: Email delivery
+- **SMTP (Optional)**: Email delivery
+- **Stripe (Optional)**: Payment processing
+- **External Lead API (Optional)**: Real lead sourcing

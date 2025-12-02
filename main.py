@@ -558,6 +558,206 @@ Sent at: {datetime.utcnow().isoformat()}
     }
 
 
+# ============================================================================
+# STRIPE WEBHOOK
+# ============================================================================
+
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request, session: Session = Depends(get_session)):
+    """
+    Handle Stripe webhook events.
+    
+    Validates webhook signature and processes payment events.
+    Updates invoice status when payment is completed.
+    """
+    from stripe_utils import verify_webhook_signature, log_stripe_event, get_stripe_webhook_secret
+    
+    payload = await request.body()
+    signature = request.headers.get("Stripe-Signature", "")
+    
+    webhook_secret = get_stripe_webhook_secret()
+    if not webhook_secret:
+        log_stripe_event("webhook_received_no_secret", {"error": "No webhook secret configured"})
+        return {"status": "received", "verified": False}
+    
+    if not verify_webhook_signature(payload, signature):
+        print("[STRIPE][WEBHOOK] Invalid signature")
+        log_stripe_event("webhook_invalid_signature", {})
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    try:
+        import json
+        event = json.loads(payload)
+        event_type = event.get("type", "unknown")
+        event_data = event.get("data", {}).get("object", {})
+        
+        log_stripe_event(f"webhook_{event_type}", {
+            "event_id": event.get("id"),
+            "type": event_type
+        })
+        
+        if event_type in ["checkout.session.completed", "payment_intent.succeeded"]:
+            metadata = event_data.get("metadata", {})
+            invoice_id = metadata.get("invoice_id")
+            
+            if invoice_id:
+                invoice = session.exec(
+                    select(Invoice).where(Invoice.id == int(invoice_id))
+                ).first()
+                
+                if invoice:
+                    invoice.status = "paid"
+                    invoice.paid_at = datetime.utcnow()
+                    session.add(invoice)
+                    session.commit()
+                    print(f"[STRIPE][WEBHOOK] Invoice {invoice_id} marked as paid")
+                    log_stripe_event("invoice_paid", {
+                        "invoice_id": invoice_id,
+                        "amount_cents": invoice.amount_cents
+                    })
+        
+        return {"status": "processed", "event_type": event_type}
+        
+    except Exception as e:
+        print(f"[STRIPE][WEBHOOK] Error processing: {e}")
+        log_stripe_event("webhook_error", {"error": str(e)})
+        return {"status": "error", "message": str(e)}
+
+
+# ============================================================================
+# STRIPE STATUS API
+# ============================================================================
+
+
+@app.get("/api/stripe/status")
+def get_stripe_status_endpoint():
+    """Get current Stripe configuration status."""
+    from stripe_utils import get_stripe_status, get_stripe_log
+    
+    status = get_stripe_status()
+    recent_events = get_stripe_log(10)
+    
+    return {
+        **status,
+        "recent_events": recent_events
+    }
+
+
+# ============================================================================
+# CUSTOMER PORTAL
+# ============================================================================
+
+
+@app.get("/portal/{public_token}", response_class=HTMLResponse)
+def customer_portal(public_token: str, session: Session = Depends(get_session)):
+    """
+    Read-only customer portal accessible via public token.
+    
+    Shows:
+    - Customer info
+    - Recent tasks
+    - Outstanding invoices with payment links
+    - Paid invoices
+    - Revenue summary
+    """
+    customer = session.exec(
+        select(Customer).where(Customer.public_token == public_token)
+    ).first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Portal not found")
+    
+    tasks = session.exec(
+        select(Task).where(Task.customer_id == customer.id).order_by(Task.created_at.desc()).limit(20)
+    ).all()
+    
+    invoices = session.exec(
+        select(Invoice).where(Invoice.customer_id == customer.id).order_by(Invoice.created_at.desc())
+    ).all()
+    
+    outstanding_invoices = [i for i in invoices if i.status in ["draft", "sent"]]
+    paid_invoices = [i for i in invoices if i.status == "paid"]
+    total_paid = sum(i.amount_cents for i in paid_invoices)
+    total_outstanding = sum(i.amount_cents for i in outstanding_invoices)
+    
+    with open("templates/customer_portal.html", "r") as f:
+        template = f.read()
+    
+    tasks_rows = ""
+    for t in tasks:
+        status_class = t.status
+        tasks_rows += f"""
+            <tr>
+                <td>{t.created_at.strftime("%Y-%m-%d")}</td>
+                <td>{t.description[:60]}{'...' if len(t.description) > 60 else ''}</td>
+                <td><span class="status-badge {status_class}">{t.status}</span></td>
+            </tr>
+        """
+    if not tasks_rows:
+        tasks_rows = '<tr><td colspan="3" class="empty">No tasks yet.</td></tr>'
+    
+    outstanding_rows = ""
+    for i in outstanding_invoices:
+        payment_btn = ""
+        if i.payment_url:
+            payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
+        outstanding_rows += f"""
+            <tr>
+                <td>INV-{i.id}</td>
+                <td>${i.amount_cents/100:.2f}</td>
+                <td>{i.created_at.strftime("%Y-%m-%d")}</td>
+                <td>{payment_btn}</td>
+            </tr>
+        """
+    if not outstanding_rows:
+        outstanding_rows = '<tr><td colspan="4" class="empty">No outstanding invoices.</td></tr>'
+    
+    paid_rows = ""
+    for i in paid_invoices:
+        paid_rows += f"""
+            <tr>
+                <td>INV-{i.id}</td>
+                <td>${i.amount_cents/100:.2f}</td>
+                <td>{i.paid_at.strftime("%Y-%m-%d") if i.paid_at else '-'}</td>
+            </tr>
+        """
+    if not paid_rows:
+        paid_rows = '<tr><td colspan="3" class="empty">No paid invoices yet.</td></tr>'
+    
+    html = template.format(
+        company_name=customer.company,
+        contact_email=customer.contact_email,
+        total_paid=f"${total_paid/100:.2f}",
+        total_outstanding=f"${total_outstanding/100:.2f}",
+        tasks_count=len(tasks),
+        tasks_rows=tasks_rows,
+        outstanding_rows=outstanding_rows,
+        paid_rows=paid_rows
+    )
+    
+    return html
+
+
+# ============================================================================
+# BIZDEV TEMPLATE STATUS API
+# ============================================================================
+
+
+@app.get("/api/bizdev/templates")
+def get_bizdev_templates():
+    """Get current BizDev template configuration and recent generations."""
+    from bizdev_templates import get_template_status, get_template_log
+    
+    status = get_template_status()
+    recent = get_template_log(10)
+    
+    return {
+        **status,
+        "recent_generations": recent
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)

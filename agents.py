@@ -220,17 +220,18 @@ async def run_billing_cycle(session: Session) -> str:
     """
     Billing Cycle: Aggregate completed tasks per customer.
     Generate draft invoice records for uninvoiced work.
+    Create Stripe payment links if ENABLE_STRIPE=TRUE.
     
     Safe to call repeatedly: skips customers/tasks already invoiced.
-    
-    Hook for Stripe integration:
-    - When invoice is created, call stripe_utils.create_stripe_checkout_session()
-    - Store checkout URL in invoice.notes
+    Amount safety clamp: $1-$500 (configurable in stripe_utils).
     """
+    from stripe_utils import create_payment_link, is_stripe_enabled
+    
     statement = select(Customer).limit(100)
     customers = session.exec(statement).all()
 
     invoices_created = 0
+    payment_links_created = 0
     msg_parts = []
 
     for customer in customers:
@@ -258,10 +259,32 @@ async def run_billing_cycle(session: Session) -> str:
                     notes=f"Generated from {len(completed_tasks)} completed tasks",
                 )
                 session.add(invoice)
+                session.flush()
                 invoices_created += 1
+                
+                if is_stripe_enabled():
+                    result = create_payment_link(
+                        amount_cents=total_reward,
+                        customer_id=customer.id,
+                        customer_email=customer.contact_email,
+                        description=f"Invoice #{invoice.id} - {customer.company}",
+                        invoice_id=invoice.id
+                    )
+                    
+                    if result.success:
+                        invoice.payment_url = result.payment_url
+                        invoice.stripe_payment_id = result.stripe_id
+                        session.add(invoice)
+                        payment_links_created += 1
+                        print(f"[BILLING] Stripe payment link created for invoice {invoice.id}")
+                    else:
+                        print(f"[BILLING] Stripe payment link failed: {result.error}")
+                
                 msg_parts.append(f"{customer.company}: ${total_reward/100:.2f}")
 
     session.commit()
-    msg = f"Billing: Generated {invoices_created} invoices. " + ("; ".join(msg_parts) if msg_parts else "None.")
+    
+    stripe_status = " (Stripe: enabled)" if is_stripe_enabled() else " (Stripe: disabled)"
+    msg = f"Billing: Generated {invoices_created} invoices, {payment_links_created} payment links.{stripe_status} " + ("; ".join(msg_parts) if msg_parts else "None.")
     print(f"[CYCLE] {msg}")
     return msg

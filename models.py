@@ -30,6 +30,7 @@ class Customer(SQLModel, table=True):
     billing_plan: str = "starter"  # starter, pro, enterprise
     status: str = "active"  # active, trial, paused
     stripe_customer_id: Optional[str] = None
+    public_token: Optional[str] = None  # For customer portal access
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -52,6 +53,8 @@ class Invoice(SQLModel, table=True):
     customer_id: int = Field(foreign_key="customer.id")
     amount_cents: int
     status: str = "draft"  # draft, sent, paid
+    payment_url: Optional[str] = None  # Stripe payment link URL
+    stripe_payment_id: Optional[str] = None  # Stripe payment link ID
     created_at: datetime = Field(default_factory=datetime.utcnow)
     paid_at: Optional[datetime] = None
     notes: Optional[str] = None

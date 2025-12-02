@@ -118,5 +118,15 @@
     "mode": "DRY_RUN",
     "result": "dry-run",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:37:41.581440",
+    "lead_name": "Chris",
+    "company": "Titan Logistics Inc",
+    "to_email": "chris@titanlogisticsinc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
   }
 ]

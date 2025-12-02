@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{company_name} - Customer Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: Georgia, 'Times New Roman', serif;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            border-bottom: 1px solid #333;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .metric {
+            border: 1px solid #333;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .metric-value.green {
+            color: #0f0;
+        }
+        .metric-value.orange {
+            color: #f90;
+        }
+        .metric-label {
+            font-size: 0.8rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .section {
+            margin: 2rem 0;
+        }
+        .section h2 {
+            font-size: 1rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            color: #999;
+            text-transform: uppercase;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        table th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #333;
+            color: #666;
+            font-weight: normal;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+        table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #222;
+        }
+        table tr:hover {
+            background: #111;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: #333;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .status-badge.pending {
+            background: #664400;
+        }
+        .status-badge.running {
+            background: #004466;
+        }
+        .status-badge.done {
+            background: #006600;
+        }
+        .status-badge.failed {
+            background: #660000;
+        }
+        .pay-btn {
+            display: inline-block;
+            background: #fff;
+            color: #0a0a0a;
+            padding: 0.4rem 1rem;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.8rem;
+            font-family: Georgia, serif;
+        }
+        .pay-btn:hover {
+            background: #ddd;
+        }
+        .empty {
+            color: #555;
+            font-style: italic;
+            text-align: center;
+        }
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #222;
+            text-align: center;
+            color: #444;
+            font-size: 0.8rem;
+        }
+        @media (max-width: 600px) {
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+            body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{company_name}</h1>
+            <div class="subtitle">{contact_email}</div>
+        </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value green">{total_paid}</div>
+                <div class="metric-label">Total Paid</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value orange">{total_outstanding}</div>
+                <div class="metric-label">Outstanding</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">{tasks_count}</div>
+                <div class="metric-label">Tasks</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Outstanding Invoices</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Invoice</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {outstanding_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Payment History</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Invoice</th>
+                        <th>Amount</th>
+                        <th>Paid Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {paid_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Recent Work</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {tasks_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            Powered by HossAgent
+        </div>
+    </div>
+</body>
+</html>

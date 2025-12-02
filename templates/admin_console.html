@@ -403,6 +403,10 @@
                     <span>Max/Cycle:</span>
                     <span class="email-stat-value" id="email-max-cycle">10</span>
                 </div>
+                <div class="email-stat">
+                    <span>Hourly:</span>
+                    <span class="email-stat-value" id="email-hourly-count">0/50</span>
+                </div>
             </div>
         </div>
         <table id="email-log-table">
@@ -419,6 +423,62 @@
             </thead>
             <tbody>
                 <tr><td colspan="7" class="empty-row">No email attempts yet</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="lead-source-panel" id="stripe-panel">
+        <div class="lead-source-header">
+            <h2>STRIPE BILLING</h2>
+            <div class="lead-source-stats">
+                <div class="lead-source-stat">
+                    <span>Status:</span>
+                    <span class="lead-source-value" id="stripe-status">-</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Currency:</span>
+                    <span class="lead-source-value" id="stripe-currency">USD</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Limits:</span>
+                    <span class="lead-source-value" id="stripe-limits">$1-$500</span>
+                </div>
+            </div>
+        </div>
+        <div class="config-hint" id="stripe-hint">Set ENABLE_STRIPE=TRUE and STRIPE_API_KEY in Secrets</div>
+    </div>
+
+    <div class="lead-source-panel" id="bizdev-panel">
+        <div class="lead-source-header">
+            <h2>BIZDEV TEMPLATES</h2>
+            <div class="lead-source-stats">
+                <div class="lead-source-stat">
+                    <span>Pack:</span>
+                    <span class="lead-source-value" id="bizdev-pack">general</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Sender:</span>
+                    <span class="lead-source-value" id="bizdev-sender">HossAgent</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Templates:</span>
+                    <span class="lead-source-value" id="bizdev-template-count">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="config-hint" id="bizdev-hint">Set BIZDEV_NICHE_TEMPLATE (general, agency, saas, consulting, revops)</div>
+        <h3>RECENT GENERATED EMAILS</h3>
+        <table id="bizdev-log-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Lead</th>
+                    <th>Pack</th>
+                    <th>Subject</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="4" class="empty-row">No emails generated yet</td></tr>
             </tbody>
         </table>
     </div>
@@ -688,13 +748,102 @@
             }
         }
 
-        loadSettings();
+        async function refreshStripeStatus() {
+            try {
+                const res = await fetch('/api/stripe/status');
+                const data = await res.json();
+                
+                const statusEl = document.getElementById('stripe-status');
+                const hintEl = document.getElementById('stripe-hint');
+                
+                if (data.enabled && data.configured) {
+                    statusEl.textContent = 'ENABLED';
+                    statusEl.style.color = '#0f0';
+                    hintEl.textContent = data.message || 'Stripe configured';
+                    hintEl.style.color = '#0f0';
+                } else if (data.enabled) {
+                    statusEl.textContent = 'ERROR';
+                    statusEl.style.color = '#f00';
+                    hintEl.textContent = data.message || 'Check STRIPE_API_KEY';
+                    hintEl.style.color = '#f00';
+                } else {
+                    statusEl.textContent = 'DISABLED';
+                    statusEl.style.color = '#f90';
+                    hintEl.textContent = 'Set ENABLE_STRIPE=TRUE in Secrets';
+                }
+                
+                document.getElementById('stripe-currency').textContent = (data.currency || 'usd').toUpperCase();
+                document.getElementById('stripe-limits').textContent = `${data.min_amount || '$1.00'}-${data.max_amount || '$500.00'}`;
+                
+            } catch (e) {
+                console.error('Stripe status refresh error:', e);
+            }
+        }
+
+        async function refreshBizdevTemplates() {
+            try {
+                const res = await fetch('/api/bizdev/templates');
+                const data = await res.json();
+                
+                document.getElementById('bizdev-pack').textContent = data.active_pack || 'general';
+                document.getElementById('bizdev-sender').textContent = data.sender_name || 'HossAgent';
+                document.getElementById('bizdev-template-count').textContent = 
+                    `${data.subject_count || 0} subjects, ${data.body_count || 0} bodies`;
+                
+                const hintEl = document.getElementById('bizdev-hint');
+                if (data.pack_exists) {
+                    hintEl.textContent = `Available packs: ${(data.available_packs || []).join(', ')}`;
+                }
+                
+                const tbody = document.getElementById('bizdev-log-table').querySelector('tbody');
+                if (!data.recent_generations || data.recent_generations.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No emails generated yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.recent_generations.reverse().slice(0, 10).map(g => {
+                    const time = new Date(g.timestamp).toLocaleTimeString();
+                    return `
+                        <tr>
+                            <td>${time}</td>
+                            <td>${g.lead_email || '-'}</td>
+                            <td>${g.template_pack}</td>
+                            <td>${(g.subject || '').substring(0, 40)}...</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('BizDev templates refresh error:', e);
+            }
+        }
+
+        async function loadSettingsWithHourly() {
+            await loadSettings();
+            
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                if (data.email && data.email.hourly) {
+                    const h = data.email.hourly;
+                    document.getElementById('email-hourly-count').textContent = `${h.count || 0}/${h.max || 50}`;
+                }
+            } catch (e) {
+                console.error('Hourly count refresh error:', e);
+            }
+        }
+
+        loadSettingsWithHourly();
         refreshData();
         refreshEmailLog();
         refreshLeadSource();
+        refreshStripeStatus();
+        refreshBizdevTemplates();
         setInterval(refreshData, 10000);
         setInterval(refreshEmailLog, 15000);
         setInterval(refreshLeadSource, 15000);
+        setInterval(refreshStripeStatus, 30000);
+        setInterval(refreshBizdevTemplates, 30000);
+        setInterval(loadSettingsWithHourly, 60000);
     </script>
 </body>
 </html>
