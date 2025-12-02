@@ -1,0 +1,12 @@
+[
+  {
+    "timestamp": "2025-12-02T08:52:50.385743",
+    "lead_name": "Amanda",
+    "company": "Atlas Enterprise Group",
+    "to_email": "amanda@atlasenterprisegroup.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  }
+]

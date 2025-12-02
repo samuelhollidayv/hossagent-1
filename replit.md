@@ -5,6 +5,73 @@ A complete noir-aesthetic autonomous business system with four autonomous agents
 
 The system runs **self-driving cycles** that continuously find leads, convert them to customers, execute tasks autonomously, and generate invoices—all with real-time profit tracking.
 
+## Outbound Email Setup
+
+### Email Modes
+HossAgent supports three email modes, configured via the `EMAIL_MODE` environment variable:
+
+| Mode | Description | Required Secrets |
+|------|-------------|------------------|
+| `DRY_RUN` | Default. Logs emails without sending. Safe for testing. | None |
+| `SENDGRID` | Sends real emails via SendGrid API | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` |
+| `SMTP` | Sends real emails via SMTP server | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL` |
+
+### Environment Variables
+
+**For SendGrid (Recommended):**
+```
+EMAIL_MODE=SENDGRID
+SENDGRID_API_KEY=SG.xxxxx...
+SENDGRID_FROM_EMAIL=hoss@yourdomain.com
+```
+
+**For SMTP:**
+```
+EMAIL_MODE=SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your@email.com
+SMTP_PASSWORD=your_app_password
+SMTP_FROM_EMAIL=your@email.com
+```
+
+**Throttling (Optional):**
+```
+MAX_EMAILS_PER_CYCLE=10   # Default: 10 emails per BizDev cycle
+```
+
+### How to Configure in Replit
+1. Open the "Secrets" tab in the sidebar
+2. Add each environment variable as a secret
+3. Restart the workflow
+
+### Testing Email Configuration
+```bash
+# Test endpoint (replace with your email)
+curl -X POST "https://yourrepl.replit.dev/admin/send-test-email?to_email=test@example.com"
+
+# Response:
+{
+  "success": true,
+  "mode": "SENDGRID",
+  "to": "test@example.com",
+  "message": "Email sent successfully via SENDGRID"
+}
+```
+
+### Email Health in Admin Console
+The admin console (`/admin`) shows:
+- Current email mode indicator (DRY_RUN/SENDGRID/SMTP)
+- Max emails per cycle setting
+- Last 10 email attempts with timestamp, recipient, subject, mode, and result
+- Configuration hints when in DRY_RUN mode
+
+### Fallback Behavior
+If `EMAIL_MODE` is set to `SENDGRID` or `SMTP` but required credentials are missing:
+- System automatically falls back to `DRY_RUN`
+- Warning is logged to console
+- Admin console shows the fallback status
+
 ## Architecture
 
 ### Directory Structure
@@ -14,6 +81,8 @@ hoss-agent/
 ├── models.py            # SQLModel data models + SystemSettings
 ├── database.py          # SQLite setup with schema init
 ├── agents.py            # Four autonomous agent cycle functions
+├── email_utils.py       # Email infrastructure (SendGrid/SMTP/DRY_RUN)
+├── email_attempts.json  # Email attempt log (auto-created)
 ├── templates/
 │   ├── dashboard.html   # Customer-facing read-only dashboard (/)
 │   └── admin_console.html # Operator control room (/admin)
@@ -59,7 +128,8 @@ All agents run as idempotent `*_cycle` functions that can be called repeatedly:
 - GET /api/customers - List all customers
 - GET /api/tasks - List all tasks with cost/profit
 - GET /api/invoices - List all invoices
-- GET /api/settings - Get autopilot status
+- GET /api/settings - Get autopilot status + email configuration
+- GET /api/email-log?limit=10 - Get recent email attempts
 
 ### Admin APIs
 - POST /admin/autopilot?enabled=true/false - Toggle autopilot mode
@@ -68,6 +138,7 @@ All agents run as idempotent `*_cycle` functions that can be called repeatedly:
 - POST /api/run/ops - Manually trigger Ops cycle
 - POST /api/run/billing - Manually trigger Billing cycle
 - POST /api/invoices/{id}/mark-paid - Mark invoice as paid
+- POST /admin/send-test-email?to_email=x - Test email configuration
 
 ### Detail Pages
 - GET /customers/{id} - Customer detail with tasks & invoices
