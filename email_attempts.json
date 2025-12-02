@@ -8,5 +8,25 @@
     "mode": "DRY_RUN",
     "result": "dry-run",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-02T08:54:18.201568",
+    "lead_name": "Amanda",
+    "company": "Stratton Industries",
+    "to_email": "amanda@strattonindustries.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T08:54:18.202729",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
   }
 ]

@@ -500,7 +500,7 @@ Sent at: {datetime.utcnow().isoformat()}
     
     success = send_email(
         to_email=to_email,
-        subject=subject,
+        subject=subject or "HossAgent Test Email",
         body=body,
         lead_name="Test",
         company="Test Email"
