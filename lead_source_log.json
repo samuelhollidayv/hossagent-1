@@ -1,0 +1,87 @@
+{
+  "runs": [
+    {
+      "timestamp": "2025-12-02T09:02:50.454447",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 10,
+      "leads_skipped": 0
+    }
+  ],
+  "last_run": "2025-12-02T09:02:50.454447",
+  "last_created_count": 10,
+  "recent_leads": [
+    {
+      "id": 27,
+      "company": "Apex Revenue Partners",
+      "email": "james@apexrevenue.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.286551"
+    },
+    {
+      "id": 28,
+      "company": "Atlas Revenue Lab",
+      "email": "alex@atlasrevenue.co",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.290909"
+    },
+    {
+      "id": 29,
+      "company": "Elevate Agency Group",
+      "email": "chris@elevateagency.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.293587"
+    },
+    {
+      "id": 30,
+      "company": "Catalyst Growth Agency",
+      "email": "emily@catalystgrowth.co",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.296859"
+    },
+    {
+      "id": 31,
+      "company": "Quantum Lead Systems",
+      "email": "victoria@quantumleads.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.300433"
+    },
+    {
+      "id": 32,
+      "company": "Meridian Marketing Co",
+      "email": "sarah@meridianmktg.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.301557"
+    },
+    {
+      "id": 33,
+      "company": "Keystone Advisory",
+      "email": "nicole@keystoneadv.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.303440"
+    },
+    {
+      "id": 34,
+      "company": "Momentum Marketing",
+      "email": "ryan@momentummktg.co",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.307182"
+    },
+    {
+      "id": 35,
+      "company": "Sterling Strategy Group",
+      "email": "daniel@sterlingstrategy.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.309942"
+    },
+    {
+      "id": 36,
+      "company": "Vanguard Consulting Group",
+      "email": "michael@vanguardcg.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-02T09:02:50.311758"
+    }
+  ]
+}
