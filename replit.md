@@ -1,7 +1,7 @@
 # HossAgent - Autonomous AI Business Engine
 
 ## Overview
-HossAgent is an autonomous AI business system featuring a noir aesthetic. It orchestrates four AI agents (BizDev, Onboarding, Ops, Billing) to autonomously find leads, convert them into customers, execute tasks, and generate Stripe-powered invoices, all while tracking real-time profit. The system provides customer-facing and admin interfaces, including a customer portal for invoice management.
+HossAgent is an autonomous AI business system featuring a noir aesthetic. It orchestrates four AI agents (BizDev, Onboarding, Ops, Billing) to autonomously find leads, convert them into customers, execute tasks, and generate Stripe-powered invoices, all while tracking real-time profit. The system provides customer-facing and admin interfaces with complete authentication.
 
 **Business Model:** $99/month SaaS subscription with 7-day free trial. Trial users have restricted access (15 tasks, 20 leads max) and limited features.
 
@@ -15,9 +15,37 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 The system adopts a "black-label noir" aesthetic with deep black backgrounds (`#0a0a0a`), Georgia serif for the customer UI, Courier monospace for the admin console, and stark white/green/red accents. Gradients and emojis are explicitly avoided.
 
 **Interfaces (Separated):**
-- **Admin Console (`/admin`)**: Internal operator dashboard with full control over agents, system status, subscription management, email health, lead sources, revenue/profit metrics, and data tables. Includes "View as customer" links for each customer.
-- **Customer Portal (`/portal/<token>`)**: Clean, customer-facing interface showing only: Plan & Billing status, Recent Work (no cost/profit), and Invoices with Pay Now buttons. Includes "Start Paid Subscription" or "Manage Billing" CTAs.
-- **Customer Dashboard (`/`)**: Public-facing metrics overview.
+- **Marketing Landing Page (`/`)**: Public-facing homepage with "Start 7-Day Free Trial" and "Book a Demo" CTAs.
+- **Admin Console (`/admin`)**: Internal operator dashboard with password protection, full control over agents, system status, subscription management, email health, lead sources, revenue/profit metrics, and data tables. Includes "View as customer" links for each customer.
+- **Customer Portal (`/portal`)**: Session-authenticated portal showing: Plan & Billing status, Recent Work, and Invoices with Pay Now buttons. Includes "Start Paid Subscription" or "Manage Billing" CTAs.
+- **Customer Portal - Admin View (`/portal/<token>`)**: Token-based access for admin impersonation of customer accounts.
+
+## Authentication System
+
+**Customer Authentication:**
+- Email + password authentication with bcrypt hashing
+- Session-based with secure HTTP-only cookies (`hossagent_session`)
+- Sessions last 30 days
+- Routes:
+  - `GET /signup` - Trial registration form
+  - `POST /signup` - Process registration with trial abuse prevention
+  - `GET /login` - Customer login form
+  - `POST /login` - Process login and set session
+  - `GET /logout` - Clear session and redirect to home
+  - `GET /portal` - Session-authenticated customer portal
+
+**Admin Authentication:**
+- Simple password gate stored in `ADMIN_PASSWORD` environment variable
+- Separate session cookie (`hossagent_admin`)
+- Routes:
+  - `GET /admin` - Redirects to login if not authenticated
+  - `GET /admin/login` - Admin password form
+  - `POST /admin/login` - Process admin login
+
+**Trial Abuse Prevention:**
+- `TrialIdentity` table tracks email hash, IP, and user-agent fingerprints
+- 90-day cooldown period between trial attempts per identity
+- Password requirements: minimum 8 characters
 
 **Core Features:**
 - **Autonomous Agents**:
@@ -52,26 +80,42 @@ When enabled, the autopilot runs every 5 minutes, executing lead generation, Biz
   - Autopilot enabled
   - Stripe subscription management via Billing Portal
 
+**Customer Signup Flow:**
+1. User visits marketing landing page at `/`
+2. Clicks "Start 7-Day Free Trial" button
+3. Completes signup form at `/signup` with company name, email, password
+4. Trial abuse prevention validates fingerprint (email, IP, user-agent)
+5. Customer account created with trial status, redirected to portal
+
 **Customer Upgrade Flow:**
-1. Customer visits their portal at `/portal/<public_token>`
+1. Customer logs in and visits portal at `/portal`
 2. Clicks "Start Paid Subscription" button
-3. Redirected to `/subscribe/<public_token>` which creates Stripe Checkout session
+3. Redirected to Stripe Checkout via `/subscribe/<public_token>`
 4. Customer completes payment on Stripe's hosted checkout (supports Apple Pay, Google Pay, cards)
 5. Stripe sends `checkout.session.completed` webhook to `/stripe/subscription-webhook`
 6. Customer automatically upgraded to paid plan with full access
 7. Customer can manage billing via "Manage Billing" button (redirects to Stripe Customer Portal)
 
-**Trial Abuse Prevention:**
-- `TrialIdentity` table tracks email hash, IP, and user-agent fingerprints
-- 90-day cooldown period between trial attempts per identity
-- Prevents free trial abuse via duplicate signups
-
 ## API Endpoints
 
-**Customer Subscription:**
-- `GET /portal/<public_token>` - Customer portal (view work, plan, invoices)
-- `GET /subscribe/<public_token>` - Redirect to Stripe Checkout for subscription
-- `GET /billing/<public_token>` - Redirect to Stripe Customer Portal (paid users)
+**Public Routes:**
+- `GET /` - Marketing landing page
+- `GET /signup` - Customer signup form
+- `POST /signup` - Process customer registration
+- `GET /login` - Customer login form
+- `POST /login` - Process customer login
+- `GET /logout` - Logout and clear session
+
+**Customer Portal (Session Required):**
+- `GET /portal` - Authenticated customer portal
+- `GET /subscribe/<public_token>` - Redirect to Stripe Checkout
+- `GET /billing/<public_token>` - Redirect to Stripe Billing Portal
+
+**Admin Routes (Admin Session Required):**
+- `GET /admin` - Admin console (redirects to login if not authenticated)
+- `GET /admin/login` - Admin login form
+- `POST /admin/login` - Process admin login
+- `GET /portal/<public_token>` - View customer portal as admin
 
 **Admin APIs:**
 - `GET /api/subscription/status` - Get subscription configuration status
@@ -80,24 +124,21 @@ When enabled, the autopilot runs every 5 minutes, executing lead generation, Biz
 
 **Webhooks:**
 - `POST /stripe/webhook` - Handle invoice payment webhooks
-- `POST /stripe/subscription-webhook` - Handle subscription lifecycle events:
-  - `checkout.session.completed` - Customer completed Stripe Checkout
-  - `invoice.payment_succeeded` - Subscription payment succeeded
-  - `customer.subscription.updated` - Subscription status changed
-  - `customer.subscription.deleted` - Subscription canceled
+- `POST /stripe/subscription-webhook` - Handle subscription lifecycle events
 
 ## Environment Variables
+
+**Required for Admin Authentication:**
+- `ADMIN_PASSWORD` - Password for admin console access (set in Secrets)
 
 **Required for Stripe Subscriptions:**
 - `ENABLE_STRIPE=TRUE` - Enable Stripe integration
 - `STRIPE_API_KEY` - Stripe secret API key (sk_live_... or sk_test_...)
-- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret (whsec_..., recommended for production)
-- `STRIPE_PRICE_ID_PRO` - Stripe Price ID for $99/month plan (price_..., optional if auto-created)
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret (whsec_...)
+- `STRIPE_PRICE_ID_PRO` - Stripe Price ID for $99/month plan (price_..., optional)
 
 **Subscription Product (Auto-created at startup):**
-The system automatically creates a Stripe product ("HossAgent Subscription") and price ($99/month) at startup if not already present. Alternatively, provide your own:
-- `STRIPE_PRODUCT_ID` - Existing Stripe product ID
-- `STRIPE_PRICE_ID` - Existing Stripe price ID
+The system automatically creates a Stripe product ("HossAgent Subscription") and price ($99/month) at startup if not already present.
 
 **Email Configuration:**
 - `DRY_RUN=TRUE` - Log emails without sending (always enabled for trial users)
@@ -108,27 +149,11 @@ The system automatically creates a Stripe product ("HossAgent Subscription") and
 - `LEAD_NICHE` - Target industry/niche for lead generation
 - `LEAD_GEOGRAPHY` - Target geographic region
 
-## How to Get a Customer Portal URL
-
-Each customer has a unique `public_token` stored in the database. The portal URL is:
-```
-/portal/<public_token>
-```
-
-To find a customer's portal URL:
-1. Go to Admin Console (`/admin`)
-2. Look at the CUSTOMER PLANS table
-3. Click "View as customer" link to open their portal
-
-The "Start Paid Subscription" button routes through `/subscribe/<public_token>` which:
-- Creates a Stripe Checkout session if Stripe is configured
-- Shows a friendly message if Stripe is disabled
-- Redirects paid customers to Stripe Customer Portal instead
-
 ## File Structure
 
 ```
 main.py                  # FastAPI application, routes, and agent orchestration
+auth_utils.py            # Authentication utilities (password hashing, sessions)
 models.py                # SQLModel data models (Customer, Lead, Task, Invoice, TrialIdentity)
 database.py              # Database connection and session management
 subscription_utils.py    # Subscription logic, plan gating, checkout link creation
@@ -139,9 +164,12 @@ bizdev_templates.py      # BizDev email template management
 lead_sources.py          # External lead API integration
 release_mode.py          # Production mode configuration
 templates/
+  marketing_landing.html # Public homepage with trial CTA
+  auth_signup.html       # Customer signup form
+  auth_login.html        # Customer login form
+  admin_login.html       # Admin password form
   admin_console.html     # Internal admin interface with all metrics and controls
   customer_portal.html   # Clean customer-facing portal (Plan, Work, Invoices)
-  customer_dashboard.html # Public dashboard
 hossagent.db            # SQLite database file
 ```
 
@@ -149,18 +177,19 @@ hossagent.db            # SQLite database file
 - **FastAPI**: Web framework for the backend.
 - **SQLModel**: ORM for data modeling and interaction with SQLite.
 - **SQLite**: Database for data persistence.
+- **bcrypt**: Password hashing for customer authentication.
 - **SendGrid / SMTP**: Optional email service providers for outreach.
 - **Stripe**: Payment gateway for subscription checkout, billing portal, invoice processing, and webhooks.
 - **External Lead API**: Optional third-party service for lead sourcing.
 
 ## Recent Changes
-- Separated customer portal from admin console (clean customer view vs internal metrics)
-- Added `/subscribe/<public_token>` route for Stripe Checkout redirect
-- Added `/billing/<public_token>` route for Stripe Customer Portal
-- Created `get_or_create_subscription_checkout_link()` helper in subscription_utils.py
-- Added `create_billing_portal_link()` helper for paid customer billing management
-- Updated customer portal with three clean sections: Plan & Billing, Recent Work, Invoices
-- Added "View as customer" links to Admin Console customer table
-- Extended webhook handling for `checkout.session.completed` events
-- Added payment success/cancelled banners to customer portal
-- Updated STRIPE_PRICE_ID_PRO env var documentation
+- Added complete authentication system with email+password login
+- Created marketing landing page at / with trial CTA
+- Implemented customer signup flow with trial abuse prevention
+- Added session-based /portal access (requires login)
+- Added /portal/<token> for admin impersonation
+- Created admin authentication protecting /admin console
+- Added auth_utils.py for password hashing and session management
+- Customer model extended with password_hash, contact_name, niche, geography fields
+- Customer portal hides micro-invoices (under $10) for cleaner UX
+- Added logout button to customer portal header
