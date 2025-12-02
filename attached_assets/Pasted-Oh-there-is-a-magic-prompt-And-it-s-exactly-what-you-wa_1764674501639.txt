@@ -1,0 +1,141 @@
+Oh there is a magic prompt.
+And it’s exactly what you want: a single one-shot command you paste into Replit that makes the agent:
+	•	Confirm Stripe config
+	•	Regenerate payment links
+	•	Run billing
+	•	Hit your own /admin/send-test-email
+	•	Simulate a webhook event
+	•	Validate DB states
+	•	Surface any failures right in the console
+
+Basically:
+“Test the entire payments & email loop end-to-end in DRY_RUN and LIVE modes without me clicking anything.”
+
+Here it is.
+
+⸻
+
+⚡ THE ONE-SHOT HOSS TEST HARNESS PROMPT
+
+Copy/paste this into the Replit Magic Box.
+
+No commentary, no code fences — just drop this whole thing in.
+
+⸻
+
+Replit Agent — I need a complete end-to-end system test of HossAgent’s Stripe + Email + Billing loop. Do NOT modify core logic. Only run tests, create temporary routes if needed, simulate events, and report results.
+
+TEST OBJECTIVE
+
+Verify the following without breaking anything:
+	1.	Stripe configuration detection (ENABLE_STRIPE, STRIPE_API_KEY)
+	2.	Payment link generation for all draft invoices
+	3.	Customer portal correctness (/portal/<public_token>)
+	4.	Email sending health (in DRY_RUN mode)
+	5.	Stripe webhook behavior (simulated test event)
+	6.	Invoice state transitions (draft → paid)
+	7.	Logging + admin console visibility
+
+WHAT TO DO
+
+Perform the following steps automatically:
+
+⸻
+
+1. Stripe Config Test
+	•	Validate that Stripe API key is present in Secrets.
+	•	Hit Stripe’s /v1/charges?limit=1 with the key to confirm authorization.
+	•	Output:
+	•	“Stripe: OK” or “Stripe: FAIL (reason)”
+
+⸻
+
+2. Payment Link Generation Test
+	•	For each invoice with status = “draft”:
+	•	Call the existing billing logic to force-create payment links.
+	•	Confirm each invoice now has a payment_url.
+	•	Output table of:
+Invoice ID | Expected Link? | Found Link | PASS/FAIL
+
+⸻
+
+3. Customer Portal Test
+	•	For each customer:
+	•	Load /portal/<public_token> internally.
+	•	Confirm:
+	•	Page loads (HTTP 200)
+	•	Shows invoices
+	•	Shows tasks
+	•	Shows payment links
+	•	Output PASS/FAIL for each customer.
+
+⸻
+
+4. Email System Test
+	•	Call the unified send_email function in DRY_RUN mode with test values.
+	•	Confirm console logs show [EMAIL][DRY_RUN].
+	•	Also call /admin/send-test-email?to_email=test@hoss.com.
+	•	Capture and display the response JSON.
+
+⸻
+
+5. Simulate Stripe Webhook
+
+Create a temporary local test route /simulate-webhook that:
+	•	Loads one existing invoice with a payment_url
+	•	Constructs a fake Stripe event:
+
+type = "invoice.payment_succeeded"
+data.object.id = "<fake>"
+data.object.metadata.invoice_id = <real invoice id>
+
+	•	Calls the system webhook handler internally (NOT over the internet)
+	•	After running:
+	•	Reload invoice from DB
+	•	Confirm:
+	•	status = “paid”
+	•	paid_at is not null
+
+Output PASS/FAIL.
+
+Then delete the temporary route.
+
+⸻
+
+6. Admin Console Test
+
+Check /admin automatically to confirm:
+	•	OUTBOUND: DRY_RUN or SENDGRID/SMTP
+	•	Stripe section shows enabled/disabled correctly
+	•	Invoices show “PAID” where appropriate
+	•	No missing links for Stripe-enabled invoices
+
+Output a final PASS/FAIL summary.
+
+⸻
+
+7. FINAL REPORT
+
+Generate a single, condensed report that includes:
+	•	Stripe Status
+	•	Email System Status
+	•	Payment Link Status per invoice
+	•	Portal Status per customer
+	•	Webhook Simulation Result
+	•	Invoice State Transitions
+	•	Any errors or warnings
+	•	“SYSTEM READY FOR LIVE BILLING: YES/NO”
+
+Do NOT modify production logic.
+Do NOT change environment variables.
+Only run the checks and output results.
+
+Begin now.
+
+⸻
+
+If you paste that into the Magic Box, it will run a literal full-stack diagnostic on the whole HossAgent pipeline.
+
+It’s basically the preflight checklist before liftoff.
+
+If anything is broken, the report will tell us exactly where.

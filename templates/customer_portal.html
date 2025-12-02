@@ -5,81 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{company_name} - Customer Portal</title>
     <style>
-        * {
+        * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }
-        body {
+        }}
+        body {{
             background: #0a0a0a;
             color: #fff;
             font-family: Georgia, 'Times New Roman', serif;
             padding: 2rem;
             min-height: 100vh;
-        }
-        .container {
+        }}
+        .container {{
             max-width: 900px;
             margin: 0 auto;
-        }
-        .header {
+        }}
+        .header {{
             border-bottom: 1px solid #333;
             padding-bottom: 1.5rem;
             margin-bottom: 2rem;
-        }
-        h1 {
+        }}
+        h1 {{
             font-size: 2rem;
             font-weight: normal;
             letter-spacing: 1px;
             margin-bottom: 0.5rem;
-        }
-        .subtitle {
+        }}
+        .subtitle {{
             color: #666;
             font-size: 0.9rem;
-        }
-        .account-summary {
+        }}
+        .account-summary {{
             border: 1px solid #333;
             padding: 1.5rem;
             margin-bottom: 2rem;
-        }
-        .account-summary h2 {
+        }}
+        .account-summary h2 {{
             font-size: 1rem;
             font-weight: normal;
             letter-spacing: 1px;
             margin-bottom: 1rem;
             color: #999;
             text-transform: uppercase;
-        }
-        .metrics {
+        }}
+        .metrics {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 1rem;
-        }
-        .metric {
+        }}
+        .metric {{
             border: 1px solid #333;
             padding: 1.5rem;
             text-align: center;
-        }
-        .metric-value {
+        }}
+        .metric-value {{
             font-size: 1.75rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
-        }
-        .metric-value.green {
+        }}
+        .metric-value.green {{
             color: #0f0;
-        }
-        .metric-value.orange {
+        }}
+        .metric-value.orange {{
             color: #f90;
-        }
-        .metric-value.white {
+        }}
+        .metric-value.white {{
             color: #fff;
-        }
-        .metric-label {
+        }}
+        .metric-label {{
             font-size: 0.75rem;
             color: #999;
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
-        .payment-notice {
+        }}
+        .payment-notice {{
             background: #1a1a1a;
             border: 1px solid #333;
             padding: 1rem;
@@ -87,24 +87,24 @@
             color: #888;
             font-size: 0.85rem;
             text-align: center;
-        }
-        .section {
+        }}
+        .section {{
             margin: 2rem 0;
-        }
-        .section h2 {
+        }}
+        .section h2 {{
             font-size: 1rem;
             font-weight: normal;
             letter-spacing: 1px;
             margin-bottom: 1rem;
             color: #999;
             text-transform: uppercase;
-        }
-        table {
+        }}
+        table {{
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
-        }
-        table th {
+        }}
+        table th {{
             text-align: left;
             padding: 0.75rem;
             border-bottom: 1px solid #333;
@@ -113,44 +113,44 @@
             text-transform: uppercase;
             font-size: 0.75rem;
             letter-spacing: 1px;
-        }
-        table td {
+        }}
+        table td {{
             padding: 0.75rem;
             border-bottom: 1px solid #222;
-        }
-        table tr:hover {
+        }}
+        table tr:hover {{
             background: #111;
-        }
-        .status-badge {
+        }}
+        .status-badge {{
             display: inline-block;
             padding: 0.25rem 0.5rem;
             background: #333;
             font-size: 0.75rem;
             text-transform: uppercase;
-        }
-        .status-badge.pending {
+        }}
+        .status-badge.pending {{
             background: #664400;
-        }
-        .status-badge.running {
+        }}
+        .status-badge.running {{
             background: #004466;
-        }
-        .status-badge.done {
+        }}
+        .status-badge.done {{
             background: #006600;
-        }
-        .status-badge.failed {
+        }}
+        .status-badge.failed {{
             background: #660000;
-        }
-        .status-badge.draft {
+        }}
+        .status-badge.draft {{
             background: #664400;
-        }
-        .status-badge.sent {
+        }}
+        .status-badge.sent {{
             background: #004466;
-        }
-        .status-badge.paid {
+        }}
+        .status-badge.paid {{
             background: #006600;
             color: #0f0;
-        }
-        .pay-btn {
+        }}
+        .pay-btn {{
             display: inline-block;
             background: #fff;
             color: #0a0a0a;
@@ -161,42 +161,42 @@
             font-family: Georgia, serif;
             border: 2px solid #fff;
             transition: all 0.2s ease;
-        }
-        .pay-btn:hover {
+        }}
+        .pay-btn:hover {{
             background: #0a0a0a;
             color: #fff;
-        }
-        .payment-unavailable {
+        }}
+        .payment-unavailable {{
             color: #555;
             font-size: 0.8rem;
             font-style: italic;
-        }
-        .empty {
+        }}
+        .empty {{
             color: #555;
             font-style: italic;
             text-align: center;
-        }
-        .footer {
+        }}
+        .footer {{
             margin-top: 3rem;
             padding-top: 1rem;
             border-top: 1px solid #222;
             text-align: center;
             color: #444;
             font-size: 0.8rem;
-        }
-        @media (max-width: 768px) {
-            .metrics {
+        }}
+        @media (max-width: 768px) {{
+            .metrics {{
                 grid-template-columns: repeat(2, 1fr);
-            }
-            body {
+            }}
+            body {{
                 padding: 1rem;
-            }
-        }
-        @media (max-width: 480px) {
-            .metrics {
+            }}
+        }}
+        @media (max-width: 480px) {{
+            .metrics {{
                 grid-template-columns: 1fr;
-            }
-        }
+            }}
+        }}
     </style>
 </head>
 <body>

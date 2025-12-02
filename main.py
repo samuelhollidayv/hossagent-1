@@ -427,6 +427,7 @@ def get_customers(session: Session = Depends(get_session)):
             "billing_plan": c.billing_plan,
             "status": c.status,
             "stripe_customer_id": c.stripe_customer_id,
+            "public_token": c.public_token,
             "notes": c.notes,
             "created_at": c.created_at.isoformat(),
         }
