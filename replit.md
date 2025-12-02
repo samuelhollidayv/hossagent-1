@@ -18,7 +18,8 @@ HossAgent operates as a FastAPI backend, integrating routes, an autopilot mechan
 - `agents.py`: Logic for the four autonomous agent cycles.
 - `email_utils.py`: Email infrastructure (SendGrid, SMTP, DRY_RUN) with hourly throttling.
 - `lead_sources.py`: Lead source providers (DummySeed for dev, SearchApi for production).
-- `lead_service.py`: Lead generation service with deduplication and logging.
+- `lead_service.py`: Lead generation service with domain-based deduplication and logging.
+- `release_mode.py`: Release mode configuration and startup banners.
 - `bizdev_templates.py`: Niche-tuned email template engine with multiple packs.
 - `stripe_utils.py`: Stripe payment link creation and webhook handling.
 - `templates/`: HTML templates (dashboard, admin_console, customer_portal).
@@ -88,11 +89,34 @@ BIZDEV_OFFER=autonomous business operations
 
 ### Stripe Billing
 ```
-ENABLE_STRIPE=TRUE|FALSE       # Default: FALSE
-STRIPE_API_KEY=sk_...          # Secret key (starts with sk_)
+ENABLE_STRIPE=TRUE|FALSE           # Default: FALSE
+STRIPE_API_KEY=sk_...              # Secret key (starts with sk_)
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_DEFAULT_CURRENCY=usd    # Default: usd
+STRIPE_DEFAULT_CURRENCY=usd        # Default: usd
+STRIPE_MIN_AMOUNT_CENTS=100        # Minimum invoice amount (default: $1.00)
+STRIPE_MAX_AMOUNT_CENTS=50000      # Maximum invoice amount (default: $500.00)
 ```
+
+### Release Mode
+```
+RELEASE_MODE=PRODUCTION|STAGING|DEVELOPMENT  # Default: DEVELOPMENT
+```
+
+**PRODUCTION mode:**
+- Strict validation of all credentials at startup
+- Warnings for high-volume email settings (>100/hour)
+- Enforces DRY_RUN fallback for missing credentials
+- Production safety banners printed to console
+
+**STAGING mode:**
+- Semi-strict validation (warnings but continues)
+- Lower recommended throttle limits for testing
+- Good for pre-production testing
+
+**DEVELOPMENT mode (default):**
+- Lenient configuration (DRY_RUN acceptable)
+- No high-volume warnings
+- Allows DummySeed providers without warnings
 
 ## API Endpoints
 
@@ -111,6 +135,8 @@ STRIPE_DEFAULT_CURRENCY=usd    # Default: usd
 - `GET /api/lead-source` - Lead source status
 - `GET /api/stripe/status` - Stripe configuration status
 - `GET /api/bizdev/templates` - Template engine status
+- `GET /api/release-mode` - Release mode configuration status
+- `GET /admin/summary?hours=24` - Aggregated activity summary (1-168 hours)
 
 ### Admin Actions
 - `POST /admin/autopilot?enabled=true|false` - Toggle autopilot

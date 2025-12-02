@@ -1,8 +1,16 @@
 """
 Lead Service for HossAgent.
 Handles lead generation, deduplication, and management.
+
+Deduplication rules:
+- Primary: Match by email address
+- Secondary: Match by (company_name + normalized_domain)
+- Domain normalization: strips www., http://, https://, trailing paths
+
+Logs all dedupe events with [LEADS][DEDUPED] tag.
 """
 import json
+import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -17,7 +25,33 @@ from lead_sources import (
 
 
 LEAD_SOURCE_LOG_FILE = Path("lead_source_log.json")
-MAX_LOG_ENTRIES = 100
+MAX_LOG_ENTRIES = 5000  # Capped to prevent unbounded growth
+
+
+def _normalize_domain(website: Optional[str]) -> Optional[str]:
+    """
+    Normalize a website URL to a domain for deduplication.
+    
+    Examples:
+        https://www.example.com/page -> example.com
+        http://example.com -> example.com
+        www.example.com -> example.com
+    """
+    if not website:
+        return None
+    
+    domain = website.lower().strip()
+    domain = re.sub(r'^https?://', '', domain)
+    domain = re.sub(r'^www\.', '', domain)
+    domain = domain.split('/')[0]
+    domain = domain.split('?')[0]
+    
+    return domain if domain else None
+
+
+def _normalize_company(company: str) -> str:
+    """Normalize company name for comparison."""
+    return company.lower().strip()
 
 
 def _load_lead_source_log() -> Dict[str, Any]:
@@ -81,28 +115,40 @@ def get_recent_auto_leads(limit: int = 10) -> List[Dict[str, Any]]:
     return log_data.get("recent_leads", [])[-limit:]
 
 
-def _lead_exists(session: Session, email: str, company: str, website: Optional[str] = None) -> bool:
+def _lead_exists(session: Session, email: str, company: str, website: Optional[str] = None) -> Optional[int]:
     """
     Check if a similar lead already exists.
-    Matches by email (primary) or by company+website combo.
+    
+    Matches by:
+    1. Email (primary) - exact match, case-insensitive
+    2. Company + Domain (secondary) - normalized domain comparison
+    
+    Returns:
+        Lead ID if exists, None otherwise
     """
     if email:
+        email_lower = email.lower().strip()
         existing = session.exec(
-            select(Lead).where(Lead.email == email)
+            select(Lead).where(Lead.email == email_lower)
         ).first()
-        if existing:
-            return True
+        if existing and existing.status != "invalid":
+            return existing.id
     
     if website and company:
-        existing = session.exec(
-            select(Lead).where(
-                (Lead.company == company) & (Lead.website == website)
-            )
-        ).first()
-        if existing:
-            return True
+        domain = _normalize_domain(website)
+        company_norm = _normalize_company(company)
+        
+        if domain:
+            all_leads = session.exec(select(Lead).limit(1000)).all()
+            for lead in all_leads:
+                if lead.status == "invalid":
+                    continue
+                lead_domain = _normalize_domain(lead.website)
+                lead_company = _normalize_company(lead.company)
+                if lead_domain == domain and lead_company == company_norm:
+                    return lead.id
     
-    return False
+    return None
 
 
 def generate_new_leads_from_source(session: Session) -> str:
@@ -142,6 +188,7 @@ def generate_new_leads_from_source(session: Session) -> str:
     
     leads_created = 0
     leads_skipped = 0
+    leads_deduped = 0
     created_leads = []
     
     for candidate in candidates:
@@ -150,14 +197,22 @@ def generate_new_leads_from_source(session: Session) -> str:
             leads_skipped += 1
             continue
         
-        if _lead_exists(session, candidate.email or "", candidate.company_name, candidate.website):
-            print(f"[LEADS][SOURCE] Skipping {candidate.company_name}: already exists")
+        existing_id = _lead_exists(session, candidate.email or "", candidate.company_name, candidate.website)
+        if existing_id is not None:
+            print(f"[LEADS][DEDUPED] {candidate.company_name}: matches existing lead {existing_id}")
+            leads_deduped += 1
             leads_skipped += 1
             continue
         
+        email_to_use = candidate.email
+        if email_to_use:
+            email_to_use = email_to_use.lower().strip()
+        else:
+            email_to_use = f"info@{candidate.company_name.lower().replace(' ', '')}.com"
+        
         lead = Lead(
             name=candidate.contact_name or "Contact",
-            email=candidate.email or f"info@{candidate.company_name.lower().replace(' ', '')}.com",
+            email=email_to_use,
             company=candidate.company_name,
             niche=candidate.niche or config.niche,
             status="new",

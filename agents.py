@@ -17,7 +17,8 @@ from email_utils import (
     get_email_mode,
     get_max_emails_per_cycle,
     get_email_status,
-    EmailMode
+    EmailMode,
+    EmailResult
 )
 from bizdev_templates import (
     generate_email,
@@ -57,6 +58,7 @@ async def run_bizdev_cycle(session: Session) -> str:
     
     emails_sent = 0
     emails_failed = 0
+    emails_throttled = 0
     emails_attempted = 0
     contacted_companies = []
 
@@ -75,7 +77,7 @@ async def run_bizdev_cycle(session: Session) -> str:
         log_template_generation(generated, lead.id, lead.email)
 
         emails_attempted += 1
-        email_sent = send_email(
+        email_result: EmailResult = send_email(
             to_email=lead.email,
             subject=generated.subject,
             body=generated.body,
@@ -83,25 +85,29 @@ async def run_bizdev_cycle(session: Session) -> str:
             company=lead.company
         )
         
-        if email_sent:
+        if email_result.actually_sent:
             lead.status = "contacted"
             lead.last_contacted_at = datetime.utcnow()
             emails_sent += 1
             contacted_companies.append(lead.company)
             print(f"[BIZDEV] Lead {lead.name} at {lead.company}: CONTACTED (template={generated.template_pack})")
-        elif effective_mode == "DRY_RUN":
-            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: status=new (mode={effective_mode})")
+        elif email_result.result == "throttled":
+            emails_throttled += 1
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: THROTTLED")
+        elif email_result.result in ("dry_run", "fallback"):
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: status=new (mode={email_result.mode})")
         else:
             lead.status = "email_failed"
             emails_failed += 1
-            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: EMAIL_FAILED")
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: EMAIL_FAILED error=\"{email_result.error}\"")
 
         session.add(lead)
 
     session.commit()
     
     companies_str = ", ".join(contacted_companies) if contacted_companies else "None"
-    msg = f"BizDev: Contacted {emails_sent}/{emails_attempted} leads ({companies_str}). Failed: {emails_failed}. Mode: {effective_mode}, Template: {template_status['active_pack']}"
+    throttle_info = f", Throttled: {emails_throttled}" if emails_throttled > 0 else ""
+    msg = f"BizDev: Contacted {emails_sent}/{emails_attempted} leads ({companies_str}). Failed: {emails_failed}{throttle_info}. Mode: {effective_mode}, Template: {template_status['active_pack']}"
     print(f"[CYCLE] {msg}")
     return msg
 

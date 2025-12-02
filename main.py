@@ -5,23 +5,23 @@ FastAPI backend with autopilot-driven autonomous agents.
 Routes:
 - /                    → Customer Dashboard (public-facing read-only)
 - /admin               → Admin Console (operator controls + autopilot toggle)
+- /portal/<token>      → Customer Portal (client self-service)
 - /api/leads           → List all leads (GET)
 - /api/customers       → List all customers (GET)
 - /api/tasks           → List all tasks (GET)
 - /api/invoices        → List all invoices (GET)
 - /api/run/*           → Admin endpoints to manually trigger agent cycles
-- /customers/{id}      → Customer detail page
-- /leads/{id}          → Lead detail page
-- /invoices/{id}       → Invoice detail page
+- /admin/summary       → Daily/weekly summary for operators
 - /admin/send-test-email → Test email configuration
+- /stripe/webhook      → Stripe payment webhook
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import FastAPI, Depends, Request, HTTPException, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
 from models import Lead, Customer, Task, Invoice, SystemSettings
 from agents import (
@@ -33,6 +33,8 @@ from agents import (
 from email_utils import send_email, get_email_status, get_email_log
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
+from release_mode import is_release_mode, print_startup_banners, get_release_mode_status
+from stripe_utils import validate_stripe_at_startup
 
 app = FastAPI(title="HossAgent Control Engine")
 
@@ -44,10 +46,15 @@ app = FastAPI(title="HossAgent Control Engine")
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database and start autopilot background loop."""
+    """Initialize database, validate configuration, and start autopilot background loop."""
+    print_startup_banners()
+    
     create_db_and_tables()
+    
+    validate_stripe_at_startup()
+    
     asyncio.create_task(autopilot_loop())
-    print("✓ HossAgent started. Autopilot loop active.")
+    print("[STARTUP] HossAgent initialized. Autopilot loop active.")
 
 
 async def autopilot_loop():
@@ -641,6 +648,112 @@ def get_stripe_status_endpoint():
     return {
         **status,
         "recent_events": recent_events
+    }
+
+
+# ============================================================================
+# RELEASE MODE & SUMMARY
+# ============================================================================
+
+
+@app.get("/api/release-mode")
+def get_release_mode_endpoint():
+    """Get current release mode configuration status."""
+    return get_release_mode_status()
+
+
+@app.get("/admin/summary")
+def get_admin_summary(
+    hours: int = Query(default=24, ge=1, le=168),
+    session: Session = Depends(get_session)
+):
+    """
+    Get summary of system activity for the last N hours.
+    
+    Default 24 hours, max 168 (one week).
+    
+    Returns aggregated stats for leads, emails, tasks, invoices, and payments.
+    """
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    
+    leads_new = session.exec(
+        select(func.count()).select_from(Lead).where(Lead.created_at >= cutoff)
+    ).one()
+    leads_contacted = session.exec(
+        select(func.count()).select_from(Lead).where(
+            (Lead.status == "contacted") & (Lead.created_at >= cutoff)
+        )
+    ).one()
+    leads_converted = session.exec(
+        select(func.count()).select_from(Lead).where(
+            (Lead.status == "converted") & (Lead.created_at >= cutoff)
+        )
+    ).one()
+    leads_failed = session.exec(
+        select(func.count()).select_from(Lead).where(
+            (Lead.status == "email_failed") & (Lead.created_at >= cutoff)
+        )
+    ).one()
+    
+    tasks_completed = session.exec(
+        select(func.count()).select_from(Task).where(
+            (Task.status == "completed") & (Task.created_at >= cutoff)
+        )
+    ).one()
+    tasks_profit = session.exec(
+        select(func.coalesce(func.sum(Task.profit_cents), 0)).select_from(Task).where(
+            (Task.status == "completed") & (Task.created_at >= cutoff)
+        )
+    ).one()
+    
+    invoices_generated = session.exec(
+        select(func.count()).select_from(Invoice).where(Invoice.created_at >= cutoff)
+    ).one()
+    invoices_paid = session.exec(
+        select(func.count()).select_from(Invoice).where(
+            (Invoice.status == "paid") & (Invoice.paid_at >= cutoff)
+        )
+    ).one()
+    revenue_cents = session.exec(
+        select(func.coalesce(func.sum(Invoice.amount_cents), 0)).select_from(Invoice).where(
+            (Invoice.status == "paid") & (Invoice.paid_at >= cutoff)
+        )
+    ).one()
+    
+    email_log = get_email_log(100)
+    emails_in_period = [e for e in email_log if datetime.fromisoformat(e.get("timestamp", "2000-01-01")) >= cutoff]
+    emails_sent = len([e for e in emails_in_period if e.get("status") == "sent"])
+    emails_failed = len([e for e in emails_in_period if e.get("status") == "failed"])
+    emails_dry_run = len([e for e in emails_in_period if e.get("mode") == "dry_run"])
+    
+    return {
+        "period": {
+            "hours": hours,
+            "start": cutoff.isoformat(),
+            "end": datetime.utcnow().isoformat()
+        },
+        "leads": {
+            "new": leads_new,
+            "contacted": leads_contacted,
+            "converted": leads_converted,
+            "email_failed": leads_failed
+        },
+        "emails": {
+            "sent": emails_sent,
+            "failed": emails_failed,
+            "dry_run": emails_dry_run
+        },
+        "tasks": {
+            "completed": tasks_completed,
+            "profit_cents": tasks_profit
+        },
+        "invoices": {
+            "generated": invoices_generated,
+            "paid": invoices_paid,
+            "revenue_cents": revenue_cents
+        },
+        "release_mode": is_release_mode(),
+        "generated_at": datetime.utcnow().isoformat()
     }
 
 

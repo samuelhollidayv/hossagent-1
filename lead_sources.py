@@ -153,7 +153,14 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
     Configure via environment variables:
         LEAD_SEARCH_API_URL - API endpoint
         LEAD_SEARCH_API_KEY - Authentication key
+        
+    Safety:
+        Falls back gracefully on errors with [LEADS][API_ERROR] logging.
+        Never crashes the autopilot loop.
     """
+    
+    last_error: Optional[str] = None
+    last_status: str = "unknown"  # "ok", "no_creds", "api_error"
     
     @property
     def name(self) -> str:
@@ -168,7 +175,9 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
             api_key = os.getenv("LEAD_SEARCH_API_KEY", "")
             
             if not api_url or not api_key:
-                print("[LEADS][SOURCE] SearchApi credentials not configured, returning empty")
+                self.last_status = "no_creds"
+                self.last_error = "LEAD_SEARCH_API_URL or LEAD_SEARCH_API_KEY not set"
+                print(f"[LEADS][API_ERROR] {self.last_error} - falling back to zero leads")
                 return []
             
             query = self._build_query(config)
@@ -187,7 +196,9 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
             )
             
             if response.status_code != 200:
-                print(f"[LEADS][SOURCE] SearchApi error: {response.status_code} - {response.text[:200]}")
+                self.last_status = "api_error"
+                self.last_error = f"HTTP {response.status_code}: {response.text[:100]}"
+                print(f"[LEADS][API_ERROR] SearchApi returned status {response.status_code} - {response.text[:200]}")
                 return []
             
             data = response.json()
@@ -197,7 +208,9 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
             elif isinstance(data, list):
                 results = data
             else:
-                print(f"[LEADS][SOURCE] SearchApi unexpected response format")
+                self.last_status = "api_error"
+                self.last_error = "Unexpected response format"
+                print(f"[LEADS][API_ERROR] SearchApi returned unexpected format - falling back to zero leads")
                 return []
             
             candidates = []
@@ -212,14 +225,20 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
                     raw_data=item
                 ))
             
+            self.last_status = "ok"
+            self.last_error = None
             print(f"[LEADS][SOURCE] SearchApi fetched {len(candidates)} candidates (query={query[:50]}...)")
             return candidates
             
         except ImportError:
-            print("[LEADS][SOURCE] SearchApi requires 'requests' library")
+            self.last_status = "api_error"
+            self.last_error = "'requests' library not available"
+            print(f"[LEADS][API_ERROR] {self.last_error}")
             return []
         except Exception as e:
-            print(f"[LEADS][SOURCE] SearchApi exception: {e}")
+            self.last_status = "api_error"
+            self.last_error = str(e)
+            print(f"[LEADS][API_ERROR] Exception: {self.last_error}")
             return []
     
     def _build_query(self, config: LeadSourceConfig) -> str:
@@ -256,17 +275,25 @@ def get_lead_source_status() -> Dict[str, Any]:
     """
     Get current lead source configuration status for admin display.
     
-    Returns dict with config values and provider info.
+    Returns dict with config values, provider info, and last run status.
     """
     config = get_lead_source_config()
     provider = get_lead_source_provider()
     
-    return {
+    status = {
         "niche": config.niche,
         "geography": config.geography,
         "min_company_size": config.min_company_size,
         "max_company_size": config.max_company_size,
         "max_new_leads_per_cycle": config.max_new_leads_per_cycle,
         "provider": provider.name,
-        "provider_configured": isinstance(provider, SearchApiLeadSourceProvider)
+        "provider_configured": isinstance(provider, SearchApiLeadSourceProvider),
+        "last_status": "ok",
+        "last_error": None
     }
+    
+    if isinstance(provider, SearchApiLeadSourceProvider):
+        status["last_status"] = getattr(provider, "last_status", "unknown")
+        status["last_error"] = getattr(provider, "last_error", None)
+    
+    return status

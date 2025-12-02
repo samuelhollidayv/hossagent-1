@@ -8,6 +8,7 @@ Environment Variables:
   For SENDGRID:
     SENDGRID_API_KEY
     SENDGRID_FROM_EMAIL
+    SENDGRID_FROM_NAME (default: HossAgent)
     
   For SMTP:
     SMTP_HOST
@@ -15,20 +16,27 @@ Environment Variables:
     SMTP_USERNAME
     SMTP_PASSWORD
     SMTP_FROM_EMAIL
+    SMTP_FROM_NAME (default: HossAgent)
     
   Throttling:
     MAX_EMAILS_PER_CYCLE (default: 10)
     MAX_EMAILS_PER_HOUR (default: 50)
+    
+  Deliverability:
+    EMAIL_SEND_DELAY_MIN (default: 1) - minimum delay between sends in seconds
+    EMAIL_SEND_DELAY_MAX (default: 5) - maximum delay between sends in seconds
 """
 import os
 import smtplib
 import json
+import time
+import random
 from enum import Enum
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 
 
@@ -39,6 +47,16 @@ class EmailMode(str, Enum):
 
 
 @dataclass
+class EmailResult:
+    """Unified result object for all email send attempts."""
+    success: bool
+    mode: str  # "DRY_RUN", "SENDGRID", "SMTP"
+    result: str  # "success", "failed", "dry_run", "throttled", "fallback"
+    error: Optional[str] = None
+    actually_sent: bool = False  # True only if email was really sent (not DRY_RUN)
+
+
+@dataclass
 class EmailAttempt:
     timestamp: str
     lead_name: str
@@ -46,13 +64,36 @@ class EmailAttempt:
     to_email: str
     subject: str
     mode: str
-    result: str  # "success", "failed", "dry-run", "throttled"
+    result: str  # "success", "failed", "dry_run", "throttled", "fallback"
     error: Optional[str] = None
 
 
 EMAIL_LOG_FILE = Path("email_attempts.json")
 HOURLY_COUNTER_FILE = Path("email_hourly_counter.json")
-MAX_LOG_ENTRIES = 50
+MAX_LOG_ENTRIES = 5000  # Capped log entries to prevent unbounded growth
+
+
+def get_send_delay_range() -> Tuple[int, int]:
+    """Get the delay range between email sends for deliverability."""
+    try:
+        min_delay = int(os.getenv("EMAIL_SEND_DELAY_MIN", "1"))
+        max_delay = int(os.getenv("EMAIL_SEND_DELAY_MAX", "5"))
+        return max(0, min_delay), max(min_delay, max_delay)
+    except ValueError:
+        return 1, 5
+
+
+def apply_send_delay() -> None:
+    """Apply a random delay between email sends for deliverability."""
+    min_delay, max_delay = get_send_delay_range()
+    if min_delay > 0 or max_delay > 0:
+        delay = random.uniform(min_delay, max_delay)
+        time.sleep(delay)
+
+
+def get_from_name() -> str:
+    """Get the consistent From name for emails."""
+    return os.getenv("SENDGRID_FROM_NAME", os.getenv("SMTP_FROM_NAME", "HossAgent"))
 
 
 def _load_email_log() -> List[Dict[str, Any]]:
@@ -232,14 +273,17 @@ def send_email_dry_run(
     subject: str,
     body: str,
     lead_name: str = "",
-    company: str = ""
-) -> bool:
+    company: str = "",
+    is_fallback: bool = False
+) -> EmailResult:
     """
     Simulate sending email without actually sending.
     Logs the attempt for visibility.
     """
     preview = body[:100].replace('\n', ' ')
-    print(f"[EMAIL][DRY_RUN] to={to_email} subject=\"{subject}\" preview=\"{preview}...\"")
+    result_type = "fallback" if is_fallback else "dry_run"
+    tag = "[DRY_RUN_FALLBACK]" if is_fallback else "[DRY_RUN]"
+    print(f"[EMAIL]{tag} to={to_email} subject=\"{subject}\" preview=\"{preview}...\"")
     
     log_email_attempt(EmailAttempt(
         timestamp=datetime.utcnow().isoformat(),
@@ -248,10 +292,16 @@ def send_email_dry_run(
         to_email=to_email,
         subject=subject,
         mode="DRY_RUN",
-        result="dry-run"
+        result=result_type
     ))
     
-    return False
+    return EmailResult(
+        success=False,
+        mode="DRY_RUN",
+        result=result_type,
+        error=None,
+        actually_sent=False
+    )
 
 
 def send_email_sendgrid(
@@ -260,13 +310,14 @@ def send_email_sendgrid(
     body: str,
     lead_name: str = "",
     company: str = ""
-) -> bool:
+) -> EmailResult:
     """Send email via SendGrid API."""
     try:
         import requests
         
         api_key = os.getenv("SENDGRID_API_KEY", "")
         from_email = os.getenv("SENDGRID_FROM_EMAIL", "")
+        from_name = get_from_name()
         
         if not api_key or not from_email:
             raise ValueError("SendGrid credentials not configured")
@@ -279,7 +330,7 @@ def send_email_sendgrid(
             },
             json={
                 "personalizations": [{"to": [{"email": to_email}]}],
-                "from": {"email": from_email},
+                "from": {"email": from_email, "name": from_name},
                 "subject": subject,
                 "content": [{"type": "text/plain", "value": body}]
             },
@@ -287,7 +338,7 @@ def send_email_sendgrid(
         )
         
         if response.status_code in [200, 201, 202]:
-            print(f"[EMAIL][SENDGRID] Sent to {to_email}: {subject}")
+            print(f"[EMAIL][SUCCESS][SENDGRID] lead={lead_name} email={to_email} subject=\"{subject[:50]}...\"")
             log_email_attempt(EmailAttempt(
                 timestamp=datetime.utcnow().isoformat(),
                 lead_name=lead_name,
@@ -297,10 +348,16 @@ def send_email_sendgrid(
                 mode="SENDGRID",
                 result="success"
             ))
-            return True
+            return EmailResult(
+                success=True,
+                mode="SENDGRID",
+                result="success",
+                error=None,
+                actually_sent=True
+            )
         else:
             error_msg = f"Status {response.status_code}: {response.text[:200]}"
-            print(f"[EMAIL][SENDGRID] Failed: {error_msg}")
+            print(f"[EMAIL][FAIL][SENDGRID] email={to_email} error=\"{error_msg}\"")
             log_email_attempt(EmailAttempt(
                 timestamp=datetime.utcnow().isoformat(),
                 lead_name=lead_name,
@@ -311,14 +368,27 @@ def send_email_sendgrid(
                 result="failed",
                 error=error_msg
             ))
-            return False
+            return EmailResult(
+                success=False,
+                mode="SENDGRID",
+                result="failed",
+                error=error_msg,
+                actually_sent=False
+            )
             
     except ImportError:
-        print("[EMAIL][SENDGRID] Error: 'requests' library not available")
-        return False
+        error_msg = "'requests' library not available"
+        print(f"[EMAIL][FAIL][SENDGRID] {error_msg}")
+        return EmailResult(
+            success=False,
+            mode="SENDGRID",
+            result="failed",
+            error=error_msg,
+            actually_sent=False
+        )
     except Exception as e:
         error_msg = str(e)
-        print(f"[EMAIL][SENDGRID] Exception: {error_msg}")
+        print(f"[EMAIL][FAIL][SENDGRID] Exception: {error_msg}")
         log_email_attempt(EmailAttempt(
             timestamp=datetime.utcnow().isoformat(),
             lead_name=lead_name,
@@ -329,7 +399,13 @@ def send_email_sendgrid(
             result="failed",
             error=error_msg
         ))
-        return False
+        return EmailResult(
+            success=False,
+            mode="SENDGRID",
+            result="failed",
+            error=error_msg,
+            actually_sent=False
+        )
 
 
 def send_email_smtp(
@@ -338,7 +414,7 @@ def send_email_smtp(
     body: str,
     lead_name: str = "",
     company: str = ""
-) -> bool:
+) -> EmailResult:
     """Send email via SMTP."""
     try:
         smtp_host = os.getenv("SMTP_HOST", "")
@@ -346,12 +422,13 @@ def send_email_smtp(
         smtp_user = os.getenv("SMTP_USERNAME", "")
         smtp_pass = os.getenv("SMTP_PASSWORD", "")
         from_email = os.getenv("SMTP_FROM_EMAIL") or smtp_user
+        from_name = get_from_name()
         
         if not all([smtp_host, smtp_user, smtp_pass, from_email]):
             raise ValueError("SMTP credentials not configured")
         
         msg = MIMEMultipart()
-        msg['From'] = from_email
+        msg['From'] = f"{from_name} <{from_email}>"
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
@@ -361,7 +438,7 @@ def send_email_smtp(
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
         
-        print(f"[EMAIL][SMTP] Sent to {to_email}: {subject}")
+        print(f"[EMAIL][SUCCESS][SMTP] lead={lead_name} email={to_email} subject=\"{subject[:50]}...\"")
         log_email_attempt(EmailAttempt(
             timestamp=datetime.utcnow().isoformat(),
             lead_name=lead_name,
@@ -371,11 +448,17 @@ def send_email_smtp(
             mode="SMTP",
             result="success"
         ))
-        return True
+        return EmailResult(
+            success=True,
+            mode="SMTP",
+            result="success",
+            error=None,
+            actually_sent=True
+        )
         
     except Exception as e:
         error_msg = str(e)
-        print(f"[EMAIL][SMTP] Exception: {error_msg}")
+        print(f"[EMAIL][FAIL][SMTP] email={to_email} error=\"{error_msg}\"")
         log_email_attempt(EmailAttempt(
             timestamp=datetime.utcnow().isoformat(),
             lead_name=lead_name,
@@ -386,7 +469,13 @@ def send_email_smtp(
             result="failed",
             error=error_msg
         ))
-        return False
+        return EmailResult(
+            success=False,
+            mode="SMTP",
+            result="failed",
+            error=error_msg,
+            actually_sent=False
+        )
 
 
 def send_email(
@@ -395,7 +484,7 @@ def send_email(
     body: str,
     lead_name: str = "",
     company: str = ""
-) -> bool:
+) -> EmailResult:
     """
     Unified email sending entrypoint.
     
@@ -403,6 +492,7 @@ def send_email(
     then dispatches to the appropriate sender.
     
     Enforces both per-cycle and per-hour throttling limits.
+    Applies deliverability delays between real sends.
     
     Args:
         to_email: Recipient email address
@@ -412,18 +502,20 @@ def send_email(
         company: Company name (for logging)
     
     Returns:
-        True if email was actually sent, False otherwise.
+        EmailResult with success status, mode, and error details.
         This function NEVER crashes - all exceptions are caught.
     """
     try:
         effective_mode, is_valid, msg = validate_email_config()
+        is_fallback = not is_valid and effective_mode == EmailMode.DRY_RUN
         
         if effective_mode == EmailMode.DRY_RUN:
-            return send_email_dry_run(to_email, subject, body, lead_name, company)
+            return send_email_dry_run(to_email, subject, body, lead_name, company, is_fallback=is_fallback)
         
         can_send, current, max_hour = check_hourly_limit()
         if not can_send:
-            print(f"[EMAIL][THROTTLE] Hourly limit reached ({current}/{max_hour}). Skipping send to {to_email}")
+            error_msg = f"Hourly limit reached: {current}/{max_hour}"
+            print(f"[EMAIL][THROTTLED] hour_count={current}/{max_hour} email={to_email}")
             log_email_attempt(EmailAttempt(
                 timestamp=datetime.utcnow().isoformat(),
                 lead_name=lead_name,
@@ -432,26 +524,56 @@ def send_email(
                 subject=subject,
                 mode=effective_mode.value,
                 result="throttled",
-                error=f"Hourly limit reached: {current}/{max_hour}"
+                error=error_msg
             ))
-            return False
+            return EmailResult(
+                success=False,
+                mode=effective_mode.value,
+                result="throttled",
+                error=error_msg,
+                actually_sent=False
+            )
         
-        success = False
+        apply_send_delay()
+        
+        result: EmailResult
         if effective_mode == EmailMode.SENDGRID:
-            success = send_email_sendgrid(to_email, subject, body, lead_name, company)
+            result = send_email_sendgrid(to_email, subject, body, lead_name, company)
         elif effective_mode == EmailMode.SMTP:
-            success = send_email_smtp(to_email, subject, body, lead_name, company)
+            result = send_email_smtp(to_email, subject, body, lead_name, company)
         else:
-            success = send_email_dry_run(to_email, subject, body, lead_name, company)
+            result = send_email_dry_run(to_email, subject, body, lead_name, company, is_fallback=is_fallback)
         
-        if success:
+        if result.actually_sent:
             increment_hourly_counter()
         
-        return success
+        return result
             
     except Exception as e:
-        print(f"[EMAIL] Unexpected error: {e}")
-        return False
+        error_msg = str(e)
+        print(f"[EMAIL][FAIL] Unexpected error: {error_msg}")
+        return EmailResult(
+            success=False,
+            mode="UNKNOWN",
+            result="failed",
+            error=error_msg,
+            actually_sent=False
+        )
+
+
+def send_email_legacy(
+    to_email: str,
+    subject: str,
+    body: str,
+    lead_name: str = "",
+    company: str = ""
+) -> bool:
+    """
+    Legacy wrapper that returns bool for backward compatibility.
+    Use send_email() for the full EmailResult object.
+    """
+    result = send_email(to_email, subject, body, lead_name, company)
+    return result.actually_sent
 
 
 def get_email_status() -> Dict[str, Any]:

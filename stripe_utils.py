@@ -33,10 +33,23 @@ class PaymentLinkResult:
 
 
 STRIPE_LOG_FILE = Path("stripe_events.json")
-MAX_STRIPE_LOG_ENTRIES = 500
+MAX_STRIPE_LOG_ENTRIES = 5000  # Capped for log rotation
 
-MIN_INVOICE_CENTS = 100
-MAX_INVOICE_CENTS = 50000
+
+def get_min_invoice_cents() -> int:
+    """Get minimum invoice amount from env or default ($1.00)."""
+    try:
+        return int(os.getenv("STRIPE_MIN_AMOUNT_CENTS", "100"))
+    except ValueError:
+        return 100
+
+
+def get_max_invoice_cents() -> int:
+    """Get maximum invoice amount from env or default ($500.00)."""
+    try:
+        return int(os.getenv("STRIPE_MAX_AMOUNT_CENTS", "50000"))
+    except ValueError:
+        return 50000
 
 
 def is_stripe_enabled() -> bool:
@@ -121,14 +134,24 @@ def check_invoice_amount(amount_cents: int) -> Tuple[bool, str]:
     """
     Check if invoice amount is within safety bounds.
     
+    Uses env variables STRIPE_MIN_AMOUNT_CENTS and STRIPE_MAX_AMOUNT_CENTS
+    for configurable limits. Defaults to $1.00 - $500.00.
+    
     Returns:
         (is_valid, message)
     """
-    if amount_cents < MIN_INVOICE_CENTS:
-        return False, f"Amount ${amount_cents/100:.2f} below minimum ${MIN_INVOICE_CENTS/100:.2f}"
+    min_cents = get_min_invoice_cents()
+    max_cents = get_max_invoice_cents()
     
-    if amount_cents > MAX_INVOICE_CENTS:
-        return False, f"Amount ${amount_cents/100:.2f} above maximum ${MAX_INVOICE_CENTS/100:.2f}"
+    if amount_cents < min_cents:
+        msg = f"Amount ${amount_cents/100:.2f} below minimum ${min_cents/100:.2f}"
+        print(f"[STRIPE][AMOUNT_OUT_OF_RANGE] {msg}")
+        return False, msg
+    
+    if amount_cents > max_cents:
+        msg = f"Amount ${amount_cents/100:.2f} above maximum ${max_cents/100:.2f}"
+        print(f"[STRIPE][AMOUNT_OUT_OF_RANGE] {msg}")
+        return False, msg
     
     return True, "Amount within bounds"
 
@@ -345,6 +368,19 @@ def get_stripe_status() -> Dict[str, Any]:
     is_enabled = is_stripe_enabled()
     is_valid, message = validate_stripe_config()
     webhook_secret = get_stripe_webhook_secret()
+    min_cents = get_min_invoice_cents()
+    max_cents = get_max_invoice_cents()
+    
+    recent_log = get_stripe_log(5)
+    last_webhook_event = None
+    last_error = None
+    for entry in reversed(recent_log):
+        if "webhook" in entry.get("event_type", ""):
+            last_webhook_event = entry.get("timestamp")
+            break
+        if "error" in entry.get("event_type", "") or "failed" in entry.get("event_type", ""):
+            if not last_error:
+                last_error = entry.get("data", {}).get("error")
     
     return {
         "enabled": is_enabled,
@@ -352,6 +388,25 @@ def get_stripe_status() -> Dict[str, Any]:
         "message": message,
         "currency": get_default_currency(),
         "webhook_configured": webhook_secret is not None and len(webhook_secret) > 0,
-        "min_amount": f"${MIN_INVOICE_CENTS/100:.2f}",
-        "max_amount": f"${MAX_INVOICE_CENTS/100:.2f}"
+        "min_amount": f"${min_cents/100:.2f}",
+        "max_amount": f"${max_cents/100:.2f}",
+        "last_webhook_event": last_webhook_event,
+        "last_error": last_error
     }
+
+
+def validate_stripe_at_startup() -> None:
+    """
+    Validate Stripe configuration at startup and print status banner.
+    Called from main.py during app initialization.
+    """
+    is_enabled = is_stripe_enabled()
+    is_valid, message = validate_stripe_config()
+    
+    if is_enabled:
+        if is_valid:
+            print(f"[STRIPE][STARTUP] Stripe ENABLED and configured")
+        else:
+            print(f"[STRIPE][DISABLED_MISCONFIG] ENABLE_STRIPE=TRUE but {message} - invoices will not have payment links")
+    else:
+        print(f"[STRIPE][STARTUP] Stripe disabled (ENABLE_STRIPE != TRUE)")

@@ -1,0 +1,269 @@
+Replit Agent — we are moving HossAgent from MVP to real-money production. The app is already running with:
+
+• Autonomous lead sourcing (dummy + optional Search API)
+• BizDev outbound engine with templates and DRY_RUN email modes
+• Ops + onboarding + billing pipeline
+• Stripe integration (payment links + webhook)
+• Admin console + Customer Portal
+
+Your job: harden this into a reliable, production-ready, revenue machine and optimize it for safe, scalable outbound and billing.
+
+Do not remove or break existing core flows. Preserve DRY_RUN behavior as the global safety net.
+
+============================================================
+PRIMARY GOAL: RELEASE MODE
+
+Implement and verify the following:
+	1.	Safe production outbound email behavior
+	2.	Safe Stripe billing and invoice behavior
+	3.	Robust error handling and DRY_RUN fallbacks
+	4.	Lean telemetry and observability for me as the operator
+	5.	Configurable “Release Mode” toggles via environment variables
+	6.	A simple daily/weekly summary so I know what happened without logging into the dashboard
+
+You must inspect the codebase (models.py, agents.py, email_utils.py, lead_sources.py, lead_service.py, main.py, database.py, stripe_utils.py, bizdev_templates.py, templates/*, replit.md, and any log/JSON utilities) and make surgical, backward-compatible changes.
+
+============================================================
+GLOBAL SAFETY CONTRACT
+
+Enforce this contract everywhere, in code:
+
+• If any of the following are missing or invalid:
+– SENDGRID credentials (or SMTP) when EMAIL_MODE requires them
+– Lead API credentials when LEAD_SOURCE_PROVIDER=SEARCH_API
+– Stripe credentials when ENABLE_STRIPE=TRUE
+Then:
+– The system MUST fall back to DRY_RUN behavior for that subsystem
+– It MUST NOT crash the autopilot loop
+– It MUST NOT attempt a partial real send or charge
+– It MUST log a clear line with tag: [DRY_RUN_FALLBACK] and the reason
+
+Make DRY_RUN the iron law: the machine can always run in simulation mode with zero external side effects.
+
+============================================================
+	1.	OUTBOUND EMAIL: PRODUCTION HARDENING
+============================================================
+
+1.1 Inspect email_utils.py and BizDev agent integration. Ensure:
+
+• EMAIL_MODE options remain: DRY_RUN, SENDGRID, SMTP
+• Env variables are read from a single config point
+• All send paths (DRY_RUN, SENDGRID, SMTP) return a consistent result object: {success: bool, mode: str, error: Optional[str]}.
+
+1.2 Hourly and per-cycle rate limits:
+
+• Confirm MAX_EMAILS_PER_CYCLE and MAX_EMAILS_PER_HOUR are enforced.
+• Implement a persistent hourly counter:
+– Track emails sent in the current hour in a small DB table or dedicated counter file.
+– Reset cleanly on hour rollover.
+– Never exceed MAX_EMAILS_PER_HOUR in aggregate across cycles.
+– If limit is reached:
+– Skip additional sends
+– Log: [EMAIL][THROTTLED] with current hour, count, and limits
+
+1.3 Deliverability-conscious behavior:
+
+• Randomize a small delay between each send within a cycle (e.g., 1–5 seconds) if feasible for the runtime. If not feasible, at least keep the per-cycle limit small.
+• Normalize From name and reply-to: use stable display like “HossAgent” or similar; keep From email consistent.
+• Ensure subject and body use sane line lengths and no weird encoding.
+
+1.4 Lead status and logging:
+
+• On send success:
+– Lead.status → CONTACTED (if previously NEW)
+– Update last_contacted_at
+– Log: [EMAIL][SUCCESS][MODE] lead_id, email, subject snippet
+• On send failure (not DRY_RUN):
+– Lead.status → EMAIL_FAILED (if that status exists; if not, introduce it)
+– Log: [EMAIL][FAIL][MODE] with error reason
+• On DRY_RUN:
+– Leave lead.status as NEW unless explicitly changed
+– Log: [EMAIL][DRY_RUN] with preview
+
+1.5 Admin console:
+
+• In the email health section, ensure it shows:
+– Current EMAIL_MODE
+– MAX_EMAILS_PER_CYCLE and MAX_EMAILS_PER_HOUR
+– Emails sent this hour / hour limit
+– Last 20 send attempts, including throttled ones
+
+Update replit.md with a short “Release Email Behavior” section explaining:
+
+• How DRY_RUN, SENDGRID, SMTP differ
+• How rate limits work
+• Recommended warm-up schedule: start with low MAX_EMAILS_PER_HOUR and increase gradually.
+
+============================================================
+2) LEAD SOURCING: REAL-WORLD SAFETY
+
+2.1 In lead_sources.py and lead_service.py:
+
+• Enforce idempotency on lead creation. Before inserting:
+– Deduplicate by (email) and (company + domain).
+– If a lead with same email or (company, domain) exists and status != “invalid”, skip insert.
+– Log: [LEADS][DEDUPED] with reference IDs.
+
+2.2 API resilience for SearchApiLeadSourceProvider:
+
+• If LEAD_SOURCE_PROVIDER=SEARCH_API but any required credentials (LEAD_SEARCH_API_URL, LEAD_SEARCH_API_KEY) are missing or the API errors:
+– Do NOT crash.
+– Log: [LEADS][API_ERROR] with status code or exception.
+– Fall back either to:
+– Zero new leads this cycle, OR
+– DummySeed provider if configured as an explicit fallback.
+– In either case, respect MAX_NEW_LEADS_PER_CYCLE.
+
+2.3 Admin console:
+
+• Show clearly:
+– Active provider: DummySeed or SearchApi
+– Last run timestamp
+– Last result: OK / API_ERROR / NO_CREDS
+– Number of new leads created vs skipped (deduped) in the last run
+
+Update replit.md with “Lead Source Release Notes” explaining how to safely switch from dummy to real API and how dedupe works.
+
+============================================================
+3) STRIPE BILLING: GUARDED REVENUE
+
+3.1 In stripe_utils.py and billing logic:
+
+• Validate Stripe configuration at startup or first use:
+– If ENABLE_STRIPE=TRUE but STRIPE_API_KEY missing or invalid, immediately fall back to non-Stripe invoices, log [STRIPE][DISABLED_MISCONFIG], and proceed without raising exceptions to the main loop.
+
+3.2 Amount safety:
+
+• For all auto-generated invoices, enforce:
+– 1.00 <= amount <= 500.00 USD by default (use STRIPE_MIN_AMOUNT and STRIPE_MAX_AMOUNT env overrides if you want).
+– If computed amount is outside this range:
+– Do not create a Stripe payment link.
+– Log: [STRIPE][AMOUNT_OUT_OF_RANGE] with invoice_id and attempted amount.
+– Keep invoice as draft in DB.
+
+3.3 Payment links and webhook:
+
+• Confirm invoice.payment_url is only populated when:
+– Stripe is enabled and configured, AND
+– Payment link creation succeeded.
+• At /stripe/webhook:
+– Validate signatures using STRIPE_WEBHOOK_SECRET when present.
+– On relevant events (checkout.session.completed or invoice.paid), mark invoice.status = “paid” and set paid_at.
+– Log: [STRIPE][PAID] with invoice_id and amount.
+
+3.4 Admin console:
+
+• Stripe panel must show:
+– Status: ENABLED or DISABLED
+– Limits: min/max invoice amounts
+– Last webhook event time and last error (if any)
+
+Update replit.md with a concise Stripe “Go Live Checklist”.
+
+============================================================
+4) CUSTOMER PORTAL 2.0: SAFE PUBLIC SURFACE
+
+4.1 Customer public_token:
+
+• Confirm every customer has a stable public_token.
+• Do NOT expose raw numeric IDs in URLs; use /portal/<public_token>.
+• If public_token missing, auto-generate and persist.
+
+4.2 Portal behavior:
+
+• Route: /portal/<public_token>
+• Read-only. No forms, mutations, or dangerous actions.
+• Show for that customer:
+– Customer name
+– Summary of revenue: total invoiced, total paid, outstanding balance
+– Recent tasks / work items
+– Invoice list with:
+– status (draft/paid)
+– amount
+– payment_url as “PAY NOW” if present
+• When Stripe disabled or payment_url missing:
+– Show invoice as view-only, no pay button.
+
+4.3 Hardening:
+
+• If public_token not found or invalid, respond with a simple “Not found” page, not a stack trace.
+• Make sure no admin-only data (other customers, system metrics) leaks onto this page.
+
+Update replit.md with “Customer Portal Access” instructions.
+
+============================================================
+5) LOGGING, TELEMETRY, AND DIGESTS
+
+5.1 Log hygiene:
+
+• If using JSON log files (email_log.json, lead_source_log.json, etc.), enforce rotation or capping:
+– Keep only the last N entries (e.g., 5000).
+– On append, if over the limit, truncate older ones.
+– This is to avoid unbounded disk growth in Replit.
+
+5.2 Operator digests:
+
+Add a lightweight summary mechanism that can be triggered from the admin console or a simple endpoint.
+
+• Implement a function (e.g., generate_daily_summary()) that returns a compact JSON or data object summarizing the last 24 hours:
+– New leads created (total + by source)
+– Emails sent (total, success, fail, throttled, DRY_RUN)
+– Invoices created + total amount
+– Payments received + total amount
+• Add an admin-only endpoint or button:
+– /admin/summary or “Generate Summary” button that shows this on-screen.
+– (Optional) If easy within constraints: send this as an internal email to SENDGRID_FROM_EMAIL in DRY_RUN or real mode, tagged [SUMMARY].
+
+Update replit.md with “How to get a daily summary”.
+
+============================================================
+6) RELEASE MODE CONFIG TOGGLE
+
+Introduce a simple env-driven Release Mode concept:
+
+• RELEASE_MODE = FALSE (default) or TRUE
+
+When RELEASE_MODE=TRUE:
+
+• System assumes:
+– EMAIL_MODE is set to SENDGRID or SMTP with valid creds
+– ENABLE_STRIPE may be TRUE with valid creds
+• Behavior:
+– Log an explicit banner at startup: [RELEASE_MODE][ON]
+– Enforce safer defaults even more strictly:
+– If credentials missing → automatic DRY_RUN fallback + loud logs
+– Warn if MAX_EMAILS_PER_HOUR > 100 with [RELEASE_MODE][HIGH_VOLUME_WARNING]
+
+When RELEASE_MODE=FALSE:
+
+• System behaves as a sandbox:
+– Strongly prefer DRY_RUN
+– It is allowed to have misconfigurations without loud warnings.
+
+Note: Do NOT hardwire behavior that forces Release Mode; it must still be toggled purely by environment variable.
+
+============================================================
+7) FINAL CHECKS AND SUMMARY
+
+When you are done, you must:
+	1.	Ensure all tests / manual checks you create pass without crashing the app.
+	2.	Start the app in DRY_RUN with RELEASE_MODE=FALSE, and confirm:
+– Pipelines run
+– No external calls are made
+– Logs show DRY_RUN behavior and fallbacks.
+	3.	Start the app (still in code, not for me) in a simulated Release Mode with fake credentials to confirm:
+– No crashes, just DRY_RUN fallbacks.
+– Proper [DRY_RUN_FALLBACK] logs.
+	4.	Update replit.md with a clearly labeled “Release Mode” section that explains:
+– Minimum env vars needed for true production sending and billing
+– Recommended rate limits and warm-up guidance
+– What RELEASE_MODE does and does not do.
+	5.	Provide a final summary in your Replit Agent output including:
+– List of files modified/added
+– Env vars required (existing + new)
+– Short test script for me, the human, with steps like:
+– “Set these envs, run app, visit /admin, verify banners X/Y/Z”
+– “Hit /admin/send-test-email and expect outcome A”
+– “Visit /portal/<public_token> for a customer and confirm invoices + pay buttons display as expected”
+
+Begin now, apply all of the above, and keep the existing noir UI and autonomous loop intact. Only strengthen, stabilize, and expose what is already there.

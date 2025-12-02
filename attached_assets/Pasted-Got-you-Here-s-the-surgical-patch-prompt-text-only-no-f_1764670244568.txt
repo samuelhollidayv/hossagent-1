@@ -1,0 +1,196 @@
+Got you.
+Here’s the surgical patch prompt — text only, no fences, ready to paste straight into the Replit Agent.
+
+⸻
+
+Replit Agent — I need a focused PATCH to HossAgent to make Stripe payments truly visible and usable for customers. The backend Stripe integration is already wired; now we must:
+	1.	Guarantee that invoices with Stripe payment links show a clear “PAY NOW” button in the Customer Portal.
+	2.	Retroactively generate payment links for existing draft invoices when Stripe is enabled.
+	3.	Make the money flow obvious in both Admin Console and Customer Portal.
+	4.	Preserve DRY_RUN safety and never crash if Stripe is misconfigured.
+
+Do NOT refactor the whole app. Only touch the minimal set of files needed to implement this patch.
+
+============================================================
+SCOPE OF THIS PATCH
+
+You must inspect at least these files:
+
+• stripe_utils.py
+• agents.py (Billing agent)
+• models.py
+• database.py (migrations / auto-update)
+• templates/customer_portal.html
+• templates/admin_console.html
+• main.py (routes)
+• replit.md
+
+Your goals:
+
+A) Customer Portal: “PAY NOW” button and payment status
+B) Retroactive Stripe payment_url generation
+C) Clear money visibility for both Admin and Customer
+D) DRY_RUN / misconfig safety
+
+============================================================
+A) CUSTOMER PORTAL PAYMENT BUTTON
+	1.	In templates/customer_portal.html:
+
+• For each invoice, render:
+– Invoice ID
+– Amount
+– Status (DRAFT / PAID / etc.)
+– Date
+– If invoice.payment_url is present AND Stripe is enabled:
+=> Show a large, obvious “PAY NOW” button linking to invoice.payment_url
+– If status is PAID:
+=> Show a green “PAID” badge (no Pay button)
+– If Stripe is disabled or payment_url missing:
+=> Show “Payment link unavailable” in small muted text.
+	2.	“Outstanding balance” section:
+
+• At the top of the portal, show:
+– Total outstanding amount across all unpaid invoices for that customer
+– Total paid-to-date for that customer
+• If Stripe is disabled:
+– Show a single line note: “Online payments are currently disabled. Contact your operator for payment options.”
+	3.	Visual style:
+
+• Keep the existing noir theme (dark background, minimal typography).
+• Make the “PAY NOW” button clearly primary (e.g., white border / stronger emphasis) but reuse existing CSS conventions — do not introduce a conflicting design system.
+	4.	Safety:
+
+• If payment_url is somehow malformed or empty:
+– Do NOT render the button.
+– Log a warning server-side, but never break the page.
+
+============================================================
+B) RETROACTIVE PAYMENT LINK GENERATION
+
+We need Stripe payment links for older invoices created before Stripe was enabled.
+	1.	In Billing agent logic (agents.py or wherever invoices are created):
+
+• Today, when ENABLE_STRIPE=TRUE and Stripe is configured correctly:
+– New draft invoices receive a payment_url via Stripe.
+	2.	Add a new helper function in stripe_utils.py or billing-related code:
+
+• Name example: ensure_invoice_payment_url(invoice)
+• Behavior:
+– If ENABLE_STRIPE is FALSE: do nothing, return.
+– If Stripe credentials invalid: log and return.
+– If invoice.status is PAID: skip.
+– If invoice.payment_url already exists: skip.
+– Else:
+=> Create a Stripe payment link for that invoice amount and description.
+=> Save it into invoice.payment_url in DB.
+=> Log [STRIPE][LINK_CREATED] with invoice id and amount.
+	3.	Add a retroactive pass:
+
+• On startup, or in a dedicated billing maintenance routine, run:
+– For all invoices where:
+status is DRAFT or OPEN
+AND payment_url is NULL/empty
+AND ENABLE_STRIPE=TRUE
+– Call ensure_invoice_payment_url(invoice) for each.
+• This must be efficient (paginated or batched) and must not block the whole app.
+• If this is done on startup, keep it bounded (e.g., limit to a reasonable number per run) and log what it did.
+	4.	Admin Console helper:
+
+• In templates/admin_console.html, in the invoices section:
+– If an invoice has no payment_url AND Stripe is enabled:
+=> Show a small “Missing payment link” badge so the operator can see potential gaps.
+
+============================================================
+C) CLEAR MONEY VISIBILITY
+	1.	In Customer Portal (/portal/<public_token>):
+
+• At the top, show:
+
+“Account Summary”
+– Total Invoiced: sum of all invoices for this customer
+– Total Paid: sum of invoices with status PAID
+– Outstanding: total of invoices not yet PAID
+	2.	In Admin Console:
+
+• In the Stripe status panel, add:
+– Count of invoices with payment_url populated
+– Count of unpaid invoices without payment_url (if any)
+– A short note:
+“HossAgent automatically generates Stripe payment links for new and legacy draft invoices when ENABLE_STRIPE=TRUE.”
+
+No interactive button is required here; just visibility.
+
+============================================================
+D) SAFETY, DRY_RUN, AND MISCONFIGURATION
+	1.	DRY_RUN and missing credentials must NEVER result in:
+
+• Exceptions that crash the autopilot loop.
+• Rendering broken templates.
+• Partial/invalid Stripe calls.
+	2.	Update stripe_utils.py (or relevant module) to ensure:
+
+• A single central function validates Stripe configuration:
+– ENABLE_STRIPE
+– STRIPE_API_KEY
+– Any other required settings
+• If Stripe is enabled but misconfigured:
+– Log [STRIPE][DRY_RUN_FALLBACK] with reason.
+– Never attempt a real Stripe API call.
+– Never create fake payment_url values.
+– Customer Portal should simply show:
+“Online payments temporarily unavailable” instead of a PAY NOW button.
+	3.	The Customer Portal must behave correctly in all configurations:
+
+• Stripe disabled:
+– No Pay buttons, show “Online payments disabled” note.
+• Stripe enabled but misconfigured:
+– No Pay buttons, show “Online payments temporarily unavailable.”
+• Stripe fully configured:
+– Pay buttons appear for every invoice with payment_url.
+– Paid invoices show PAID badge only.
+
+============================================================
+E) DOCUMENTATION UPDATES
+
+In replit.md, add/extend a short section:
+
+“Customer Payments & Portal”
+
+Include:
+	1.	Environment variables:
+– ENABLE_STRIPE=TRUE/FALSE
+– STRIPE_API_KEY=…
+– STRIPE_WEBHOOK_SECRET=… (optional but recommended)
+– STRIPE_DEFAULT_CURRENCY (default: usd)
+	2.	Behavior:
+– When Stripe is disabled:
+• No Pay buttons.
+– When Stripe is enabled and configured:
+• New invoices get Stripe payment links automatically.
+• Old unpaid invoices get links via retroactive pass.
+• Customer Portal shows PAY NOW buttons.
+• Admin Console shows Stripe status and missing-link counts.
+	3.	How to test quickly:
+– Set ENABLE_STRIPE=TRUE and STRIPE_API_KEY to a valid test key.
+– Create or trigger a new invoice via Billing agent.
+– Confirm:
+• Admin Console shows payment_url for that invoice.
+• Customer Portal for that customer shows a PAY NOW button.
+– Use Stripe test mode to simulate a payment and confirm invoice.status updates to PAID and the button disappears.
+
+============================================================
+FINAL REQUIREMENTS
+
+• Do NOT remove or weaken any existing DRY_RUN behavior.
+• Do NOT redesign the entire UI — make the minimal changes needed for payment clarity.
+• Ensure all new logic is guarded by feature flags and env vars.
+• Ensure no route or loop crashes when Stripe is disabled or misconfigured.
+• When finished, summarize:
+– Files modified/created
+– Any DB changes
+– How to:
+• Turn Stripe on/off
+• Re-generate payment links for existing invoices
+• View and test the PAY NOW button in the portal
+
+Begin now and apply only this patch-level scope.
