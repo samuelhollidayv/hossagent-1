@@ -216,11 +216,20 @@ def create_payment_link(
         import requests
         
         api_key = get_stripe_api_key()
+        if not api_key:
+            return PaymentLinkResult(
+                success=False,
+                payment_url=None,
+                stripe_id=None,
+                error="STRIPE_API_KEY not set",
+                mode="stripe"
+            )
+        
         currency = get_default_currency()
         
         price_response = requests.post(
             "https://api.stripe.com/v1/prices",
-            auth=(api_key, ""),
+            auth=(str(api_key), ""),
             data={
                 "currency": currency,
                 "unit_amount": amount_cents,
@@ -249,7 +258,7 @@ def create_payment_link(
         
         link_response = requests.post(
             "https://api.stripe.com/v1/payment_links",
-            auth=(api_key, ""),
+            auth=(str(api_key), ""),
             data={
                 "line_items[0][price]": price_id,
                 "line_items[0][quantity]": 1,
@@ -410,3 +419,172 @@ def validate_stripe_at_startup() -> None:
             print(f"[STRIPE][DISABLED_MISCONFIG] ENABLE_STRIPE=TRUE but {message} - invoices will not have payment links")
     else:
         print(f"[STRIPE][STARTUP] Stripe disabled (ENABLE_STRIPE != TRUE)")
+
+
+def ensure_invoice_payment_url(
+    invoice_id: int,
+    amount_cents: int,
+    customer_id: int,
+    customer_email: str,
+    customer_company: str,
+    invoice_status: str,
+    existing_payment_url: Optional[str]
+) -> PaymentLinkResult:
+    """
+    Ensure an invoice has a Stripe payment link if Stripe is enabled.
+    
+    Used for retroactive payment link generation on existing invoices.
+    
+    Conditions to skip:
+    - ENABLE_STRIPE is FALSE
+    - Stripe credentials are invalid
+    - Invoice status is 'paid'
+    - Invoice already has a payment_url
+    
+    Args:
+        invoice_id: HossAgent invoice ID
+        amount_cents: Invoice amount in cents
+        customer_id: Customer ID
+        customer_email: Customer email for Stripe
+        customer_company: Customer company name for description
+        invoice_status: Current invoice status
+        existing_payment_url: Current payment_url (if any)
+    
+    Returns:
+        PaymentLinkResult with success status and payment URL
+    """
+    if not is_stripe_enabled():
+        return PaymentLinkResult(
+            success=False,
+            payment_url=None,
+            stripe_id=None,
+            error="Stripe disabled",
+            mode="dry_run"
+        )
+    
+    is_valid, config_msg = validate_stripe_config()
+    if not is_valid:
+        print(f"[STRIPE][DRY_RUN_FALLBACK] {config_msg}")
+        log_stripe_event("ensure_link_dry_run", {
+            "reason": config_msg,
+            "invoice_id": invoice_id
+        })
+        return PaymentLinkResult(
+            success=False,
+            payment_url=None,
+            stripe_id=None,
+            error=f"DRY_RUN_FALLBACK: {config_msg}",
+            mode="dry_run"
+        )
+    
+    if invoice_status == "paid":
+        return PaymentLinkResult(
+            success=False,
+            payment_url=None,
+            stripe_id=None,
+            error="Invoice already paid",
+            mode="stripe"
+        )
+    
+    if existing_payment_url and len(existing_payment_url) > 10:
+        return PaymentLinkResult(
+            success=False,
+            payment_url=existing_payment_url,
+            stripe_id=None,
+            error="Payment URL already exists",
+            mode="stripe"
+        )
+    
+    result = create_payment_link(
+        amount_cents=amount_cents,
+        customer_id=customer_id,
+        customer_email=customer_email,
+        description=f"Invoice #{invoice_id} - {customer_company}",
+        invoice_id=invoice_id
+    )
+    
+    if result.success:
+        print(f"[STRIPE][LINK_CREATED] Invoice {invoice_id} amount=${amount_cents/100:.2f}")
+        log_stripe_event("retroactive_link_created", {
+            "invoice_id": invoice_id,
+            "amount_cents": amount_cents,
+            "payment_url": result.payment_url
+        })
+    
+    return result
+
+
+def get_invoice_payment_stats(invoices: list) -> Dict[str, Any]:
+    """
+    Get payment link statistics for a list of invoices.
+    
+    Args:
+        invoices: List of invoice objects with payment_url and status attributes
+    
+    Returns:
+        Dict with counts of invoices with/without payment links
+    """
+    total = len(invoices)
+    with_payment_url = 0
+    without_payment_url = 0
+    paid = 0
+    unpaid_without_link = 0
+    
+    for inv in invoices:
+        status = getattr(inv, 'status', 'draft')
+        payment_url = getattr(inv, 'payment_url', None)
+        
+        if status == 'paid':
+            paid += 1
+        elif payment_url and len(payment_url) > 10:
+            with_payment_url += 1
+        else:
+            without_payment_url += 1
+            if status in ('draft', 'sent'):
+                unpaid_without_link += 1
+    
+    return {
+        "total": total,
+        "paid": paid,
+        "with_payment_url": with_payment_url,
+        "without_payment_url": without_payment_url,
+        "unpaid_without_link": unpaid_without_link
+    }
+
+
+def get_stripe_payment_mode_status() -> Dict[str, Any]:
+    """
+    Get comprehensive Stripe payment mode status for templates.
+    
+    Returns:
+        Dict with:
+        - payments_enabled: True if Stripe is fully configured
+        - payments_available: True if payments can be processed
+        - status_message: Human-readable status message
+        - show_pay_buttons: Whether to show PAY NOW buttons
+    """
+    is_enabled = is_stripe_enabled()
+    is_valid, message = validate_stripe_config()
+    
+    if not is_enabled:
+        return {
+            "payments_enabled": False,
+            "payments_available": False,
+            "status_message": "Online payments are currently disabled. Contact your operator for payment options.",
+            "show_pay_buttons": False
+        }
+    
+    if not is_valid:
+        return {
+            "payments_enabled": True,
+            "payments_available": False,
+            "status_message": "Online payments temporarily unavailable.",
+            "show_pay_buttons": False
+        }
+    
+    return {
+        "payments_enabled": True,
+        "payments_available": True,
+        "status_message": "",
+        "show_pay_buttons": True
+    }

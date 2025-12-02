@@ -165,8 +165,59 @@ The system NEVER sends real emails or creates real charges if configuration is m
 - Limits enforced regardless of mode
 
 ### Invoice Safety
-- Stripe payment links only created for amounts $1-$500
+- Stripe payment links only created for amounts $1-$500 (configurable)
 - Outside bounds: logged and skipped, no crash
+
+## Customer Payments & Portal
+
+### Environment Variables
+```
+ENABLE_STRIPE=TRUE|FALSE           # Default: FALSE
+STRIPE_API_KEY=sk_...              # Stripe secret key
+STRIPE_WEBHOOK_SECRET=whsec_...    # Optional but recommended
+STRIPE_DEFAULT_CURRENCY=usd        # Default: usd
+STRIPE_MIN_AMOUNT_CENTS=100        # Default: $1.00
+STRIPE_MAX_AMOUNT_CENTS=50000      # Default: $500.00
+```
+
+### Behavior
+
+**When Stripe is disabled (ENABLE_STRIPE=FALSE):**
+- No PAY NOW buttons in Customer Portal
+- Portal shows: "Online payments are currently disabled. Contact your operator for payment options."
+- Admin Console shows Stripe status as DISABLED
+
+**When Stripe is enabled and configured:**
+- New invoices get Stripe payment links automatically during Billing cycle
+- Old unpaid invoices get payment links via retroactive pass on startup
+- Customer Portal shows PAY NOW buttons for invoices with payment links
+- Admin Console shows Stripe status, payment link counts, and missing link warnings
+
+**When Stripe is enabled but misconfigured:**
+- No PAY NOW buttons (safety fallback)
+- Portal shows: "Online payments temporarily unavailable."
+- Logged as [STRIPE][DRY_RUN_FALLBACK]
+
+### Customer Portal Features
+- Account Summary: Total Invoiced, Total Paid, Outstanding balance
+- Outstanding Invoices table with PAY NOW buttons (when available)
+- Payment History table with PAID badges
+- Recent Work table showing task status
+
+### Admin Console Features
+- Stripe Billing panel with status, currency, limits
+- Payment link counts (with links vs missing links)
+- Invoices table with LINK OK / MISSING LINK badges
+- Webhook configuration status
+
+### Testing Stripe Payments
+1. Set `ENABLE_STRIPE=TRUE` and `STRIPE_API_KEY` to a valid test key
+2. Create or trigger a new invoice via Billing agent
+3. Verify:
+   - Admin Console shows payment_url for that invoice
+   - Customer Portal shows PAY NOW button
+4. Use Stripe test mode to simulate payment
+5. Confirm invoice status updates to PAID and button disappears
 
 ### Error Handling
 - All agent cycles catch and log exceptions

@@ -445,7 +445,21 @@
                 </div>
             </div>
         </div>
-        <div class="config-hint" id="stripe-hint">Set ENABLE_STRIPE=TRUE and STRIPE_API_KEY in Secrets</div>
+        <div class="lead-source-stats" style="margin-top: 0.5rem;">
+            <div class="lead-source-stat">
+                <span>With Payment Links:</span>
+                <span class="lead-source-value" id="stripe-with-links">0</span>
+            </div>
+            <div class="lead-source-stat">
+                <span>Missing Links:</span>
+                <span class="lead-source-value" id="stripe-missing-links" style="color: #f90;">0</span>
+            </div>
+            <div class="lead-source-stat">
+                <span>Webhook:</span>
+                <span class="lead-source-value" id="stripe-webhook">-</span>
+            </div>
+        </div>
+        <div class="config-hint" id="stripe-hint">HossAgent automatically generates Stripe payment links for new and legacy draft invoices when ENABLE_STRIPE=TRUE.</div>
     </div>
 
     <div class="lead-source-panel" id="bizdev-panel">
@@ -507,6 +521,7 @@
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Status</th>
+                    <th>Payment</th>
                     <th>Created</th>
                 </tr>
             </thead>
@@ -714,12 +729,21 @@
                 const invoicesBody = document.getElementById('invoices-table').querySelector('tbody');
                 invoicesBody.innerHTML = invoices.slice(-10).map(i => {
                     const cust = customers.find(c => c.id === i.customer_id);
+                    let paymentBadge = '';
+                    if (i.status === 'paid') {
+                        paymentBadge = '<span class="status-badge" style="background:#006600;color:#0f0;">PAID</span>';
+                    } else if (i.payment_url && i.payment_url.length > 10) {
+                        paymentBadge = '<span class="status-badge" style="background:#004466;">LINK OK</span>';
+                    } else {
+                        paymentBadge = '<span class="status-badge" style="background:#664400;color:#f90;">MISSING LINK</span>';
+                    }
                     return `
                         <tr>
                             <td>${i.id}</td>
                             <td>${cust ? cust.company : 'Unknown'}</td>
                             <td>$${(i.amount_cents/100).toFixed(2)}</td>
                             <td><span class="status-badge">${i.status}</span></td>
+                            <td>${paymentBadge}</td>
                             <td>${new Date(i.created_at).toLocaleDateString()}</td>
                         </tr>
                     `;
@@ -759,8 +783,8 @@
                 if (data.enabled && data.configured) {
                     statusEl.textContent = 'ENABLED';
                     statusEl.style.color = '#0f0';
-                    hintEl.textContent = data.message || 'Stripe configured';
-                    hintEl.style.color = '#0f0';
+                    hintEl.textContent = 'HossAgent automatically generates Stripe payment links for new and legacy draft invoices.';
+                    hintEl.style.color = '#666';
                 } else if (data.enabled) {
                     statusEl.textContent = 'ERROR';
                     statusEl.style.color = '#f00';
@@ -769,11 +793,26 @@
                 } else {
                     statusEl.textContent = 'DISABLED';
                     statusEl.style.color = '#f90';
-                    hintEl.textContent = 'Set ENABLE_STRIPE=TRUE in Secrets';
+                    hintEl.textContent = 'Set ENABLE_STRIPE=TRUE and STRIPE_API_KEY in Secrets';
                 }
                 
                 document.getElementById('stripe-currency').textContent = (data.currency || 'usd').toUpperCase();
                 document.getElementById('stripe-limits').textContent = `${data.min_amount || '$1.00'}-${data.max_amount || '$500.00'}`;
+                
+                const withLinksEl = document.getElementById('stripe-with-links');
+                const missingLinksEl = document.getElementById('stripe-missing-links');
+                const webhookEl = document.getElementById('stripe-webhook');
+                
+                if (withLinksEl) withLinksEl.textContent = data.with_payment_url || '0';
+                if (missingLinksEl) {
+                    const missing = data.unpaid_without_link || 0;
+                    missingLinksEl.textContent = missing;
+                    missingLinksEl.style.color = missing > 0 ? '#f90' : '#0f0';
+                }
+                if (webhookEl) {
+                    webhookEl.textContent = data.webhook_configured ? 'OK' : 'NOT SET';
+                    webhookEl.style.color = data.webhook_configured ? '#0f0' : '#666';
+                }
                 
             } catch (e) {
                 console.error('Stripe status refresh error:', e);

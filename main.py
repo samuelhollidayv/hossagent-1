@@ -34,7 +34,13 @@ from email_utils import send_email, get_email_status, get_email_log
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
 from release_mode import is_release_mode, print_startup_banners, get_release_mode_status
-from stripe_utils import validate_stripe_at_startup
+from stripe_utils import (
+    validate_stripe_at_startup,
+    is_stripe_enabled,
+    get_stripe_payment_mode_status,
+    ensure_invoice_payment_url,
+    get_invoice_payment_stats
+)
 
 app = FastAPI(title="HossAgent Control Engine")
 
@@ -42,6 +48,77 @@ app = FastAPI(title="HossAgent Control Engine")
 # ============================================================================
 # STARTUP & BACKGROUND AUTOPILOT
 # ============================================================================
+
+
+def run_retroactive_payment_links(max_invoices: int = 50) -> int:
+    """
+    Generate payment links for existing unpaid invoices that don't have them.
+    
+    Called on startup when ENABLE_STRIPE=TRUE to ensure all draft/sent invoices
+    have payment links.
+    
+    Args:
+        max_invoices: Maximum number of invoices to process per run (bounded)
+    
+    Returns:
+        Number of payment links created
+    """
+    if not is_stripe_enabled():
+        return 0
+    
+    from sqlmodel import Session
+    
+    links_created = 0
+    
+    try:
+        with Session(engine) as session:
+            invoices_needing_links = session.exec(
+                select(Invoice).where(
+                    (Invoice.status.in_(["draft", "sent"])) &
+                    ((Invoice.payment_url == None) | (Invoice.payment_url == ""))
+                ).limit(max_invoices)
+            ).all()
+            
+            if not invoices_needing_links:
+                print(f"[STRIPE][RETROACTIVE] No invoices need payment links")
+                return 0
+            
+            print(f"[STRIPE][RETROACTIVE] Processing {len(invoices_needing_links)} invoices for payment links")
+            
+            for invoice in invoices_needing_links:
+                customer = session.exec(
+                    select(Customer).where(Customer.id == invoice.customer_id)
+                ).first()
+                
+                if not customer:
+                    print(f"[STRIPE][RETROACTIVE] Invoice {invoice.id} has no customer, skipping")
+                    continue
+                
+                result = ensure_invoice_payment_url(
+                    invoice_id=invoice.id,
+                    amount_cents=invoice.amount_cents,
+                    customer_id=customer.id,
+                    customer_email=customer.contact_email,
+                    customer_company=customer.company,
+                    invoice_status=invoice.status,
+                    existing_payment_url=invoice.payment_url
+                )
+                
+                if result.success and result.payment_url:
+                    invoice.payment_url = result.payment_url
+                    if result.stripe_id:
+                        invoice.stripe_payment_id = result.stripe_id
+                    session.add(invoice)
+                    links_created += 1
+            
+            if links_created > 0:
+                session.commit()
+                print(f"[STRIPE][RETROACTIVE] Created {links_created} payment links")
+            
+    except Exception as e:
+        print(f"[STRIPE][RETROACTIVE] Error: {e}")
+    
+    return links_created
 
 
 @app.on_event("startup")
@@ -52,6 +129,8 @@ async def startup_event():
     create_db_and_tables()
     
     validate_stripe_at_startup()
+    
+    run_retroactive_payment_links()
     
     asyncio.create_task(autopilot_loop())
     print("[STARTUP] HossAgent initialized. Autopilot loop active.")
@@ -638,15 +717,19 @@ async def stripe_webhook(request: Request, session: Session = Depends(get_sessio
 
 
 @app.get("/api/stripe/status")
-def get_stripe_status_endpoint():
-    """Get current Stripe configuration status."""
+def get_stripe_status_endpoint(session: Session = Depends(get_session)):
+    """Get current Stripe configuration status including payment link stats."""
     from stripe_utils import get_stripe_status, get_stripe_log
     
     status = get_stripe_status()
     recent_events = get_stripe_log(10)
     
+    all_invoices = list(session.exec(select(Invoice)).all())
+    invoice_stats = get_invoice_payment_stats(all_invoices)
+    
     return {
         **status,
+        **invoice_stats,
         "recent_events": recent_events
     }
 
@@ -768,11 +851,12 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     Read-only customer portal accessible via public token.
     
     Shows:
+    - Account summary (total invoiced, paid, outstanding)
     - Customer info
     - Recent tasks
-    - Outstanding invoices with payment links
+    - Outstanding invoices with PAY NOW buttons
     - Paid invoices
-    - Revenue summary
+    - Payment status messaging based on Stripe configuration
     """
     customer = session.exec(
         select(Customer).where(Customer.public_token == public_token)
@@ -791,8 +875,18 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     
     outstanding_invoices = [i for i in invoices if i.status in ["draft", "sent"]]
     paid_invoices = [i for i in invoices if i.status == "paid"]
+    total_invoiced = sum(i.amount_cents for i in invoices)
     total_paid = sum(i.amount_cents for i in paid_invoices)
     total_outstanding = sum(i.amount_cents for i in outstanding_invoices)
+    
+    payment_status = get_stripe_payment_mode_status()
+    show_pay_buttons = payment_status["show_pay_buttons"]
+    raw_payment_message = payment_status["status_message"]
+    
+    if raw_payment_message:
+        payment_message = f'<div class="payment-notice">{raw_payment_message}</div>'
+    else:
+        payment_message = ""
     
     with open("templates/customer_portal.html", "r") as f:
         template = f.read()
@@ -813,18 +907,28 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     outstanding_rows = ""
     for i in outstanding_invoices:
         payment_btn = ""
-        if i.payment_url:
-            payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
+        if show_pay_buttons and i.payment_url and len(i.payment_url) > 10:
+            try:
+                payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
+            except Exception as e:
+                print(f"[PORTAL][WARNING] Malformed payment_url for invoice {i.id}: {e}")
+                payment_btn = '<span class="payment-unavailable">Payment link unavailable</span>'
+        elif not show_pay_buttons:
+            payment_btn = ''
+        else:
+            payment_btn = '<span class="payment-unavailable">Payment link unavailable</span>'
+        
         outstanding_rows += f"""
             <tr>
                 <td>INV-{i.id}</td>
                 <td>${i.amount_cents/100:.2f}</td>
+                <td><span class="status-badge draft">{i.status.upper()}</span></td>
                 <td>{i.created_at.strftime("%Y-%m-%d")}</td>
                 <td>{payment_btn}</td>
             </tr>
         """
     if not outstanding_rows:
-        outstanding_rows = '<tr><td colspan="4" class="empty">No outstanding invoices.</td></tr>'
+        outstanding_rows = '<tr><td colspan="5" class="empty">No outstanding invoices.</td></tr>'
     
     paid_rows = ""
     for i in paid_invoices:
@@ -832,21 +936,24 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
             <tr>
                 <td>INV-{i.id}</td>
                 <td>${i.amount_cents/100:.2f}</td>
+                <td><span class="status-badge paid">PAID</span></td>
                 <td>{i.paid_at.strftime("%Y-%m-%d") if i.paid_at else '-'}</td>
             </tr>
         """
     if not paid_rows:
-        paid_rows = '<tr><td colspan="3" class="empty">No paid invoices yet.</td></tr>'
+        paid_rows = '<tr><td colspan="4" class="empty">No paid invoices yet.</td></tr>'
     
     html = template.format(
         company_name=customer.company,
         contact_email=customer.contact_email,
+        total_invoiced=f"${total_invoiced/100:.2f}",
         total_paid=f"${total_paid/100:.2f}",
         total_outstanding=f"${total_outstanding/100:.2f}",
         tasks_count=len(tasks),
         tasks_rows=tasks_rows,
         outstanding_rows=outstanding_rows,
-        paid_rows=paid_rows
+        paid_rows=paid_rows,
+        payment_message=payment_message
     )
     
     return html

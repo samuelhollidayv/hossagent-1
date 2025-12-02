@@ -36,11 +36,23 @@
             color: #666;
             font-size: 0.9rem;
         }
+        .account-summary {
+            border: 1px solid #333;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .account-summary h2 {
+            font-size: 1rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            color: #999;
+            text-transform: uppercase;
+        }
         .metrics {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 1rem;
-            margin: 2rem 0;
         }
         .metric {
             border: 1px solid #333;
@@ -48,7 +60,7 @@
             text-align: center;
         }
         .metric-value {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
         }
@@ -58,11 +70,23 @@
         .metric-value.orange {
             color: #f90;
         }
+        .metric-value.white {
+            color: #fff;
+        }
         .metric-label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #999;
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+        .payment-notice {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            color: #888;
+            font-size: 0.85rem;
+            text-align: center;
         }
         .section {
             margin: 2rem 0;
@@ -116,18 +140,36 @@
         .status-badge.failed {
             background: #660000;
         }
+        .status-badge.draft {
+            background: #664400;
+        }
+        .status-badge.sent {
+            background: #004466;
+        }
+        .status-badge.paid {
+            background: #006600;
+            color: #0f0;
+        }
         .pay-btn {
             display: inline-block;
             background: #fff;
             color: #0a0a0a;
-            padding: 0.4rem 1rem;
+            padding: 0.5rem 1.25rem;
             text-decoration: none;
             font-weight: bold;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-family: Georgia, serif;
+            border: 2px solid #fff;
+            transition: all 0.2s ease;
         }
         .pay-btn:hover {
-            background: #ddd;
+            background: #0a0a0a;
+            color: #fff;
+        }
+        .payment-unavailable {
+            color: #555;
+            font-size: 0.8rem;
+            font-style: italic;
         }
         .empty {
             color: #555;
@@ -142,12 +184,17 @@
             color: #444;
             font-size: 0.8rem;
         }
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             .metrics {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
             }
             body {
                 padding: 1rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .metrics {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -159,20 +206,29 @@
             <div class="subtitle">{contact_email}</div>
         </div>
 
-        <div class="metrics">
-            <div class="metric">
-                <div class="metric-value green">{total_paid}</div>
-                <div class="metric-label">Total Paid</div>
-            </div>
-            <div class="metric">
-                <div class="metric-value orange">{total_outstanding}</div>
-                <div class="metric-label">Outstanding</div>
-            </div>
-            <div class="metric">
-                <div class="metric-value">{tasks_count}</div>
-                <div class="metric-label">Tasks</div>
+        <div class="account-summary">
+            <h2>Account Summary</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value white">{total_invoiced}</div>
+                    <div class="metric-label">Total Invoiced</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value green">{total_paid}</div>
+                    <div class="metric-label">Total Paid</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value orange">{total_outstanding}</div>
+                    <div class="metric-label">Outstanding</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{tasks_count}</div>
+                    <div class="metric-label">Tasks</div>
+                </div>
             </div>
         </div>
+
+        {payment_message}
 
         <div class="section">
             <h2>Outstanding Invoices</h2>
@@ -181,6 +237,7 @@
                     <tr>
                         <th>Invoice</th>
                         <th>Amount</th>
+                        <th>Status</th>
                         <th>Date</th>
                         <th>Action</th>
                     </tr>
@@ -198,6 +255,7 @@
                     <tr>
                         <th>Invoice</th>
                         <th>Amount</th>
+                        <th>Status</th>
                         <th>Paid Date</th>
                     </tr>
                 </thead>
