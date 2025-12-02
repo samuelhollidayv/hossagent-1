@@ -13,10 +13,12 @@ Routes:
 - /customers/{id}      → Customer detail page
 - /leads/{id}          → Lead detail page
 - /invoices/{id}       → Invoice detail page
+- /admin/send-test-email → Test email configuration
 """
 import asyncio
 from datetime import datetime
-from fastapi import FastAPI, Depends, Request, HTTPException
+from typing import Optional
+from fastapi import FastAPI, Depends, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
@@ -28,6 +30,7 @@ from agents import (
     run_ops_cycle,
     run_billing_cycle,
 )
+from email_utils import send_email, get_email_mode
 
 app = FastAPI(title="HossAgent Control Engine")
 
@@ -395,13 +398,16 @@ async def toggle_autopilot(enabled: bool, session: Session = Depends(get_session
 
 @app.get("/api/settings")
 def get_settings(session: Session = Depends(get_session)):
-    """Get current system settings."""
+    """Get current system settings including email mode."""
     settings = session.exec(
         select(SystemSettings).where(SystemSettings.id == 1)
     ).first()
     if settings:
-        return {"autopilot_enabled": settings.autopilot_enabled}
-    return {"error": "Settings not found"}
+        return {
+            "autopilot_enabled": settings.autopilot_enabled,
+            "email_mode": get_email_mode()
+        }
+    return {"error": "Settings not found", "email_mode": get_email_mode()}
 
 
 # ============================================================================
@@ -452,6 +458,35 @@ def mark_invoice_paid(invoice_id: int, session: Session = Depends(get_session)):
     session.commit()
     print(f"[ADMIN] Invoice {invoice_id} marked as paid")
     return {"status": "paid", "invoice_id": invoice_id}
+
+
+@app.post("/admin/send-test-email")
+def send_test_email(
+    to_email: str = Query(..., description="Recipient email address"),
+    subject: Optional[str] = Query(default="HossAgent Test Email", description="Email subject"),
+    body: Optional[str] = Query(default=None, description="Email body")
+):
+    """Send a test email to verify configuration."""
+    mode = get_email_mode()
+    
+    if body is None:
+        body = f"""This is a test email from HossAgent.
+
+Your outbound email system is configured and working.
+
+Mode: {mode.upper()}
+Sent at: {datetime.utcnow().isoformat()}
+
+- HossAgent"""
+    
+    success = send_email(to_email, subject, body)
+    
+    return {
+        "success": success,
+        "mode": mode,
+        "recipient": to_email,
+        "message": f"Email {'sent' if success else 'not sent (check mode)'} via {mode}"
+    }
 
 
 if __name__ == "__main__":

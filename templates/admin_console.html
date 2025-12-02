@@ -191,9 +191,14 @@
     <div class="header">
         <h1>HOSS CONTROL ROOM</h1>
         <div class="autopilot-control">
-            <div>
-                <span>Autopilot:</span>
-                <span class="status" id="autopilot-status">Loading...</span>
+            <div style="text-align: right;">
+                <div>
+                    <span>Autopilot:</span>
+                    <span class="status" id="autopilot-status">Loading...</span>
+                </div>
+                <div style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">
+                    Outbound: <span id="email-mode" style="color: #999;">...</span>
+                </div>
             </div>
             <button class="toggle-btn" id="autopilot-toggle" onclick="toggleAutopilot()">ENABLE</button>
         </div>
@@ -270,7 +275,7 @@
                     <th>Company</th>
                     <th>Niche</th>
                     <th>Status</th>
-                    <th>Created</th>
+                    <th>Last Contacted</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -285,6 +290,12 @@
             const data = await res.json();
             autopilotEnabled = data.autopilot_enabled;
             updateAutopilotUI();
+            
+            const emailModeEl = document.getElementById('email-mode');
+            if (data.email_mode) {
+                emailModeEl.textContent = data.email_mode.toUpperCase();
+                emailModeEl.style.color = data.email_mode === 'dry-run' ? '#f90' : '#0f0';
+            }
         }
 
         function updateAutopilotUI() {
@@ -375,15 +386,22 @@
 
                 // Leads table
                 const leadsBody = document.getElementById('leads-table').querySelector('tbody');
-                leadsBody.innerHTML = leads.slice(-10).map(l => `
-                    <tr>
-                        <td>${l.id}</td>
-                        <td>${l.company}</td>
-                        <td>${l.niche}</td>
-                        <td><span class="status-badge">${l.status}</span></td>
-                        <td>${new Date(l.created_at).toLocaleDateString()}</td>
-                    </tr>
-                `).join('');
+                leadsBody.innerHTML = leads.slice(-10).map(l => {
+                    const statusClass = l.status === 'contacted' ? 'running' : 
+                                       l.status === 'responded' ? 'done' : 
+                                       l.status === 'qualified' ? 'done' : '';
+                    const lastContacted = l.last_contacted_at ? 
+                        new Date(l.last_contacted_at).toLocaleDateString() : '—';
+                    return `
+                        <tr>
+                            <td>${l.id}</td>
+                            <td>${l.company}</td>
+                            <td>${l.niche}</td>
+                            <td><span class="status-badge ${statusClass}">${l.status.toUpperCase()}</span></td>
+                            <td>${lastContacted}</td>
+                        </tr>
+                    `;
+                }).join('');
             } catch (e) {
                 addLog(`Data refresh error: ${e.message}`, 'error');
             }

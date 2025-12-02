@@ -1,0 +1,154 @@
+Yeah, that’s not you, that’s the Agent face-planting on a big refactor + new features all at once. Totally normal for these things to choke when the prompt is “build Rome + a space elevator.”
+
+Let’s do two things:
+	1.	Stabilize the project.
+	2.	Then add outbound in a smaller, safer pass.
+
+Below is a “recovery + outbound v1” prompt you can paste straight into the Magic box. It tells it to debug first, then implement, and to show you the error instead of dying mysteriously.
+
+⸻
+
+🔧 PASTE THIS INTO REPLIT AGENT
+
+You are working on an existing Python web app called HossAgent that already has:
+	•	a database with Leads, Customers, Tasks, Invoices
+	•	an Admin console (/admin) and a customer dashboard (/)
+	•	autonomous agents for bizdev / onboarding / ops
+	•	an autopilot loop that runs agents on its own
+
+The last attempt to modify this project crashed the Agent. Your first job is to stabilize and repair the project, then add a minimal outbound email system.
+
+⸻
+
+1. DIAGNOSE & REPAIR FIRST
+	1.	Inspect the repo:
+	•	List all files in the project.
+	•	Open main.py, agents.py, models.py, and any templates/*.html files.
+	2.	Run the app in the shell (or Replit run command) and capture the full error/traceback.
+	•	If the app doesn’t start, show the exact Python error and which file/line it’s from.
+	•	Fix only what’s necessary to get the app running again. Small, targeted edits, not a giant rewrite.
+	3.	Keep the existing behavior:
+	•	Don’t delete or rename routes.
+	•	Don’t change the DB schema in a breaking way.
+	•	Don’t remove the current Admin console or dashboard.
+
+Once the app starts cleanly again, tell me in a short summary what was broken and what you fixed.
+
+⸻
+
+2. ADD MINIMAL OUTBOUND EMAIL INFRASTRUCTURE
+
+Now add a simple, safe email layer, not a huge system.
+
+2.1 Create email_utils.py
+
+Create a new module email_utils.py with:
+
+import os
+
+def get_email_mode():
+    if os.getenv("SENDGRID_API_KEY"):
+        return "sendgrid"
+    if (os.getenv("SMTP_HOST")
+        and os.getenv("SMTP_PORT")
+        and os.getenv("SMTP_USERNAME")
+        and os.getenv("SMTP_PASSWORD")):
+        return "smtp"
+    return "dry-run"
+
+def send_email(recipient: str, subject: str, body: str) -> bool:
+    """
+    Send an email using either SendGrid, SMTP, or dry-run.
+    Returns True if a real email was sent, False otherwise.
+    This function must never crash the app.
+    """
+    mode = get_email_mode()
+    try:
+        if mode == "sendgrid":
+            # Implement simple SendGrid send via API key and SENDGRID_FROM_EMAIL
+            # If anything fails, log and return False.
+            ...
+        elif mode == "smtp":
+            # Implement simple SMTP send using:
+            # SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL
+            ...
+        else:
+            print(f"[EMAIL] DRY RUN → To: {recipient}, Subject: {subject}")
+            return False
+    except Exception as e:
+        print(f"[EMAIL] Error sending email to {recipient}: {e}")
+        return False
+
+    print(f"[EMAIL] Sent via {mode} to {recipient}: {subject}")
+    return True
+
+	•	Fill in the ... parts with minimal working SendGrid / SMTP code.
+	•	Never raise exceptions out of this function; always catch and return False.
+
+⸻
+
+3. LIGHT TOUCH BIZDEV INTEGRATION
+
+Update agents.py only where necessary to connect outbound:
+	1.	Import send_email and get_email_mode from email_utils.
+	2.	In run_bizdev_agent:
+	•	Only consider leads where status == "new" (or whatever the current equivalent is).
+	•	For each such lead, build a simple subject and body:
+
+subject = f"Quick idea for {lead.company or 'your team'}"
+body = (
+    f"Hi {lead.contact_name or lead.company},\n\n"
+    "I’m testing an autonomous AI worker called HossAgent that can do "
+    "research, prospecting, and operations on autopilot, and then show you "
+    "exactly how much profit it generated.\n\n"
+    "If you’d ever like to see it in action, just reply to this email.\n\n"
+    "- HossAgent"
+)
+
+	•	Call send_email(...).
+	•	If it returns True, set:
+	•	lead.status = "contacted"
+	•	lead.last_contacted_at = now()
+	•	If it returns False (dry-run or failure), keep status as it was but log clearly.
+
+	3.	Do NOT add complex OpenAI subject/body generation yet. Keep it deterministic and simple.
+
+⸻
+
+4. ADMIN UI INDICATOR ONLY (NO BIG TEMPLATE REWRITE)
+
+In the /admin template:
+	1.	Add a small text indicator at the top or near the leads table:
+	•	Example: Outbound email mode: {{ email_mode }}.
+	2.	Pass email_mode = get_email_mode() from the admin route in main.py.
+	3.	If the Leads table already shows status, reuse it. If not, add a simple text column for status (NEW, CONTACTED, etc.).
+Keep HTML changes minimal.
+
+⸻
+
+5. AUTOPILOT LOOP HOOK
+
+In whatever code runs the autopilot loop:
+	1.	Ensure it calls run_bizdev_agent() in its normal cycle (it probably already does).
+	2.	You don’t need to change scheduling or add simulation yet.
+Just make sure that when autopilot runs bizdev, outbound will be attempted for new leads.
+
+⸻
+
+6. TEST + REPORT
+	1.	Run the app again.
+	2.	Verify:
+	•	App starts with no errors.
+	•	Admin page loads.
+	•	A cycle of run_bizdev_agent() can be invoked (autopilot or manual) without crashing.
+	•	The console logs show email attempts (real or DRY RUN).
+	3.	At the end, give me:
+	•	A short summary of what you changed.
+	•	Any environment variables I need to configure for real email.
+	•	How to trigger a bizdev run (route, function, or button).
+
+Do all of this incrementally and prioritize stability over features.
+
+⸻
+
+Paste that in, let it chew, and then send me whatever error or summary it produces next and we’ll keep tightening the loop.

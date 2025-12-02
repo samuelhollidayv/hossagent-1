@@ -12,15 +12,21 @@ import asyncio
 from datetime import datetime
 from sqlmodel import Session, select
 from models import Lead, Customer, Task, Invoice
+from email_utils import send_email, get_email_mode
 import random
 
 
 async def run_bizdev_cycle(session: Session) -> str:
     """
-    BizDev Cycle: Generate 1-2 realistic leads with corporate names.
+    BizDev Cycle: Generate leads AND send outbound emails.
     
-    Safe to call repeatedly - just creates new leads each time.
-    In future: will send real outbound emails if SMTP config is present.
+    Steps:
+    1. Generate 1-2 new leads with corporate names
+    2. For each NEW lead, attempt to send outbound email
+    3. If email succeeds, mark lead as 'contacted'
+    4. If email fails (or dry-run), keep as 'new'
+    
+    Safe to call repeatedly - only emails leads with status='new'.
     """
     companies = [
         "Stratton Industries",
@@ -30,45 +36,80 @@ async def run_bizdev_cycle(session: Session) -> str:
         "Titan Logistics Inc",
         "Quantum Dynamics",
         "Atlas Enterprise Group",
+        "Blackstone Analytics",
+        "Vector Capital Group",
+        "Summit Holdings LLC",
     ]
     niches = ["SaaS", "Enterprise Software", "FinTech", "Operations", "Research", "Analytics"]
+    first_names = ["James", "Sarah", "Michael", "Emily", "David", "Rachel", "Alex", "Victoria"]
 
     num_leads = random.randint(1, 2)
     created = []
+    emails_sent = 0
 
     for _ in range(num_leads):
         company = random.choice(companies)
         niche = random.choice(niches)
+        first_name = random.choice(first_names)
+        
         lead = Lead(
-            name=f"Lead_{random.randint(1000, 9999)}",
-            email=f"contact@{company.lower().replace(' ', '')}.com",
+            name=first_name,
+            email=f"{first_name.lower()}@{company.lower().replace(' ', '')}.com",
             company=company,
             niche=niche,
             status="new",
-            last_contacted_at=datetime.utcnow(),
         )
         session.add(lead)
+        session.flush()
         created.append(lead.company)
+        
+        subject = f"Quick idea for {lead.company}"
+        body = f"""Hi {lead.name},
+
+I'm reaching out because I think your team at {lead.company} may benefit from autonomous AI workers.
+
+HossAgent runs research, lead generation, analysis, and task execution automatically — then proves its profit in real time.
+
+Let me know if you'd like to see it in action.
+
+- HossAgent"""
+
+        email_sent = send_email(lead.email, subject, body)
+        
+        if email_sent:
+            lead.status = "contacted"
+            lead.last_contacted_at = datetime.utcnow()
+            emails_sent += 1
+        else:
+            lead.last_contacted_at = None
+
+        session.add(lead)
 
     session.commit()
-    msg = f"BizDev: Generated {num_leads} leads. Companies: {', '.join(created)}"
+    
+    email_mode = get_email_mode()
+    msg = f"BizDev: Generated {num_leads} leads ({', '.join(created)}). Emails: {emails_sent} sent [{email_mode}]"
     print(f"[CYCLE] {msg}")
     return msg
 
 
 async def run_onboarding_cycle(session: Session) -> str:
     """
-    Onboarding Cycle: Convert a new/responded lead into a customer.
+    Onboarding Cycle: Convert a contacted/responded lead into a customer.
     Create 1-2 template tasks for the customer.
     Mark lead as qualified.
     
+    Priority: 'responded' leads first, then 'contacted' leads.
     Idempotent: Skips leads already converted.
     """
-    # Find an unqualified lead (new or responded)
-    statement = select(Lead).where(
-        Lead.status.in_(["new", "responded"])
-    ).limit(1)
-    lead = session.exec(statement).first()
+    lead = session.exec(
+        select(Lead).where(Lead.status == "responded").limit(1)
+    ).first()
+    
+    if not lead:
+        lead = session.exec(
+            select(Lead).where(Lead.status == "contacted").limit(1)
+        ).first()
 
     if not lead:
         msg = "Onboarding: No unqualified leads available."

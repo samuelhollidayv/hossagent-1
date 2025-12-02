@@ -179,13 +179,51 @@ python main.py
 ✅ Added detail pages for customers, leads, invoices
 ✅ Noir aesthetic maintained across both UIs
 ✅ Real-time data flow demonstrated with live system running
+✅ **Outbound Email System** - Full implementation with SendGrid/SMTP/dry-run modes
+
+### Outbound Email System
+
+**New File: `email_utils.py`**
+- `get_email_mode()` - Detects available email mode (sendgrid/smtp/dry-run)
+- `send_email(recipient, subject, body)` - Sends email, never crashes
+
+**BizDev Agent Integration:**
+- Generates leads with realistic first names and company emails
+- Automatically sends cold outbound emails to new leads
+- If email succeeds → lead.status = "contacted"
+- If email fails/dry-run → lead.status = "new"
+- Logs all email attempts with recipient and subject
+
+**Environment Variables for Real Email:**
+```
+# SendGrid (preferred)
+SENDGRID_API_KEY=your_sendgrid_api_key
+SENDGRID_FROM_EMAIL=your@email.com
+
+# OR SMTP fallback
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your_username
+SMTP_PASSWORD=your_password
+SMTP_FROM_EMAIL=your@email.com
+```
+
+**Admin Console Updates:**
+- Shows "Outbound: DRY-RUN" or "SENDGRID" or "SMTP" indicator
+- Leads table shows status (NEW/CONTACTED/RESPONDED/QUALIFIED)
+- Leads table shows "Last Contacted" date
+
+**Test Email Endpoint:**
+```
+POST /admin/send-test-email?to_email=test@example.com
+```
+Returns: `{"success": true/false, "mode": "dry-run/sendgrid/smtp"}`
 
 ### Next Steps (Ready for Integration)
 - OpenAI integration: Replace `run_ops_cycle` simulated result with real API call
-- Email outbound: Add SMTP/SendGrid support to `run_bizdev_cycle`
 - Stripe billing: Add `stripe_utils.py` and integrate with `run_billing_cycle`
 - Smart Onboarding: Add lead scoring and matching algorithms
-- Scheduler: Integrate APScheduler if more complex timing needed
+- Reply simulation: Add inbound email handler or webhook
 
 ## Future Enhancements
 - Multi-user authentication (per-customer login to dashboard)
