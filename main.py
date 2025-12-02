@@ -26,7 +26,7 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import FastAPI, Depends, Request, HTTPException, Query
+from fastapi import FastAPI, Depends, Request, HTTPException, Query, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select, func
@@ -63,8 +63,26 @@ from subscription_utils import (
     expire_trial,
     check_trial_abuse,
     record_trial_identity,
+    initialize_trial,
     get_or_create_subscription_checkout_link,
     create_billing_portal_link
+)
+from auth_utils import (
+    hash_password,
+    verify_password,
+    create_customer_session,
+    verify_customer_session,
+    create_admin_session,
+    verify_admin_session,
+    authenticate_customer,
+    generate_public_token,
+    get_customer_from_session,
+    get_customer_from_token,
+    get_admin_password,
+    SESSION_COOKIE_NAME,
+    ADMIN_COOKIE_NAME,
+    SESSION_MAX_AGE,
+    ADMIN_SESSION_MAX_AGE
 )
 
 app = FastAPI(title="HossAgent Control Engine")
@@ -214,90 +232,261 @@ async def autopilot_loop():
 
 
 @app.get("/", response_class=HTMLResponse)
-def serve_customer_dashboard(session: Session = Depends(get_session)):
-    """Customer Dashboard: Public-facing read-only view of system activity."""
-    customers = session.exec(select(Customer)).all()
-    leads = session.exec(
-        select(Lead).order_by(Lead.created_at.desc()).limit(20)
-    ).all()
-    tasks = session.exec(
-        select(Task).order_by(Task.created_at.desc()).limit(20)
-    ).all()
-    invoices = session.exec(
-        select(Invoice).order_by(Invoice.created_at.desc()).limit(20)
-    ).all()
+def serve_marketing_landing():
+    """Marketing Landing Page: Public-facing marketing page for new visitors."""
+    with open("templates/marketing_landing.html", "r") as f:
+        return f.read()
 
-    # Compute aggregates
-    total_revenue_cents = sum(i.amount_cents for i in invoices if i.status == "paid")
-    outstanding_cents = sum(i.amount_cents for i in invoices if i.status in ["draft", "sent"])
-    completed_tasks_count = sum(1 for t in tasks if t.status == "done")
-    total_leads_count = len(leads)
 
-    # Build HTML rows
-    tasks_rows = ""
-    for t in tasks:
-        if t.status == "done":
-            tasks_rows += f"""
-                    <tr>
-                        <td>{t.created_at.strftime("%Y-%m-%d")}</td>
-                        <td><a href="/tasks/{t.id}">{t.description[:50]}</a></td>
-                        <td><span class="status-badge done">done</span></td>
-                        <td style="text-align: right;" class="money">${t.profit_cents/100:.2f}</td>
-                    </tr>
-            """
-    if not tasks_rows:
-        tasks_rows = '<tr><td colspan="4" class="empty">No completed tasks yet.</td></tr>'
+# ============================================================================
+# AUTHENTICATION ROUTES
+# ============================================================================
 
-    invoices_rows = ""
-    for i in invoices:
-        cust = next((c.company for c in customers if c.id == i.customer_id), "Unknown")
-        status_class = "paid" if i.status == "paid" else "draft"
-        invoices_rows += f"""
-                    <tr>
-                        <td><a href="/invoices/{i.id}">{i.id}</a></td>
-                        <td>{cust}</td>
-                        <td>${i.amount_cents/100:.2f}</td>
-                        <td><span class="status-badge {status_class}">{i.status}</span></td>
-                        <td style="text-align: right;">{i.created_at.strftime("%Y-%m-%d")}</td>
-                    </tr>
-        """
-    if not invoices_rows:
-        invoices_rows = '<tr><td colspan="5" class="empty">No invoices yet.</td></tr>'
 
-    leads_rows = ""
-    for l in leads:
-        leads_rows += f"""
-                    <tr>
-                        <td><a href="/leads/{l.id}">{l.company}</a></td>
-                        <td>{l.niche}</td>
-                        <td><span class="status-badge">{l.status}</span></td>
-                        <td style="text-align: right;">{l.last_contacted_at.strftime("%Y-%m-%d") if l.last_contacted_at else "—"}</td>
-                    </tr>
-        """
-    if not leads_rows:
-        leads_rows = '<tr><td colspan="4" class="empty">No leads yet.</td></tr>'
-
-    with open("templates/dashboard.html", "r") as f:
+@app.get("/signup", response_class=HTMLResponse)
+def signup_get():
+    """Render signup form."""
+    with open("templates/auth_signup.html", "r") as f:
         template = f.read()
-
-    # Simple template substitution
+    
     html = template.format(
-        total_revenue=f"${total_revenue_cents/100:.2f}",
-        outstanding=f"${outstanding_cents/100:.2f}",
-        completed_tasks=completed_tasks_count,
-        total_leads=total_leads_count,
-        tasks_rows=tasks_rows,
-        invoices_rows=invoices_rows,
-        leads_rows=leads_rows,
+        error_html="",
+        company="",
+        contact_name="",
+        email="",
+        niche="",
+        geography=""
     )
     return html
 
 
+@app.post("/signup", response_class=HTMLResponse)
+def signup_post(
+    request: Request,
+    company: str = Form(...),
+    contact_name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    niche: str = Form(""),
+    geography: str = Form(""),
+    session: Session = Depends(get_session)
+):
+    """Process signup form."""
+    with open("templates/auth_signup.html", "r") as f:
+        template = f.read()
+    
+    def render_error(error_msg: str) -> str:
+        error_html = f'<div class="error-message">{error_msg}</div>'
+        return template.format(
+            error_html=error_html,
+            company=company,
+            contact_name=contact_name,
+            email=email,
+            niche=niche,
+            geography=geography
+        )
+    
+    if password != password_confirm:
+        return HTMLResponse(content=render_error("Passwords do not match"))
+    
+    if len(password) < 8:
+        return HTMLResponse(content=render_error("Password must be at least 8 characters"))
+    
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+    
+    is_allowed, block_reason = check_trial_abuse(
+        session=session,
+        email=email.lower().strip(),
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+    
+    if not is_allowed:
+        return HTMLResponse(content=render_error(f"Unable to create trial: {block_reason}"))
+    
+    existing = session.exec(
+        select(Customer).where(Customer.contact_email == email.lower().strip())
+    ).first()
+    if existing:
+        return HTMLResponse(content=render_error("An account with this email already exists. Please log in."))
+    
+    customer = Customer(
+        company=company.strip(),
+        contact_name=contact_name.strip(),
+        contact_email=email.lower().strip(),
+        password_hash=hash_password(password),
+        public_token=generate_public_token(),
+        niche=niche.strip() if niche else None,
+        geography=geography.strip() if geography else None
+    )
+    
+    customer = initialize_trial(customer)
+    
+    session.add(customer)
+    session.flush()
+    
+    record_trial_identity(
+        session=session,
+        customer_id=customer.id,
+        email=email.lower().strip(),
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+    
+    session.commit()
+    
+    print(f"[SIGNUP] New customer created: {customer.company} ({customer.contact_email})")
+    
+    session_token = create_customer_session(customer.id)
+    response = RedirectResponse(url="/portal", status_code=303)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax"
+    )
+    return response
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_get(request: Request):
+    """Render login form."""
+    with open("templates/auth_login.html", "r") as f:
+        template = f.read()
+    
+    message_html = ""
+    if request.query_params.get("registered") == "true":
+        message_html = '<div class="success-message">Account created successfully. Please log in.</div>'
+    elif request.query_params.get("logout") == "true":
+        message_html = '<div class="success-message">You have been logged out.</div>'
+    
+    html = template.format(
+        message_html=message_html,
+        email=""
+    )
+    return html
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login_post(
+    email: str = Form(...),
+    password: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    """Process login form."""
+    with open("templates/auth_login.html", "r") as f:
+        template = f.read()
+    
+    customer, error = authenticate_customer(session, email, password)
+    
+    if error:
+        error_html = f'<div class="error-message">{error}</div>'
+        html = template.format(
+            message_html=error_html,
+            email=email
+        )
+        return HTMLResponse(content=html)
+    
+    session_token = create_customer_session(customer.id)
+    response = RedirectResponse(url="/portal", status_code=303)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax"
+    )
+    
+    print(f"[LOGIN] Customer logged in: {customer.contact_email}")
+    return response
+
+
+@app.get("/logout")
+def logout():
+    """Clear session and redirect to home."""
+    response = RedirectResponse(url="/?logout=true", status_code=303)
+    response.delete_cookie(key=SESSION_COOKIE_NAME)
+    return response
+
+
+# ============================================================================
+# ADMIN AUTHENTICATION ROUTES
+# ============================================================================
+
+
 @app.get("/admin", response_class=HTMLResponse)
-def serve_admin_console(session: Session = Depends(get_session)):
-    """Admin Console: Operator controls for system management."""
+def serve_admin_console(request: Request, session: Session = Depends(get_session)):
+    """Admin Console: Operator controls for system management (requires authentication)."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    
+    if not verify_admin_session(admin_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
     with open("templates/admin_console.html", "r") as f:
         return f.read()
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+def admin_login_get():
+    """Render admin login form."""
+    with open("templates/admin_login.html", "r") as f:
+        template = f.read()
+    
+    html = template.format(error_html="")
+    return html
+
+
+@app.post("/admin/login", response_class=HTMLResponse)
+def admin_login_post(
+    password: str = Form(...)
+):
+    """Process admin login form."""
+    with open("templates/admin_login.html", "r") as f:
+        template = f.read()
+    
+    admin_password = get_admin_password()
+    
+    if password != admin_password:
+        error_html = '<div class="error-message">Invalid password</div>'
+        html = template.format(error_html=error_html)
+        return HTMLResponse(content=html)
+    
+    admin_token = create_admin_session()
+    response = RedirectResponse(url="/admin", status_code=303)
+    response.set_cookie(
+        key=ADMIN_COOKIE_NAME,
+        value=admin_token,
+        max_age=ADMIN_SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax"
+    )
+    
+    print("[ADMIN] Admin logged in")
+    return response
+
+
+# ============================================================================
+# SESSION-BASED PORTAL ROUTE
+# ============================================================================
+
+
+@app.get("/portal", response_class=HTMLResponse)
+def portal_session_based(request: Request, session: Session = Depends(get_session)):
+    """
+    Session-based customer portal for logged-in customers.
+    
+    Requires a valid session cookie. Redirects to login if not authenticated.
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    return render_customer_portal(customer, request, session)
 
 
 @app.get("/customers/{customer_id}", response_class=HTMLResponse)
@@ -1341,30 +1530,16 @@ def get_admin_summary(
 
 
 # ============================================================================
-# CUSTOMER PORTAL
+# CUSTOMER PORTAL HELPER
 # ============================================================================
 
 
-@app.get("/portal/{public_token}", response_class=HTMLResponse)
-def customer_portal(public_token: str, request: Request, session: Session = Depends(get_session)):
+def render_customer_portal(customer: Customer, request: Request, session: Session) -> HTMLResponse:
     """
-    Read-only customer portal accessible via public token.
+    Render customer portal for a given customer.
     
-    Shows:
-    - Account summary (total invoiced, paid, outstanding)
-    - Customer info
-    - Recent tasks
-    - Outstanding invoices with PAY NOW buttons
-    - Paid invoices
-    - Payment status messaging based on Stripe configuration
+    Helper function used by both session-based and token-based portal routes.
     """
-    customer = session.exec(
-        select(Customer).where(Customer.public_token == public_token)
-    ).first()
-    
-    if not customer:
-        raise HTTPException(status_code=404, detail="Portal not found")
-    
     tasks = session.exec(
         select(Task).where(Task.customer_id == customer.id).order_by(Task.created_at.desc()).limit(20)
     ).all()
@@ -1538,7 +1713,6 @@ def customer_portal(public_token: str, request: Request, session: Session = Depe
     """
     
     payment_banner = ""
-    from urllib.parse import parse_qs, urlparse
     query_params = dict(request.query_params) if hasattr(request, 'query_params') else {}
     if query_params.get("payment") == "success":
         payment_banner = '<div class="payment-success">Payment successful! Your subscription is now active.</div>'
@@ -1552,7 +1726,35 @@ def customer_portal(public_token: str, request: Request, session: Session = Depe
         payment_message=payment_banner
     )
     
-    return html
+    return HTMLResponse(content=html)
+
+
+# ============================================================================
+# CUSTOMER PORTAL - TOKEN BASED ACCESS
+# ============================================================================
+
+
+@app.get("/portal/{public_token}", response_class=HTMLResponse)
+def customer_portal_token(public_token: str, request: Request, session: Session = Depends(get_session)):
+    """
+    Token-based customer portal for admin impersonation or direct link access.
+    
+    Shows:
+    - Account summary (total invoiced, paid, outstanding)
+    - Customer info
+    - Recent tasks
+    - Outstanding invoices with PAY NOW buttons
+    - Paid invoices
+    - Payment status messaging based on Stripe configuration
+    """
+    customer = session.exec(
+        select(Customer).where(Customer.public_token == public_token)
+    ).first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Portal not found")
+    
+    return render_customer_portal(customer, request, session)
 
 
 @app.get("/subscribe/{public_token}")
@@ -1575,7 +1777,7 @@ def subscribe_redirect(public_token: str, request: Request, session: Session = D
     if plan_status.is_paid:
         success, portal_url, mode, error = create_billing_portal_link(
             customer,
-            return_url=str(request.url_for("customer_portal", public_token=public_token))
+            return_url=str(request.url_for("customer_portal_token", public_token=public_token))
         )
         if success and portal_url:
             return RedirectResponse(url=portal_url, status_code=303)
@@ -1675,7 +1877,7 @@ def billing_portal_redirect(public_token: str, request: Request, session: Sessio
     
     success, portal_url, mode, error = create_billing_portal_link(
         customer,
-        return_url=str(request.url_for("customer_portal", public_token=public_token))
+        return_url=str(request.url_for("customer_portal_token", public_token=public_token))
     )
     
     if success and portal_url:
@@ -1708,6 +1910,103 @@ def billing_portal_redirect(public_token: str, request: Request, session: Sessio
 </body>
 </html>
 """, status_code=200)
+
+
+# ============================================================================
+# CHECKOUT AND BILLING API ENDPOINTS
+# ============================================================================
+
+
+@app.post("/api/create-checkout-session")
+def api_create_checkout_session(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Create a Stripe Checkout session for subscription.
+    
+    Requires authenticated customer (session cookie).
+    Returns JSON with checkout URL.
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Not authenticated", "redirect": "/login"}
+        )
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if plan_status.is_paid:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Already subscribed", "redirect": f"/billing/{customer.public_token}"}
+        )
+    
+    base_url = str(request.base_url).rstrip("/")
+    success_url = f"{base_url}/portal?payment=success"
+    cancel_url = f"{base_url}/portal?payment=cancelled"
+    
+    success, checkout_url, mode, error = get_or_create_subscription_checkout_link(
+        customer,
+        success_url=success_url,
+        cancel_url=cancel_url
+    )
+    
+    if success and checkout_url:
+        return JSONResponse(content={"checkout_url": checkout_url, "mode": mode})
+    
+    return JSONResponse(
+        status_code=400,
+        content={"error": error or "Failed to create checkout session", "mode": mode}
+    )
+
+
+@app.post("/api/create-billing-portal-session")
+def api_create_billing_portal_session(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Create a Stripe Billing Portal session for subscription management.
+    
+    Requires authenticated customer (session cookie) with paid subscription.
+    Returns JSON with portal URL.
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Not authenticated", "redirect": "/login"}
+        )
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if not plan_status.is_paid:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No active subscription", "redirect": f"/subscribe/{customer.public_token}"}
+        )
+    
+    base_url = str(request.base_url).rstrip("/")
+    return_url = f"{base_url}/portal"
+    
+    success, portal_url, mode, error = create_billing_portal_link(
+        customer,
+        return_url=return_url
+    )
+    
+    if success and portal_url:
+        return JSONResponse(content={"portal_url": portal_url, "mode": mode})
+    
+    return JSONResponse(
+        status_code=400,
+        content={"error": error or "Failed to create billing portal session", "mode": mode}
+    )
 
 
 # ============================================================================
