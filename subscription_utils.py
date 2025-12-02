@@ -550,3 +550,160 @@ def should_disable_autopilot_for_customer(customer: Customer) -> bool:
     """
     status = get_customer_plan_status(customer)
     return not status.can_use_autopilot
+
+
+def get_stripe_price_id_pro() -> Optional[str]:
+    """Get the Stripe Price ID for the Pro subscription plan."""
+    price_id = os.getenv("STRIPE_PRICE_ID_PRO")
+    if price_id:
+        return price_id
+    return get_stripe_price_id()
+
+
+def get_or_create_subscription_checkout_link(
+    customer: Customer,
+    success_url: Optional[str] = None,
+    cancel_url: Optional[str] = None
+) -> Tuple[bool, Optional[str], str, Optional[str]]:
+    """
+    Get or create a Stripe Checkout session URL for subscription.
+    
+    Args:
+        customer: The customer to create checkout for
+        success_url: URL to redirect after successful payment
+        cancel_url: URL to redirect if payment cancelled
+    
+    Returns:
+        (success, url, mode, error)
+        - success: True if URL is available
+        - url: The checkout URL or None
+        - mode: 'live', 'dry_run', or 'disabled'
+        - error: Error message if any
+    """
+    from stripe_utils import is_stripe_enabled, get_stripe_api_key
+    import requests
+    
+    plan_status = get_customer_plan_status(customer)
+    if plan_status.is_paid:
+        return False, None, "already_paid", "Customer already has an active subscription"
+    
+    if not is_stripe_enabled():
+        print(f"[STRIPE][SUBSCRIPTION][DRY_RUN_FALLBACK] Stripe disabled for customer {customer.id}")
+        return False, None, "disabled", "Online billing not configured"
+    
+    api_key = get_stripe_api_key()
+    if not api_key:
+        print(f"[STRIPE][SUBSCRIPTION][DRY_RUN_FALLBACK] No API key for customer {customer.id}")
+        return False, None, "disabled", "Stripe API key not configured"
+    
+    price_id = get_stripe_price_id_pro()
+    if not price_id:
+        print(f"[STRIPE][SUBSCRIPTION][DRY_RUN_FALLBACK] No price ID for customer {customer.id}")
+        return False, None, "disabled", "Subscription price not configured"
+    
+    if not success_url:
+        success_url = f"/portal/{customer.public_token}?payment=success"
+    if not cancel_url:
+        cancel_url = f"/portal/{customer.public_token}?payment=cancelled"
+    
+    try:
+        stripe_customer_id = customer.stripe_customer_id
+        if not stripe_customer_id:
+            stripe_customer_id, err = create_stripe_customer(
+                customer_id=customer.id,
+                email=customer.contact_email,
+                company=customer.company
+            )
+            if err:
+                return False, None, "error", f"Failed to create Stripe customer: {err}"
+        
+        response = requests.post(
+            "https://api.stripe.com/v1/checkout/sessions",
+            auth=(str(api_key), ""),
+            data={
+                "customer": stripe_customer_id,
+                "mode": "subscription",
+                "line_items[0][price]": price_id,
+                "line_items[0][quantity]": 1,
+                "success_url": success_url,
+                "cancel_url": cancel_url,
+                "metadata[hossagent_customer_id]": str(customer.id),
+                "metadata[public_token]": customer.public_token or "",
+                "subscription_data[metadata][hossagent_customer_id]": str(customer.id)
+            },
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            error_text = response.text[:200]
+            print(f"[STRIPE][SUBSCRIPTION][ERROR] Checkout creation failed: {error_text}")
+            return False, None, "error", f"Failed to create checkout: {error_text}"
+        
+        data = response.json()
+        checkout_url = data.get("url")
+        session_id = data.get("id")
+        
+        print(f"[STRIPE][SUBSCRIPTION] Created checkout session {session_id[-8:]} for customer {customer.id}")
+        return True, checkout_url, "live", None
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[STRIPE][SUBSCRIPTION][ERROR] Exception creating checkout: {error_msg}")
+        return False, None, "error", error_msg
+
+
+def create_billing_portal_link(
+    customer: Customer,
+    return_url: Optional[str] = None
+) -> Tuple[bool, Optional[str], str, Optional[str]]:
+    """
+    Create a Stripe Customer Portal link for managing billing.
+    
+    Args:
+        customer: The customer
+        return_url: URL to return to after portal session
+    
+    Returns:
+        (success, url, mode, error)
+    """
+    from stripe_utils import is_stripe_enabled, get_stripe_api_key
+    import requests
+    
+    if not is_stripe_enabled():
+        return False, None, "disabled", "Stripe not configured"
+    
+    api_key = get_stripe_api_key()
+    if not api_key:
+        return False, None, "disabled", "No Stripe API key"
+    
+    stripe_customer_id = customer.stripe_customer_id
+    if not stripe_customer_id:
+        return False, None, "error", "No Stripe customer ID"
+    
+    if not return_url:
+        return_url = f"/portal/{customer.public_token}"
+    
+    try:
+        response = requests.post(
+            "https://api.stripe.com/v1/billing_portal/sessions",
+            auth=(str(api_key), ""),
+            data={
+                "customer": stripe_customer_id,
+                "return_url": return_url
+            },
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            error_text = response.text[:200]
+            print(f"[STRIPE][PORTAL][ERROR] Portal creation failed: {error_text}")
+            return False, None, "error", f"Failed to create portal: {error_text}"
+        
+        data = response.json()
+        portal_url = data.get("url")
+        
+        print(f"[STRIPE][PORTAL] Created billing portal for customer {customer.id}")
+        return True, portal_url, "live", None
+        
+    except Exception as e:
+        return False, None, "error", str(e)

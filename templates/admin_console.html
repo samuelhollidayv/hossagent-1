@@ -523,11 +523,12 @@
                     <th>Tasks Used</th>
                     <th>Leads Used</th>
                     <th>Days Left</th>
+                    <th>Portal</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                <tr><td colspan="8" class="empty-row">Loading customers...</td></tr>
+                <tr><td colspan="9" class="empty-row">Loading customers...</td></tr>
             </tbody>
         </table>
     </div>
@@ -1049,6 +1050,10 @@
                     
                     const daysLeft = plan.is_paid ? '-' : plan.days_remaining;
                     
+                    const portalLink = c.public_token ? 
+                        `<a href="/portal/${c.public_token}" target="_blank" style="color:#0af;text-decoration:none;font-size:0.75rem;">View as customer</a>` :
+                        '<span style="color:#666;font-size:0.7rem;">No token</span>';
+                    
                     const upgradeBtn = plan.is_paid ? '' :
                         `<button class="agent-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="upgradeCustomer(${c.id})">UPGRADE</button>`;
                     
@@ -1061,6 +1066,7 @@
                             <td>${tasksUsed}</td>
                             <td>${leadsUsed}</td>
                             <td>${daysLeft}</td>
+                            <td>${portalLink}</td>
                             <td>${upgradeBtn}</td>
                         </tr>
                     `;

@@ -800,9 +800,27 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T16:02:43.001900",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T16:05:38.693327",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-02T15:57:42.703624",
+  "last_run": "2025-12-02T16:05:38.693327",
   "last_created_count": 0,
   "recent_leads": [
     {

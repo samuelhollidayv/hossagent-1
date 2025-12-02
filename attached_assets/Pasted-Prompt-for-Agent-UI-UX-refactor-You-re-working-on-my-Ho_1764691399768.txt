@@ -1,0 +1,45 @@
+Prompt for Agent (UI/UX refactor)
+
+You’re working on my HossAgent Replit app. The system now uses a $99/month subscription with a 7-day free trial (trial users: 15 tasks, 20 leads, DRY_RUN email only; paid users: unlimited). I need the UI cleaned up so there is a clear separation between the internal admin console and the customer-facing portal.
+
+Goals
+	1.	/admin remains the internal Hoss Control Room for me only. It should continue to show:
+	•	Autopilot & email mode, lead source, email health
+	•	Stripe billing panel (enabled/disabled, API key, webhook, regenerate payment links)
+	•	Subscription plan configuration (price, trial days, trial limits, product/price flags)
+	•	Customer plans table with plan, status, usage, days left, and actions (upgrade/cancel/reset)
+	2.	The customer-facing portal (root dashboard and any public token portal) should be simplified to:
+	•	A top “plan status” section: trial vs paid, days left in trial, next charge date, and clear copy that the plan is $99/mo.
+	•	A simple usage section: for trial users show “X of 15 tasks used, Y of 20 leads used”; for paid users just say “Unlimited access”.
+	•	A clear primary CTA:
+	•	Trial users: “Upgrade to Full Hoss ($99/month)” that uses the existing Stripe payment link mechanism.
+	•	Paid users: “Manage billing” that links to their active subscription/payment link.
+	•	A “Recent Work Completed” list so the customer sees what the agent has done for them.
+	3.	Customers should not see internal metrics like platform “Total Revenue”, “Profit”, full Leads Pipeline, or raw invoice IDs/draft states. Those stay only in /admin.
+
+Implementation instructions
+	•	Update the customer templates (dashboard and portal) to remove or hide: revenue/profit tiles, “Leads Pipeline” table, and per-invoice rows.
+	•	Add a plan/status component that reads the subscription/trial fields from the Customer model and renders:
+	•	Plan: Trial (day X of Y) or Plan: HossAgent Pro – Active
+	•	Next charge: <date> for paid customers when available.
+	•	Add a usage component that shows trial usage counters vs limits, and “Unlimited access” for paid.
+	•	Implement the upgrade button so that:
+	•	If the customer is in trial and has a Stripe payment link, the Upgrade button links there.
+	•	If a payment link doesn’t exist yet, show a friendly error or disabled state rather than breaking.
+	•	Keep all Stripe management, “Regenerate payment links”, and subscription configuration controls in /admin only.
+	•	Preserve existing styling (noir theme, typography) but rearrange content so customer pages are focused on: status, value, and a single obvious payment/upgrade action.
+	•	After changes, run through a quick manual test path and log a short summary:
+	•	Trial customer portal view
+	•	Paid customer portal view
+	•	Admin console view (confirm all panels still render and Stripe panel shows as before).
+
+Make the minimal code and template changes needed to achieve this separation, then summarize what you changed, which templates/views you touched, and how to reach the customer vs admin views.
+
+Paste that in, hit run, then:
+	•	Check /admin for your nerdy view.
+	•	Hit the public portal URL (or /portal/<public_token>) and sanity-check:
+	•	Plan status + usage tiles
+	•	One big Upgrade/Manage Billing button
+	•	No weird revenue/profit/invoice clutter.
+
+If anything still feels “RevOps dashboard from a previous life,” we’ll shave it off next pass.

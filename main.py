@@ -62,7 +62,9 @@ from subscription_utils import (
     upgrade_to_paid,
     expire_trial,
     check_trial_abuse,
-    record_trial_identity
+    record_trial_identity,
+    get_or_create_subscription_checkout_link,
+    create_billing_portal_link
 )
 
 app = FastAPI(title="HossAgent Control Engine")
@@ -1151,6 +1153,7 @@ async def stripe_subscription_webhook(request: Request, session: Session = Depen
     Updates customer plan status based on subscription changes.
     
     Supported events:
+      - checkout.session.completed: Customer completed Stripe Checkout
       - invoice.payment_succeeded: Subscription payment succeeded
       - customer.subscription.updated: Subscription status changed
       - customer.subscription.deleted: Subscription canceled
@@ -1343,7 +1346,7 @@ def get_admin_summary(
 
 
 @app.get("/portal/{public_token}", response_class=HTMLResponse)
-def customer_portal(public_token: str, session: Session = Depends(get_session)):
+def customer_portal(public_token: str, request: Request, session: Session = Depends(get_session)):
     """
     Read-only customer portal accessible via public token.
     
@@ -1388,18 +1391,23 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     plan_status = get_customer_plan_status(customer)
     
     if plan_status.is_paid:
-        plan_banner = """
-        <div class="plan-banner paid">
-            <div class="plan-title paid">PAID PLAN</div>
-            <div class="plan-detail">Full access to all HossAgent features</div>
+        plan_section = f"""
+        <div class="plan-card">
+            <div class="plan-name">HossAgent Pro</div>
+            <div class="plan-price">$99/month</div>
+            <div class="plan-status active">Active Subscription</div>
+            <div class="trial-info">Full access to all HossAgent features</div>
+            <a href="/billing/{customer.public_token}" class="cta-btn secondary">Manage Billing</a>
         </div>
         """
     elif plan_status.is_expired:
-        plan_banner = f"""
-        <div class="plan-banner trial-expired">
-            <div class="plan-title trial-expired">TRIAL EXPIRED</div>
-            <div class="plan-detail">Your trial period has ended. Upgrade to continue using HossAgent.</div>
-            <div class="usage-bar">
+        plan_section = f"""
+        <div class="plan-card">
+            <div class="plan-name">HossAgent Pro</div>
+            <div class="plan-price">$99/month</div>
+            <div class="plan-status expired">Trial Expired</div>
+            <div class="trial-info">Your trial period has ended</div>
+            <div class="usage-display">
                 <div class="usage-item">
                     <div class="usage-label">Tasks Used</div>
                     <div class="usage-value danger">{plan_status.tasks_used}/{plan_status.tasks_limit}</div>
@@ -1409,17 +1417,24 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
                     <div class="usage-value danger">{plan_status.leads_used}/{plan_status.leads_limit}</div>
                 </div>
             </div>
+            <a href="/subscribe/{customer.public_token}" class="cta-btn">Start Paid Subscription</a>
         </div>
         """
     else:
         tasks_class = "danger" if plan_status.tasks_used >= plan_status.tasks_limit else "warning" if plan_status.tasks_used >= plan_status.tasks_limit * 0.8 else ""
         leads_class = "danger" if plan_status.leads_used >= plan_status.leads_limit else "warning" if plan_status.leads_used >= plan_status.leads_limit * 0.8 else ""
         
-        plan_banner = f"""
-        <div class="plan-banner trial">
-            <div class="plan-title trial">FREE TRIAL</div>
-            <div class="plan-detail">{plan_status.days_remaining} days remaining - Limited to {plan_status.tasks_limit} tasks and {plan_status.leads_limit} leads</div>
-            <div class="usage-bar">
+        limit_warning = ""
+        if not plan_status.can_run_tasks or not plan_status.can_generate_leads:
+            limit_warning = '<div class="limit-warning">You have reached the limits of your free trial. Start your paid subscription to keep HossAgent working.</div>'
+        
+        plan_section = f"""
+        <div class="plan-card">
+            <div class="plan-name">HossAgent Pro</div>
+            <div class="plan-price">$99/month</div>
+            <div class="plan-status trial">Trial - {plan_status.days_remaining} days remaining</div>
+            <div class="trial-info">Limited to {plan_status.tasks_limit} tasks and {plan_status.leads_limit} leads</div>
+            <div class="usage-display">
                 <div class="usage-item">
                     <div class="usage-label">Tasks Used</div>
                     <div class="usage-value {tasks_class}">{plan_status.tasks_used}/{plan_status.tasks_limit}</div>
@@ -1433,6 +1448,8 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
                     <div class="usage-value">{plan_status.days_remaining}</div>
                 </div>
             </div>
+            {limit_warning}
+            <a href="/subscribe/{customer.public_token}" class="cta-btn">Start Paid Subscription</a>
         </div>
         """
     
@@ -1489,21 +1506,208 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     if not paid_rows:
         paid_rows = '<tr><td colspan="4" class="empty">No paid invoices yet.</td></tr>'
     
+    invoices_section = f"""
+        <table>
+            <thead>
+                <tr>
+                    <th>Invoice</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {outstanding_rows}
+            </tbody>
+        </table>
+        <h4 style="font-size: 0.8rem; font-weight: normal; letter-spacing: 1px; color: #666; text-transform: uppercase; margin: 1.5rem 0 1rem;">Payment History</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>Invoice</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Paid Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {paid_rows}
+            </tbody>
+        </table>
+    """
+    
+    payment_banner = ""
+    from urllib.parse import parse_qs, urlparse
+    query_params = dict(request.query_params) if hasattr(request, 'query_params') else {}
+    if query_params.get("payment") == "success":
+        payment_banner = '<div class="payment-success">Payment successful! Your subscription is now active.</div>'
+    elif query_params.get("payment") == "cancelled":
+        payment_banner = '<div class="payment-cancelled">Payment was cancelled. You can try again when ready.</div>'
+    
     html = template.format(
-        company_name=customer.company,
-        contact_email=customer.contact_email,
-        total_invoiced=f"${total_invoiced/100:.2f}",
-        total_paid=f"${total_paid/100:.2f}",
-        total_outstanding=f"${total_outstanding/100:.2f}",
-        tasks_count=len(tasks),
         tasks_rows=tasks_rows,
-        outstanding_rows=outstanding_rows,
-        paid_rows=paid_rows,
-        payment_message=payment_message,
-        plan_banner=plan_banner
+        plan_section=plan_section,
+        invoices_section=invoices_section,
+        payment_message=payment_banner
     )
     
     return html
+
+
+@app.get("/subscribe/{public_token}")
+def subscribe_redirect(public_token: str, request: Request, session: Session = Depends(get_session)):
+    """
+    Redirect customer to Stripe Checkout for subscription.
+    
+    If Stripe is not configured, shows a friendly message.
+    If already subscribed, redirects to billing portal.
+    """
+    customer = session.exec(
+        select(Customer).where(Customer.public_token == public_token)
+    ).first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if plan_status.is_paid:
+        success, portal_url, mode, error = create_billing_portal_link(
+            customer,
+            return_url=str(request.url_for("customer_portal", public_token=public_token))
+        )
+        if success and portal_url:
+            return RedirectResponse(url=portal_url, status_code=303)
+        else:
+            return HTMLResponse(content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Billing Portal</title>
+    <style>
+        body {{ background: #0a0a0a; color: #fff; font-family: Georgia, serif; 
+               display: flex; align-items: center; justify-content: center; 
+               min-height: 100vh; margin: 0; }}
+        .box {{ text-align: center; padding: 3rem; border: 1px solid #333; max-width: 500px; }}
+        h1 {{ font-size: 1.5rem; font-weight: normal; margin-bottom: 1rem; }}
+        p {{ color: #888; margin-bottom: 1.5rem; }}
+        a {{ display: inline-block; background: #fff; color: #0a0a0a; padding: 0.75rem 2rem; 
+             text-decoration: none; font-weight: bold; }}
+        a:hover {{ background: #ddd; }}
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Billing Portal Unavailable</h1>
+        <p>The billing management portal is not currently available. Please contact support for billing inquiries.</p>
+        <a href="/portal/{public_token}">Return to Portal</a>
+    </div>
+</body>
+</html>
+""", status_code=200)
+    
+    base_url = str(request.base_url).rstrip("/")
+    success_url = f"{base_url}/portal/{public_token}?payment=success"
+    cancel_url = f"{base_url}/portal/{public_token}?payment=cancelled"
+    
+    success, checkout_url, mode, error = get_or_create_subscription_checkout_link(
+        customer,
+        success_url=success_url,
+        cancel_url=cancel_url
+    )
+    
+    if success and checkout_url:
+        return RedirectResponse(url=checkout_url, status_code=303)
+    
+    error_message = error or "Online billing is not currently configured."
+    if mode == "disabled":
+        error_message = "Online payment is not yet configured. Your account manager will be in touch to set up billing."
+    
+    return HTMLResponse(content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Subscribe - HossAgent</title>
+    <style>
+        body {{ background: #0a0a0a; color: #fff; font-family: Georgia, serif; 
+               display: flex; align-items: center; justify-content: center; 
+               min-height: 100vh; margin: 0; }}
+        .box {{ text-align: center; padding: 3rem; border: 1px solid #333; max-width: 500px; }}
+        h1 {{ font-size: 1.5rem; font-weight: normal; margin-bottom: 1rem; }}
+        .price {{ font-size: 2rem; font-weight: bold; margin: 1rem 0; }}
+        p {{ color: #888; margin-bottom: 1.5rem; }}
+        a {{ display: inline-block; background: #fff; color: #0a0a0a; padding: 0.75rem 2rem; 
+             text-decoration: none; font-weight: bold; }}
+        a:hover {{ background: #ddd; }}
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>HossAgent Pro</h1>
+        <div class="price">$99/month</div>
+        <p>{error_message}</p>
+        <a href="/portal/{public_token}">Return to Portal</a>
+    </div>
+</body>
+</html>
+""", status_code=200)
+
+
+@app.get("/billing/{public_token}")
+def billing_portal_redirect(public_token: str, request: Request, session: Session = Depends(get_session)):
+    """
+    Redirect paid customers to Stripe Customer Portal for billing management.
+    """
+    customer = session.exec(
+        select(Customer).where(Customer.public_token == public_token)
+    ).first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if not plan_status.is_paid:
+        return RedirectResponse(url=f"/subscribe/{public_token}", status_code=303)
+    
+    success, portal_url, mode, error = create_billing_portal_link(
+        customer,
+        return_url=str(request.url_for("customer_portal", public_token=public_token))
+    )
+    
+    if success and portal_url:
+        return RedirectResponse(url=portal_url, status_code=303)
+    
+    return HTMLResponse(content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Billing Portal</title>
+    <style>
+        body {{ background: #0a0a0a; color: #fff; font-family: Georgia, serif; 
+               display: flex; align-items: center; justify-content: center; 
+               min-height: 100vh; margin: 0; }}
+        .box {{ text-align: center; padding: 3rem; border: 1px solid #333; max-width: 500px; }}
+        h1 {{ font-size: 1.5rem; font-weight: normal; margin-bottom: 1rem; }}
+        p {{ color: #888; margin-bottom: 1.5rem; }}
+        a {{ display: inline-block; background: #fff; color: #0a0a0a; padding: 0.75rem 2rem; 
+             text-decoration: none; font-weight: bold; }}
+        a:hover {{ background: #ddd; }}
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Billing Portal</h1>
+        <p>The billing portal is not currently available. Please contact support for billing inquiries.</p>
+        <a href="/portal/{public_token}">Return to Portal</a>
+    </div>
+</body>
+</html>
+""", status_code=200)
 
 
 # ============================================================================

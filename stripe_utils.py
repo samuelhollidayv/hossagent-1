@@ -635,6 +635,7 @@ def process_subscription_webhook(event_type: str, event_data: Dict[str, Any]) ->
     Process a Stripe subscription webhook event.
     
     Handles:
+    - checkout.session.completed -> subscription activation via Checkout
     - invoice.payment_succeeded -> subscription_status = "active"
     - customer.subscription.updated -> sync status
     - customer.subscription.deleted -> subscription_status = "canceled", plan = "trial_expired"
@@ -647,7 +648,41 @@ def process_subscription_webhook(event_type: str, event_data: Dict[str, Any]) ->
         SubscriptionWebhookResult with action taken
     """
     try:
-        if event_type == "invoice.payment_succeeded":
+        if event_type == "checkout.session.completed":
+            mode = event_data.get("mode")
+            if mode != "subscription":
+                return SubscriptionWebhookResult(
+                    success=True,
+                    action="unknown",
+                    customer_id=None,
+                    subscription_id=None,
+                    new_status=None,
+                    error="Checkout session is not for subscription"
+                )
+            
+            subscription_id = event_data.get("subscription")
+            customer_stripe_id = event_data.get("customer")
+            metadata = event_data.get("metadata", {})
+            hossagent_customer_id = metadata.get("hossagent_customer_id")
+            
+            log_stripe_event("checkout_session_completed", {
+                "subscription_id": subscription_id,
+                "stripe_customer_id": customer_stripe_id,
+                "hossagent_customer_id": hossagent_customer_id
+            })
+            
+            print(f"[STRIPE][SUBSCRIPTION] Checkout completed for customer {hossagent_customer_id}, subscription ...{subscription_id[-4:] if subscription_id else 'unknown'}")
+            
+            return SubscriptionWebhookResult(
+                success=True,
+                action="subscription_activated",
+                customer_id=int(hossagent_customer_id) if hossagent_customer_id else None,
+                subscription_id=subscription_id,
+                new_status="active",
+                error=None
+            )
+        
+        elif event_type == "invoice.payment_succeeded":
             subscription_id = event_data.get("subscription")
             customer_stripe_id = event_data.get("customer")
             
