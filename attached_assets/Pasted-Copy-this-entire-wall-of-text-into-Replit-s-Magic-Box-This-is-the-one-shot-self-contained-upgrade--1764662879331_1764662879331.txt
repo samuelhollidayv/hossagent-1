@@ -1,0 +1,217 @@
+Copy this entire wall of text into Replit’s Magic Box.
+This is the one-shot, self-contained upgrade prompt that will add a fully functional Outbound Email System to HossAgent — including infrastructure, env vars, templates, sending logic, lead updates, and UI integration.
+
+Paste the whole thing as-is, no edits:
+
+⸻
+
+OUTBOUND EMAIL SYSTEM — FULL IMPLEMENTATION PROMPT
+
+You are extending the HossAgent system.
+Implement a complete outbound email capability inside the BizDev agent.
+Follow these instructions exactly:
+
+⸻
+
+1. Add Outbound Email Infrastructure
+
+Implement a new module email_utils.py with:
+	•	A function send_email(recipient: str, subject: str, body: str) -> bool
+	•	This function should support two sending methods:
+	1.	SendGrid API (preferred)
+	2.	Fallback: SMTP if SendGrid is not configured
+
+Read configuration from environment variables:
+
+SENDGRID_API_KEY
+SENDGRID_FROM_EMAIL
+SMTP_HOST
+SMTP_PORT
+SMTP_USERNAME
+SMTP_PASSWORD
+SMTP_FROM_EMAIL
+
+Behavior:
+	•	If SENDGRID_API_KEY is set → use SendGrid
+	•	Else if SMTP vars are set → use SMTP
+	•	Else → dry-run mode (log: “Email dry-run: would send to X” and return False)
+
+This MUST NOT crash the app if no credentials exist.
+
+⸻
+
+2. Update the BizDev Agent (run_bizdev_agent)
+
+Modify run_bizdev_agent in agents.py so it behaves like a real outbound engine.
+
+New Behavior:
+
+For each newly created Lead:
+	1.	Generate a subject line.
+Use OpenAI if available, else use a fallback string.
+Example fallback:
+"Quick idea for {lead.company}"
+	2.	Generate a personalized cold outbound email.
+Use OpenAI if available; otherwise use a template:
+
+Hi {lead.name or company},
+
+I’m reaching out because I think your team at {company} may benefit from autonomous AI workers. 
+HossAgent runs research, lead generation, analysis, and task execution automatically — then proves its profit in real time.
+
+Let me know if you'd like to see it in action.
+
+
+	3.	Call send_email() with the generated subject/body.
+	4.	Update the Lead row:
+
+status = "contacted"   (if email successfully sent)
+status = "new"         (if dry-run or failed)
+last_contacted_at = now()
+
+	5.	Log success or failure in the Replit console.
+
+⸻
+
+3. Add Lead “reply simulation” for now
+
+Until we add a real inbound mail handler:
+	•	Add a helper function simulate_lead_reply(lead) that:
+	•	With a small probability (10–20%), sets lead.status = "responded"
+	•	Update DB
+	•	Log: “Simulated reply from {company}”
+
+Enable this simulation ONLY when:
+	•	Autopilot is ON
+	•	And REAL emailing is not configured
+
+This ensures the Agent pipeline continues autonomously even in dev mode.
+
+⸻
+
+4. Update Onboarding Agent to Respond to Contacted/Responded Leads
+
+Modify run_onboarding_agent:
+	•	Select leads with:
+
+status IN ("responded", "contacted")
+
+AND no existing customer with that lead’s email/company.
+
+	•	Prioritize “responded” over “contacted”.
+	•	Once a Lead becomes a Customer:
+	•	Set Lead.status = “qualified”
+	•	Create the starter Tasks (as it already does)
+	•	Log: “Onboarded {company} → created {n} tasks.”
+
+This upgrade ensures the outbound engine drives real conversions.
+
+⸻
+
+5. Add Outbound Email Status to Admin Console
+
+In the /admin template:
+
+Add a section to the Leads table:
+	•	Icon or label showing:
+	•	NEW
+	•	CONTACTED
+	•	RESPONDED
+	•	QUALIFIED
+
+Add column: Last Contacted
+
+Add small text in Admin UI:
+
+Outbound email is active (SendGrid) / (SMTP) / (Dry Run)
+
+Detect the mode automatically based on env vars.
+
+⸻
+
+6. Add a Manual “Send Test Email” Endpoint
+
+Implement:
+
+POST /admin/send-test-email
+
+Parameters:
+	•	to_email
+	•	Optional subject/body
+
+Use send_email() to verify configuration.
+
+Return JSON with:
+
+{ "success": true/false, "mode": "sendgrid/smtp/dry-run" }
+
+Add a small form/button in /admin.
+
+⸻
+
+7. Update Autopilot Loop to Trigger Outbound Properly
+
+Inside the background autopilot loop:
+	1.	Always run BizDev cycle first.
+	2.	After generating new leads → attempt outbound email.
+	3.	After outbound → simulate replies if needed (dry-run).
+	4.	After replies → Onboarding agent handles conversion.
+
+This creates a complete outbound → conversion → task pipeline without human clicks.
+
+⸻
+
+8. Code Safety Requirements
+	•	No sending should occur without proper credentials.
+	•	All exceptions in outbound email should be caught and logged, not crash loops.
+	•	Dry-run mode MUST be clearly logged.
+	•	Email functions MUST NOT block or freeze main thread — use async where possible.
+	•	Ensure emails do not get sent multiple times to the same lead:
+Only send if status == “new”.
+
+⸻
+
+9. Summary of Required Files to Modify
+
+Modify these:
+	•	agents.py
+	•	main.py
+	•	models.py (if lead fields need tweaks)
+	•	templates/admin_console.html
+	•	templates/dashboard.html
+	•	email_utils.py (new)
+
+Ensure the system remains compatible with the current noir UI, admin routing, customer dashboard, and autopilot system.
+
+⸻
+
+10. Do NOT Break Existing Functionality
+
+Specifically:
+	•	Do NOT remove existing agents.
+	•	Do NOT remove the autopilot loop.
+	•	Do NOT alter database schema except to add necessary indexing or fields like:
+
+last_contacted_at
+
+if not already present.
+
+	•	Do NOT break the customer dashboard.
+	•	Maintain all current routes.
+
+Your output should be:
+	•	Updated source code
+	•	New email_utils.py
+	•	Updated templates
+	•	Updated autopilot logic
+	•	Clean logs
+	•	Working outbound email flow
+
+⸻
+
+Implement all of the above in parallel. Build clean, stable code.
+Continue when ready.
+
+⸻
+
+Paste that into Replit and let the magic horse run.
