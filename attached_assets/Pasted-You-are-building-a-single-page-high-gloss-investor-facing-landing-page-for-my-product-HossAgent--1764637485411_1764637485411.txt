@@ -1,0 +1,85 @@
+You are building a single-page, high-gloss, investor-facing landing page for my product HossAgent.
+
+Overall Goal
+
+Create a modern SaaS marketing site that:
+	•	Looks like a premium Squarespace / Vercel-style landing page (clean, dark theme, high contrast accent color, big typography, smooth spacing).
+	•	Explains the product vision clearly to investors and potential design partners.
+	•	Embeds my existing autonomous research worker dashboard inside the page as a live demo.
+	•	Is responsive and looks great on mobile, since I will be showing this on my phone.
+
+Use a very simple stack:
+	•	Single-page web app
+	•	Use HTML + Tailwind CSS (preferred) and a tiny bit of vanilla JS.
+	•	No backend needed beyond what Replit already uses to serve static files.
+
+Product Story & Copy Direction
+
+Brand name: HossAgent
+Tagline: “Autonomous workers that earn more than they cost.”
+Tone: confident, outlaw-operator, but still clean and credible for investors.
+
+Please create the following sections, with actual placeholder copy (don’t leave lorem ipsum; write real text):
+	1.	Hero Section
+	•	Big headline: “Autonomous AI workers. Real-time profit tracking.”
+	•	Subheadline: one short sentence explaining that HossAgent runs AI agents as paid workers, tracks their token cost in cents, and shows real profit in a dashboard.
+	•	Primary CTA button: “Book a Session with Hoss”
+	•	Secondary CTA: “Watch the Live Demo”
+	•	Include a subtle background gradient and maybe a simple radial glow behind the main content.
+	•	Include a small, subdued text line: “Batteries included: OpenAI, cost accounting, and autonomous workflows.”
+	2.	Problem Section – “Why HossAgent exists”
+	•	2–3 bullet rows that explain:
+	•	Busy operators wasting time doing repetitive research / analysis.
+	•	No visibility into token spend vs value created.
+	•	Current “agents” feel like toys instead of real profit-and-loss workers.
+	•	Use a two-column layout: short text on the left, highlighted bullets or small cards on the right.
+	3.	Solution Section – “How HossAgent Works”
+	•	Short 3-step visual explanation:
+	1.	You queue up tasks with a reward value (in cents).
+	2.	HossAgent executes tasks autonomously using LLM + tools.
+	3.	The dashboard tracks cost and computes real profit per task and in aggregate.
+	•	Represent each step with an icon or simple visual card.
+	4.	Live Demo Section – embedded dashboard
+	•	Section title: “Live Autonomous Worker Demo”
+	•	Subcopy: explain that this is a live worker instance running in a sandbox.
+	•	Embed my existing dashboard URL inside an iframe that fits nicely on desktop and mobile.
+	•	IMPORTANT: use this placeholder URL for now and make it easy for me to change later in the HTML:
+https://YOUR-REPLIT-APP-URL-HERE
+Add a clear HTML comment telling me where to paste the actual URL.
+	•	Show a small note below the iframe with: “Tip: On mobile, rotate your phone for a wider dashboard view.”
+	5.	Vision / Roadmap Section – “From one worker to a full fleet”
+	•	Short paragraph about the bigger vision: multiple specialized agents, scheduling, marketplace of tasks, integration with real business systems, etc.
+	•	Under that, include a simple horizontal roadmap with 4 phases:
+	•	Phase 1: Research Worker (what we have now)
+	•	Phase 2: Multi-Agent Fleet
+	•	Phase 3: Task Marketplace & Integrations
+	•	Phase 4: Fully autonomous profit center
+	6.	Founder / Credibility Section – “Meet Hoss”
+	•	Small circular avatar placeholder.
+	•	Short founder blurb written in third person but with personality (hint at product manager background, operator mindset, and outlaw build philosophy).
+	•	Bulleted list of “What investors get” (access to early deal flow, visibility into real-world usage, influence on roadmap).
+	7.	Call to Action / Contact Section
+	•	Reiterate the key line: “Autonomous workers that earn more than they cost.”
+	•	Primary CTA button: “Book a Session with Hoss” – make this a mailto: link to: YOUR-EMAIL-HERE.
+	•	Secondary CTA: “Request Investor Deck” – also a mailto: link with a different subject.
+
+Design & UX Requirements
+	•	Use a dark background (near-black or very dark blue/gray) with one accent color (electric purple or teal) for CTAs and highlights.
+	•	Use large, legible typography. Headline font size should feel like a real marketing site.
+	•	Generous spacing and section separation using subtle borders or gradients.
+	•	Sticky top nav with logo text “HossAgent” and anchor links: “Product”, “Demo”, “Vision”, “Contact”.
+	•	Ensure everything is mobile-responsive:
+	•	Stack columns vertically on small screens.
+	•	Make the iframe in the demo section scrollable on mobile and keep it usable.
+
+Implementation Details
+	•	Create an index.html file with all markup.
+	•	Include Tailwind via CDN for fast styling, or if you prefer, generate a minimal CSS file with equivalent utility classes.
+	•	Add a small JavaScript snippet that:
+	•	Smooth scrolls to sections when nav links are clicked.
+	•	Scrolls down to the demo section when the “Watch the Live Demo” button is clicked.
+	•	Clearly comment the places where I should:
+	•	Replace the iframe URL with my real dashboard URL.
+	•	Replace the email address with my actual contact.
+
+When you’re done, run the app so I can preview it in the Replit browser. If anything fails, fix it and rerun until it serves the landing page correctly.
