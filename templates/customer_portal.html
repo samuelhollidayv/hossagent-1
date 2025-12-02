@@ -21,6 +21,29 @@
             max-width: 900px;
             margin: 0 auto;
         }}
+        .header-nav {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #222;
+            margin-bottom: 2rem;
+        }}
+        .logo-link {{
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #fff;
+            text-decoration: none;
+        }}
+        .nav-link {{
+            color: #666;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }}
+        .nav-link:hover {{
+            color: #fff;
+        }}
         .hero {{
             text-align: center;
             padding: 2rem 0 3rem;
@@ -291,8 +314,13 @@
 </head>
 <body>
     <div class="container">
+        <div class="header-nav">
+            <a href="/" class="logo-link">HOSSAGENT</a>
+            <a href="/logout" class="nav-link">Log out</a>
+        </div>
+        
         <div class="hero">
-            <h1>Your HossAgent Ops Portal</h1>
+            <h1>Your Portal</h1>
             <div class="hero-subtitle">View completed work and manage your subscription</div>
         </div>
 

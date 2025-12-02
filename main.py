@@ -1548,8 +1548,10 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         select(Invoice).where(Invoice.customer_id == customer.id).order_by(Invoice.created_at.desc())
     ).all()
     
-    outstanding_invoices = [i for i in invoices if i.status in ["draft", "sent"]]
-    paid_invoices = [i for i in invoices if i.status == "paid"]
+    MIN_INVOICE_DISPLAY_CENTS = 1000
+    displayable_invoices = [i for i in invoices if i.amount_cents >= MIN_INVOICE_DISPLAY_CENTS]
+    outstanding_invoices = [i for i in displayable_invoices if i.status in ["draft", "sent"]]
+    paid_invoices = [i for i in displayable_invoices if i.status == "paid"]
     total_invoiced = sum(i.amount_cents for i in invoices)
     total_paid = sum(i.amount_cents for i in paid_invoices)
     total_outstanding = sum(i.amount_cents for i in outstanding_invoices)
