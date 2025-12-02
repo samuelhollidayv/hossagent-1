@@ -926,9 +926,63 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T16:51:24.782919",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T16:56:25.565334",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T17:01:26.054773",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T17:06:26.516669",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T17:11:26.995511",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-02T17:25:47.623146",
+      "provider": "DummySeed",
+      "niche": "small B2B agencies doing recurring service work",
+      "geography": null,
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-02T16:46:24.338981",
+  "last_run": "2025-12-02T17:25:47.623146",
   "last_created_count": 0,
   "recent_leads": [
     {
