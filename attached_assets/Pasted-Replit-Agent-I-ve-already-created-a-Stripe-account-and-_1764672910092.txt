@@ -1,0 +1,82 @@
+Replit Agent, I’ve already created a Stripe account and added my credentials into Replit Secrets. Your job is to make sure HossAgent is correctly wired to use them in production, without ever hardcoding or logging the raw keys.
+
+System state:
+– HossAgent is a FastAPI/Flask-style app with autonomous lead → task → invoice flow.
+– Stripe integration code and customer portal already exist from Phase 2.
+– Replit Secrets now include:
+• ENABLE_STRIPE=TRUE
+• STRIPE_API_KEY=<already set in Secrets, do NOT print>
+• STRIPE_WEBHOOK_SECRET=<already set in Secrets, do NOT print>
+• STRIPE_DEFAULT_CURRENCY=usd (optional)
+
+Your tasks:
+	1.	Verify env-driven Stripe config
+– Inspect stripe_utils.py (or equivalent) and main.py / settings to confirm:
+• STRIPE_API_KEY is read only from environment and never hardcoded.
+• STRIPE_WEBHOOK_SECRET is read from environment for webhook verification.
+• ENABLE_STRIPE is a boolean-like flag that controls whether real Stripe calls are made.
+– If any keys are hardcoded or defaulted in code, remove them and make the env vars the single source of truth.
+– Never log or print the values of these env vars. You may only log whether they are present/missing.
+	2.	Harden DRY_RUN vs live behavior
+– Ensure this rule is enforced everywhere:
+• If ENABLE_STRIPE is not TRUE (case-insensitive) OR STRIPE_API_KEY is missing/invalid:
+– Treat Stripe as DISABLED.
+– Never attempt a real charge or payment link.
+– Fall back to “non-Stripe” invoices while logging a clear [STRIPE_DISABLED] or [DRY_RUN_FALLBACK] message.
+– If ENABLE_STRIPE is TRUE and STRIPE_API_KEY is present:
+– Allow real payment links and invoice updates.
+– Under no circumstances should missing or bad Stripe config crash the autopilot loop.
+	3.	Webhook wiring check
+– Inspect the /stripe/webhook route.
+– Confirm it:
+• Uses STRIPE_WEBHOOK_SECRET from env for signature verification.
+• Handles the relevant “payment succeeded / invoice paid / checkout.session.completed” events.
+• Updates the local invoice record to status = “paid” and sets paid_at, then logs [STRIPE_WEBHOOK] with event type and invoice reference.
+– Add robust error handling:
+• On bad signature or malformed body, return the correct HTTP error but do not crash the app.
+• Log failures with enough detail to debug, without logging raw secrets.
+	4.	Invoice + payment link flow
+– In the billing/invoice agent:
+• When ENABLE_STRIPE is TRUE and Stripe is configured, generate a payment link or checkout URL for each new invoice within the safety range ($1–$500).
+• Store that URL in invoice.payment_url or equivalent.
+• If Stripe call fails, log [STRIPE_ERROR] with reason, keep invoice in draft/unpaid, and do not retry infinitely in a tight loop.
+– In the customer portal (/portal/<public_token>):
+• Confirm that invoices with payment_url render “Pay Now” buttons linking to Stripe.
+• Ensure no sensitive internal IDs or secrets are exposed in the HTML.
+	5.	Admin console visibility
+– In the admin console:
+• Show a clear Stripe status indicator:
+– ENABLED (green) when ENABLE_STRIPE=TRUE and STRIPE_API_KEY is present.
+– DISABLED (gray) otherwise.
+• Show last few Stripe events or at least a simple log snippet so I can see recent successful payments and errors.
+• Show the invoice payment_url in a way that lets me confirm it exists, without showing any secret keys.
+	6.	Light test harness
+– Implement or confirm a simple Stripe smoke test workflow, described in replit.md, that I can run manually:
+	1.	Create or pick a test customer.
+	2.	Generate a small invoice (e.g., $3–$10).
+	3.	Confirm that:
+– A Stripe payment link is created.
+– The customer portal shows a Pay Now button for that invoice.
+– After payment, /stripe/webhook marks the invoice as paid in the local DB and this is visible in the admin console.
+– Do not bake any test card numbers into code; just document the steps.
+	7.	Documentation update
+– Update replit.md with a concise “Stripe Setup & Behavior” section that explains:
+• Which env vars are required:
+– ENABLE_STRIPE, STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_DEFAULT_CURRENCY.
+• The DRY_RUN vs live rules.
+• How to confirm everything is working via:
+– Admin console Stripe panel.
+– Customer portal Pay Now buttons.
+– Stripe Dashboard events.
+
+Important constraints:
+– Never print or log the actual STRIPE_API_KEY or STRIPE_WEBHOOK_SECRET.
+– Never commit any real keys to the repo.
+– Do not remove or weaken any existing DRY_RUN safeguards.
+– Do not break any existing lead/bizdev/onboarding behavior.
+
+When finished, summarize:
+– Files changed/added.
+– How Stripe is now configured and gated by env vars.
+– How the webhook updates invoices.
+– The exact manual smoke test I should run to verify real payments end-to-end, assuming my Stripe keys are already in Secrets.
