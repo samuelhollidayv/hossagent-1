@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>HossAgent - Admin Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            padding: 2rem;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: normal;
+            letter-spacing: 2px;
+        }
+        .autopilot-control {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .toggle-btn {
+            background: #fff;
+            color: #0a0a0a;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .toggle-btn:hover {
+            background: #ddd;
+        }
+        .status {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .status.enabled {
+            color: #0f0;
+        }
+        .status.disabled {
+            color: #f00;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .metric {
+            border: 1px solid #333;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .metric-label {
+            font-size: 0.8rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .agents {
+            margin: 2rem 0;
+        }
+        .agents h2 {
+            font-size: 1rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            color: #999;
+        }
+        .agent-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .agent-btn {
+            background: #fff;
+            color: #0a0a0a;
+            border: none;
+            padding: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+        }
+        .agent-btn:hover {
+            background: #ddd;
+        }
+        .agent-btn:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+        .log-panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+        .log-entry {
+            margin-bottom: 0.5rem;
+            color: #aaa;
+        }
+        .log-entry.success {
+            color: #0f0;
+        }
+        .log-entry.error {
+            color: #f00;
+        }
+        .data-section h2 {
+            font-size: 1rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #999;
+            letter-spacing: 1px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-bottom: 2rem;
+        }
+        table th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #333;
+            color: #666;
+            font-weight: normal;
+        }
+        table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #222;
+        }
+        table tr:hover {
+            background: #111;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: #333;
+            font-size: 0.75rem;
+        }
+        .status-badge.pending {
+            background: #664400;
+        }
+        .status-badge.running {
+            background: #004466;
+        }
+        .status-badge.done {
+            background: #006600;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #999;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Customer Dashboard</a>
+    
+    <div class="header">
+        <h1>HOSS CONTROL ROOM</h1>
+        <div class="autopilot-control">
+            <div>
+                <span>Autopilot:</span>
+                <span class="status" id="autopilot-status">Loading...</span>
+            </div>
+            <button class="toggle-btn" id="autopilot-toggle" onclick="toggleAutopilot()">ENABLE</button>
+        </div>
+    </div>
+
+    <div class="metrics" id="metrics">
+        <div class="metric">
+            <div class="metric-value" id="leads-count">0</div>
+            <div class="metric-label">Total Leads</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="customers-count">0</div>
+            <div class="metric-label">Total Customers</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="tasks-count">0</div>
+            <div class="metric-label">Pending Tasks</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="invoices-count">0</div>
+            <div class="metric-label">Draft Invoices</div>
+        </div>
+    </div>
+
+    <div class="agents">
+        <h2>AUTONOMOUS AGENTS</h2>
+        <div class="agent-buttons">
+            <button class="agent-btn" onclick="runAgent('bizdev')">RUN BIZDEV</button>
+            <button class="agent-btn" onclick="runAgent('onboarding')">RUN ONBOARDING</button>
+            <button class="agent-btn" onclick="runAgent('ops')">RUN OPS</button>
+            <button class="agent-btn" onclick="runAgent('billing')">RUN BILLING</button>
+        </div>
+    </div>
+
+    <div class="log-panel" id="log-panel">
+        <div class="log-entry">Awaiting agent execution...</div>
+    </div>
+
+    <div class="data-section">
+        <h2>RECENT TASKS</h2>
+        <table id="tasks-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Reward</th>
+                    <th>Cost</th>
+                    <th>Profit</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2>DRAFT INVOICES</h2>
+        <table id="invoices-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2>RECENT LEADS</h2>
+        <table id="leads-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Company</th>
+                    <th>Niche</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let autopilotEnabled = false;
+
+        async function loadSettings() {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+            autopilotEnabled = data.autopilot_enabled;
+            updateAutopilotUI();
+        }
+
+        function updateAutopilotUI() {
+            const status = document.getElementById('autopilot-status');
+            const toggle = document.getElementById('autopilot-toggle');
+            if (autopilotEnabled) {
+                status.textContent = 'ON';
+                status.className = 'status enabled';
+                toggle.textContent = 'DISABLE';
+            } else {
+                status.textContent = 'OFF';
+                status.className = 'status disabled';
+                toggle.textContent = 'ENABLE';
+            }
+        }
+
+        async function toggleAutopilot() {
+            const newState = !autopilotEnabled;
+            const res = await fetch(`/admin/autopilot?enabled=${newState}`, {method: 'POST'});
+            const data = await res.json();
+            autopilotEnabled = newState;
+            updateAutopilotUI();
+            addLog(`Autopilot ${newState ? 'ENABLED' : 'DISABLED'}`, newState ? 'success' : 'error');
+        }
+
+        async function runAgent(agent) {
+            addLog(`Running ${agent.toUpperCase()}...`, '');
+            try {
+                const res = await fetch(`/api/run/${agent}`, {method: 'POST'});
+                const data = await res.json();
+                addLog(data.message, 'success');
+                setTimeout(refreshData, 500);
+            } catch (e) {
+                addLog(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        function addLog(msg, level = '') {
+            const panel = document.getElementById('log-panel');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + level;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        async function refreshData() {
+            try {
+                const [leads, customers, tasks, invoices] = await Promise.all([
+                    fetch('/api/leads').then(r => r.json()),
+                    fetch('/api/customers').then(r => r.json()),
+                    fetch('/api/tasks').then(r => r.json()),
+                    fetch('/api/invoices').then(r => r.json()),
+                ]);
+
+                document.getElementById('leads-count').textContent = leads.length;
+                document.getElementById('customers-count').textContent = customers.length;
+                document.getElementById('tasks-count').textContent = tasks.filter(t => t.status === 'pending').length;
+                document.getElementById('invoices-count').textContent = invoices.filter(i => i.status === 'draft').length;
+
+                // Tasks table
+                const tasksBody = document.getElementById('tasks-table').querySelector('tbody');
+                tasksBody.innerHTML = tasks.slice(-10).map(t => `
+                    <tr>
+                        <td>${t.id}</td>
+                        <td>${t.description.substring(0, 40)}...</td>
+                        <td><span class="status-badge ${t.status}">${t.status}</span></td>
+                        <td>$${(t.reward_cents/100).toFixed(2)}</td>
+                        <td>$${(t.cost_cents/100).toFixed(2)}</td>
+                        <td>$${(t.profit_cents/100).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+                // Invoices table
+                const invoicesBody = document.getElementById('invoices-table').querySelector('tbody');
+                invoicesBody.innerHTML = invoices.slice(-10).map(i => {
+                    const cust = customers.find(c => c.id === i.customer_id);
+                    return `
+                        <tr>
+                            <td>${i.id}</td>
+                            <td>${cust ? cust.company : 'Unknown'}</td>
+                            <td>$${(i.amount_cents/100).toFixed(2)}</td>
+                            <td><span class="status-badge">${i.status}</span></td>
+                            <td>${new Date(i.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Leads table
+                const leadsBody = document.getElementById('leads-table').querySelector('tbody');
+                leadsBody.innerHTML = leads.slice(-10).map(l => `
+                    <tr>
+                        <td>${l.id}</td>
+                        <td>${l.company}</td>
+                        <td>${l.niche}</td>
+                        <td><span class="status-badge">${l.status}</span></td>
+                        <td>${new Date(l.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                addLog(`Data refresh error: ${e.message}`, 'error');
+            }
+        }
+
+        // Initial load
+        loadSettings();
+        refreshData();
+        setInterval(refreshData, 10000);
+    </script>
+</body>
+</html>

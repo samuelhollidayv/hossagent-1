@@ -1,0 +1,239 @@
+Got you. Here’s a single “tell the magic box what to do” wall.
+Copy-paste this as your next Replit prompt and let it run:
+
+⸻
+
+You are working on my hossagent app. The goal of this iteration is:
+	•	Turn the existing UI into an Admin Console for me.
+	•	Add a new Customer Dashboard UI.
+	•	Make the bizdev / bizops / invoicing flows self-driving via a background loop instead of being button-triggered only.
+	•	Keep using the existing SQLite database (hossagent.db) and the current SQLModel models (Customer, Lead, Task, Invoice) you already created.
+
+Do this step by step, updating the code and templates as needed:
+
+⸻
+
+1. Reframe the current UI as an Admin Console
+	1.	Find whatever route and template currently render the “control room” where I can press buttons like “Run BizDev / Run BizOps / Run Invoicing” and see logs.
+	2.	Rename logically but not necessarily literally:
+	•	Treat that page as the Admin Console.
+	•	Mount this page at the route /admin instead of /.
+	•	If necessary, rename the template to something like admin_console.html and the handler to something like admin_console() for clarity, but keep behavior the same for now.
+	3.	The Admin Console should:
+	•	Show recent leads, tasks, invoices, etc., just like before.
+	•	Still include the manual buttons to run BizDev / BizOps / Invoicing etc.
+	•	Add one simple control: a toggle for Autopilot (on/off), which will live in a SystemSettings table (created below). For now, a simple checkbox and a POST form or a small JS fetch call is fine.
+
+⸻
+
+2. Add a SystemSettings table for global flags
+
+Use SQLModel with the existing ORM setup. Create a new model:
+
+class SystemSettings(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    autopilot_enabled: bool = Field(default=True)
+
+Make sure this table is created in the same way as the existing ones (wherever you call SQLModel.metadata.create_all(engine)).
+
+Also:
+	•	On startup, ensure there is exactly one row with id = 1.
+	•	If no row exists, insert one with autopilot_enabled = True.
+	•	You can do this in the same startup/init function that sets up the DB.
+
+Expose a small admin route to toggle this flag, e.g.:
+	•	POST /admin/autopilot with a form or JSON body { "enabled": true/false }.
+
+The Admin Console UI should show the current state and allow me to flip it.
+
+⸻
+
+3. Extract the automation logic into reusable “cycle” functions
+
+Right now, the Admin buttons probably call Python functions like run_bizdev(), run_bizops(), run_invoicing() (or similar).
+
+Refactor so that:
+	1.	Each major flow lives in an idempotent cycle function that accepts a DB session, for example:
+
+async def run_bizdev_cycle(session: Session) -> None:
+    # find unqualified leads, call the AI, update Lead/Customer/Task tables, etc.
+    ...
+
+async def run_bizops_cycle(session: Session) -> None:
+    # process tasks, create follow-ups, update statuses, etc.
+    ...
+
+async def run_invoicing_cycle(session: Session) -> None:
+    # look at completed tasks, generate Invoice rows, update statuses, etc.
+    ...
+
+	2.	The existing Admin buttons should now call these *_cycle functions instead of duplicating logic. For example:
+
+@app.post("/admin/run-bizdev")
+async def admin_run_bizdev():
+    with Session(engine) as session:
+        await run_bizdev_cycle(session)
+        session.commit()
+    return RedirectResponse("/admin", status_code=303)
+
+	3.	Keep all the existing AI integration behavior intact. Just move the logic into these shared cycle helpers so we can reuse them from the background loop.
+
+⸻
+
+4. Add a background autopilot loop
+
+We want the system to run itself on a timer when Autopilot is enabled.
+	1.	Using your existing async framework (FastAPI / Starlette), add a startup event that creates a background task:
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(autopilot_loop())
+
+	2.	Implement autopilot_loop like this:
+
+import asyncio
+from sqlmodel import Session, select
+
+async def autopilot_loop():
+    while True:
+        try:
+            with Session(engine) as session:
+                settings = session.exec(
+                    select(SystemSettings).where(SystemSettings.id == 1)
+                ).first()
+
+                if settings and settings.autopilot_enabled:
+                    # Run each cycle once
+                    await run_bizdev_cycle(session)
+                    await run_bizops_cycle(session)
+                    await run_invoicing_cycle(session)
+
+                    session.commit()
+        except Exception as e:
+            # Log the error but don’t crash the loop
+            print("Error in autopilot_loop:", e)
+
+        # Sleep between cycles – for now every 5 minutes
+        await asyncio.sleep(300)
+
+	3.	The admin Autopilot toggle should simply flip SystemSettings.autopilot_enabled.
+When False, the loop wakes up, sees it’s disabled, and does nothing until re-enabled.
+
+This makes the system self-driving: it keeps generating leads, tasks, and invoices without me pressing buttons.
+
+⸻
+
+5. Build a new Customer Dashboard at /
+
+Now add a completely new route for a customer-facing view. This is read-only for now and shows what’s being done, how much value has been delivered, and the money picture.
+	1.	Create a route at /:
+
+@app.get("/", response_class=HTMLResponse)
+async def customer_dashboard(request: Request):
+    with Session(engine) as session:
+        # In the future this will be scoped to an authenticated customer.
+        # For now, aggregate across everything to show the system working.
+        customers = session.exec(select(Customer)).all()
+        leads = session.exec(
+            select(Lead).order_by(Lead.created_at.desc()).limit(20)
+        ).all()
+        tasks = session.exec(
+            select(Task).order_by(Task.created_at.desc()).limit(20)
+        ).all()
+        invoices = session.exec(
+            select(Invoice).order_by(Invoice.created_at.desc()).limit(20)
+        ).all()
+
+        # Also compute some aggregates:
+        total_revenue = sum(i.amount_cents for i in invoices)
+        outstanding = sum(i.amount_cents for i in invoices if i.status != "paid")
+        completed_tasks = sum(1 for t in tasks if t.status == "completed")
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "customers": customers,
+        "leads": leads,
+        "tasks": tasks,
+        "invoices": invoices,
+        "total_revenue": total_revenue,
+        "outstanding": outstanding,
+        "completed_tasks": completed_tasks,
+    })
+
+	2.	Create a simple dashboard.html template (or equivalent component) that:
+	•	Shows summary cards at the top:
+	•	“Total revenue billed”
+	•	“Outstanding invoices”
+	•	“Completed tasks”
+	•	“Active leads”
+	•	Shows a Recent Activity list from Task:
+	•	created_at, description, status, result_summary
+	•	Shows a Invoices table:
+	•	id, customer company, amount, status, created_at, paid_at
+	•	Shows a Leads list:
+	•	company, niche, status, last_contacted_at
+	3.	Make sure this dashboard is read-only: no buttons to trigger work, no admin toggles, no raw debug logs. This is what a customer would see if they logged in to understand what’s going on.
+
+⸻
+
+6. Add basic detail pages for connectivity (optional but ideal)
+
+If time allows in this iteration, add three simple detail routes with matching templates:
+	1.	/customers/{customer_id}
+	•	Show that customer’s info.
+	•	List all related Leads, Tasks, and Invoices for that customer_id.
+	2.	/leads/{lead_id}
+	•	Show the lead’s fields.
+	•	Show tasks where Task.customer_id == lead.customer_id.
+	•	Show the customer at the top as context.
+	3.	/invoices/{invoice_id}
+	•	Show invoice fields: amount, status, created_at, paid_at, notes.
+	•	Show which customer it belongs to.
+	•	Optionally show related tasks if there is already a natural way to map them.
+
+Use simple anchor tags from the dashboard tables to link into these pages.
+
+⸻
+
+7. Prepare for future billing integration (just stubs)
+
+Do not integrate Stripe yet; just prepare the structure.
+	1.	Add optional fields to Customer:
+
+stripe_customer_id: str | None = Field(default=None)
+billing_plan: str = Field(default="starter")
+
+	2.	In the Customer Dashboard, under some “Billing” section, show:
+
+	•	Plan name (from billing_plan).
+	•	A placeholder text for payment method: “Payment method on file (stub)” or “Not set yet”.
+	•	A disabled or dummy button: “Manage billing (coming soon)”.
+
+No actual payment processing yet; just visual placeholders.
+
+⸻
+
+8. Keep tests and basic error handling
+	•	Update or add any simple tests you already have so they:
+	•	Create the new SystemSettings row.
+	•	Exercise at least one of the *_cycle functions.
+	•	Hit the / dashboard route and assert that it returns 200 and includes some expected text.
+	•	Make sure the background loop doesn’t crash the app on exceptions; log errors and keep running.
+
+⸻
+
+9. Code quality and comments
+
+As you change files, keep the code clean and well-commented so I can read it later.
+Use clear docstrings on the new cycle functions and on the autopilot loop explaining:
+	•	What they do.
+	•	That they are safe to run repeatedly.
+	•	That the Admin Console is for me (the operator) and / is the customer-facing dashboard.
+
+⸻
+
+Implement all of the above now. When you’re done, summarize the changes, especially:
+	•	New/changed routes.
+	•	New models / fields.
+	•	How to toggle autopilot.
+	•	How to view the customer dashboard and the admin console.

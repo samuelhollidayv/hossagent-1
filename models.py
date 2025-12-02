@@ -3,6 +3,12 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 
+class SystemSettings(SQLModel, table=True):
+    """Global system configuration flags."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    autopilot_enabled: bool = Field(default=True)
+
+
 class Lead(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
@@ -19,7 +25,9 @@ class Customer(SQLModel, table=True):
     company: str
     contact_email: str
     plan: str = "starter"
+    billing_plan: str = "starter"  # starter, pro, enterprise
     status: str = "active"  # active, trial, paused
+    stripe_customer_id: Optional[str] = None
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

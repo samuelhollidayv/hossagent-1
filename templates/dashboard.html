@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>HossAgent - Customer Dashboard</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            background: #0a0a0a;
+            color: #fff;
+            font-family: Georgia, serif;
+            padding: 3rem;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        .header {{
+            text-align: center;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2rem;
+        }}
+        h1 {{
+            font-size: 3rem;
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+            letter-spacing: 2px;
+        }}
+        .tagline {{
+            font-size: 1.2rem;
+            color: #999;
+            font-style: italic;
+        }}
+        .nav {{
+            text-align: center;
+            margin: 1rem 0;
+        }}
+        .nav a {{
+            color: #999;
+            text-decoration: none;
+            margin: 0 1.5rem;
+            font-size: 0.9rem;
+        }}
+        .nav a:hover {{
+            color: #fff;
+        }}
+        .metrics {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin: 3rem 0;
+        }}
+        .metric-card {{
+            border: 1px solid #333;
+            padding: 2rem;
+            text-align: center;
+        }}
+        .metric-value {{
+            font-size: 2.5rem;
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+            letter-spacing: 1px;
+        }}
+        .metric-label {{
+            font-size: 0.8rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }}
+        .section {{
+            margin: 3rem 0;
+        }}
+        .section h2 {{
+            font-size: 1.2rem;
+            font-weight: normal;
+            margin-bottom: 1.5rem;
+            color: #999;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1rem;
+            letter-spacing: 1px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }}
+        table th {{
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            color: #666;
+            font-weight: normal;
+        }}
+        table td {{
+            padding: 1rem;
+            border-bottom: 1px solid #222;
+        }}
+        table a {{
+            color: #aaa;
+            text-decoration: none;
+        }}
+        table a:hover {{
+            color: #fff;
+        }}
+        table tr:hover {{
+            background: #111;
+        }}
+        .status-badge {{
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            background: #333;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .status-badge.pending {{
+            background: #664400;
+        }}
+        .status-badge.done {{
+            background: #006600;
+        }}
+        .status-badge.active {{
+            background: #004466;
+        }}
+        .status-badge.draft {{
+            background: #663300;
+        }}
+        .status-badge.paid {{
+            background: #006633;
+        }}
+        .money {{
+            font-weight: bold;
+            color: #0f0;
+        }}
+        .admin-link {{
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #fff;
+            color: #0a0a0a;
+            padding: 0.8rem 1.5rem;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }}
+        .admin-link:hover {{
+            background: #ddd;
+        }}
+        .empty {{
+            color: #666;
+            font-style: italic;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HOSSAGENT</h1>
+            <p class="tagline">Autonomous AI workers, designed to earn</p>
+            <div class="nav">
+                <a href="/">Dashboard</a>
+                <a href="/admin">Admin Console</a>
+            </div>
+        </div>
+
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value money">{total_revenue}</div>
+                <div class="metric-label">Total Revenue</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value money">{outstanding}</div>
+                <div class="metric-label">Outstanding</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{completed_tasks}</div>
+                <div class="metric-label">Completed Tasks</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{total_leads}</div>
+                <div class="metric-label">Active Leads</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Recent Work Completed</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Task</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Profit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {tasks_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Invoices & Billing</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Invoice ID</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {invoices_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Leads Pipeline</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Industry</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Last Contacted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {leads_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #333; color: #666; font-size: 0.85rem;">
+            <p>🔧 System operates autonomously. New leads are generated, converted to customers, tasks executed, and invoices created automatically.</p>
+            <p style="margin-top: 0.5rem;">For operator controls, visit <a href="/admin" style="color: #999;">Admin Console</a>.</p>
+        </div>
+    </div>
+
+    <a href="/admin" class="admin-link">ADMIN CONSOLE</a>
+
+    <script>
+        // Auto-refresh every 30 seconds
+        setInterval(() => window.location.reload(), 30000);
+    </script>
+</body>
+</html>
