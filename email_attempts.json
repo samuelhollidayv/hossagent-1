@@ -128,5 +128,105 @@
     "mode": "DRY_RUN",
     "result": "dry-run",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.612045",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.613128",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.614318",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.615285",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.616364",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.617599",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.618734",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea for Meridian Solutions Group",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.620054",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.621426",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-02T09:38:33.623049",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea for Atlas Enterprise Group",
+    "mode": "DRY_RUN",
+    "result": "dry-run",
+    "error": null
   }
 ]
