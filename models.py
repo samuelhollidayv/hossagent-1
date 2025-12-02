@@ -23,15 +23,56 @@ class Lead(SQLModel, table=True):
 
 
 class Customer(SQLModel, table=True):
+    """
+    Customer model with subscription/trial support.
+    
+    Plan Types:
+    - "trial": 7-day restricted trial (limited tasks/leads, DRY_RUN email, no billing)
+    - "paid": Full access with $99/month subscription
+    - "trial_expired": Trial ended without upgrade
+    
+    Subscription Status:
+    - "none": No active subscription
+    - "active": Subscription active
+    - "past_due": Payment failed
+    - "canceled": Subscription canceled
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     company: str
     contact_email: str
-    plan: str = "starter"
-    billing_plan: str = "starter"  # starter, pro, enterprise
-    status: str = "active"  # active, trial, paused
+    
+    plan: str = "trial"  # trial, paid, trial_expired
+    billing_plan: str = "starter"  # starter, pro, enterprise (legacy)
+    status: str = "active"  # active, trial, paused (legacy)
+    
+    trial_start_at: Optional[datetime] = None
+    trial_end_at: Optional[datetime] = None
+    
+    subscription_status: str = "none"  # none, active, past_due, canceled
     stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    
+    tasks_this_period: int = Field(default=0)
+    leads_this_period: int = Field(default=0)
+    
     public_token: Optional[str] = None  # For customer portal access
     notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TrialIdentity(SQLModel, table=True):
+    """
+    Trial abuse prevention tracking.
+    Records fingerprints to prevent multiple trial signups from same user/device.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True)
+    ip_address: Optional[str] = Field(default=None, index=True)
+    user_agent_hash: Optional[str] = None
+    device_fingerprint: Optional[str] = Field(default=None, index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    blocked: bool = Field(default=False)
+    block_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -58,3 +99,9 @@ class Invoice(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     paid_at: Optional[datetime] = None
     notes: Optional[str] = None
+
+
+TRIAL_TASK_LIMIT = 15
+TRIAL_LEAD_LIMIT = 20
+SUBSCRIPTION_PRICE_CENTS = 9900  # $99/month
+TRIAL_DAYS = 7

@@ -7,11 +7,16 @@ The *_cycle functions are called both by:
 - The autopilot background loop (runs every 5 minutes if enabled)
 
 All functions accept a Session and perform idempotent operations.
+
+Plan Gating:
+- Trial customers: Limited tasks/leads, DRY_RUN email, no billing
+- Paid customers: Full access to all features
 """
 import asyncio
+import secrets
 from datetime import datetime
 from sqlmodel import Session, select
-from models import Lead, Customer, Task, Invoice
+from models import Lead, Customer, Task, Invoice, TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT
 from email_utils import (
     send_email,
     get_email_mode,
@@ -24,6 +29,14 @@ from bizdev_templates import (
     generate_email,
     log_template_generation,
     get_template_status
+)
+from subscription_utils import (
+    get_customer_plan_status,
+    initialize_trial,
+    should_force_email_dry_run,
+    should_disable_billing_for_customer,
+    increment_task_usage,
+    increment_lead_usage
 )
 import random
 
@@ -41,6 +54,8 @@ async def run_bizdev_cycle(session: Session) -> str:
     
     Throttling: Respects MAX_EMAILS_PER_CYCLE and MAX_EMAILS_PER_HOUR.
     Safe to call repeatedly - only emails leads with status='new'.
+    
+    Note: Trial customers are forced to DRY_RUN email mode.
     """
     max_emails = get_max_emails_per_cycle()
     email_status = get_email_status()
@@ -120,6 +135,8 @@ async def run_onboarding_cycle(session: Session) -> str:
     
     Priority: 'responded' leads first, then 'contacted' leads.
     Idempotent: Skips leads already converted.
+    
+    New customers start in TRIAL mode with 7-day restricted access.
     """
     lead = session.exec(
         select(Lead).where(Lead.status == "responded").limit(1)
@@ -146,13 +163,19 @@ async def run_onboarding_cycle(session: Session) -> str:
     customer = Customer(
         company=lead.company,
         contact_email=lead.email,
-        plan="starter",
         billing_plan="starter",
         status="active",
+        public_token=secrets.token_urlsafe(16),
         notes=f"Converted from lead: {lead.company}",
     )
+    
+    customer = initialize_trial(customer)
+    customer.leads_this_period = 1
+    
     session.add(customer)
     session.flush()
+    
+    plan_status = get_customer_plan_status(customer)
 
     task_descriptions = [
         f"Initial market research for {lead.company}",
@@ -160,6 +183,10 @@ async def run_onboarding_cycle(session: Session) -> str:
     ]
     tasks_created = 0
     for desc in task_descriptions[:random.randint(1, 2)]:
+        if plan_status.tasks_used + tasks_created >= plan_status.tasks_limit:
+            print(f"[ONBOARDING] Trial task limit reached for new customer {customer.id}")
+            break
+        
         task = Task(
             customer_id=customer.id,
             description=desc,
@@ -173,7 +200,8 @@ async def run_onboarding_cycle(session: Session) -> str:
     session.add(lead)
     session.commit()
 
-    msg = f"Onboarding: Converted {lead.company} → Customer {customer.id}. Created {tasks_created} tasks."
+    plan_info = f" (Plan: {customer.plan})"
+    msg = f"Onboarding: Converted {lead.company} → Customer {customer.id}. Created {tasks_created} tasks.{plan_info}"
     print(f"[CYCLE] {msg}")
     return msg
 
@@ -182,6 +210,10 @@ async def run_ops_cycle(session: Session) -> str:
     """
     Ops Cycle: Pick next pending task, mark running, simulate work, mark done.
     Calculates cost and profit.
+    
+    Plan Gating:
+    - Trial customers: Limited to TRIAL_TASK_LIMIT tasks total
+    - Paid customers: Unlimited tasks
     
     Hook for real OpenAI integration:
     - Replace simulated result with real API call
@@ -201,11 +233,28 @@ async def run_ops_cycle(session: Session) -> str:
         select(Customer).where(Customer.id == task.customer_id)
     ).first()
 
+    if not customer:
+        msg = f"Ops: Task {task.id} has no associated customer."
+        print(f"[CYCLE] {msg}")
+        return msg
+
+    plan_status = get_customer_plan_status(customer)
+    
+    if plan_status.is_expired:
+        msg = f"Ops: Customer {customer.company} trial expired. Upgrade required."
+        print(f"[CYCLE][GATED] {msg}")
+        return msg
+    
+    if not plan_status.can_run_tasks:
+        msg = f"Ops: Customer {customer.company} reached trial task limit ({plan_status.tasks_used}/{plan_status.tasks_limit}). Upgrade required."
+        print(f"[CYCLE][GATED] {msg}")
+        return msg
+
     task.status = "running"
     session.add(task)
     session.commit()
 
-    simulated_result = f"Research Summary: Analyzed '{task.description}' for {customer.company if customer else 'Unknown'}. Key findings: market opportunity identified, competitive positioning clear, actionable recommendations provided."
+    simulated_result = f"Research Summary: Analyzed '{task.description}' for {customer.company}. Key findings: market opportunity identified, competitive positioning clear, actionable recommendations provided."
     cost_cents = random.randint(2, 8)
     profit_cents = max(0, task.reward_cents - cost_cents)
 
@@ -215,9 +264,14 @@ async def run_ops_cycle(session: Session) -> str:
     task.result_summary = simulated_result
     task.completed_at = datetime.utcnow()
     session.add(task)
+    
+    customer.tasks_this_period = (customer.tasks_this_period or 0) + 1
+    session.add(customer)
+    
     session.commit()
 
-    msg = f"Ops: Completed task {task.id} ({customer.company if customer else 'Unknown'}). Cost: {cost_cents}¢, Profit: {profit_cents}¢"
+    plan_info = f" [Plan: {customer.plan}, Tasks: {customer.tasks_this_period}/{plan_status.tasks_limit if plan_status.is_trial else 'unlimited'}]"
+    msg = f"Ops: Completed task {task.id} ({customer.company}). Cost: {cost_cents}c, Profit: {profit_cents}c{plan_info}"
     print(f"[CYCLE] {msg}")
     return msg
 
@@ -227,6 +281,10 @@ async def run_billing_cycle(session: Session) -> str:
     Billing Cycle: Aggregate completed tasks per customer.
     Generate draft invoice records for uninvoiced work.
     Create Stripe payment links if ENABLE_STRIPE=TRUE.
+    
+    Plan Gating:
+    - Trial customers: Billing agent DISABLED (no invoices, no payment links)
+    - Paid customers: Full billing functionality
     
     Safe to call repeatedly: skips customers/tasks already invoiced.
     Amount safety clamp: $1-$500 (configurable in stripe_utils).
@@ -238,9 +296,16 @@ async def run_billing_cycle(session: Session) -> str:
 
     invoices_created = 0
     payment_links_created = 0
+    trial_skipped = 0
     msg_parts = []
 
     for customer in customers:
+        plan_status = get_customer_plan_status(customer)
+        
+        if not plan_status.can_use_billing:
+            trial_skipped += 1
+            continue
+
         task_statement = select(Task).where(
             (Task.customer_id == customer.id) & (Task.status == "done")
         )
@@ -291,6 +356,7 @@ async def run_billing_cycle(session: Session) -> str:
     session.commit()
     
     stripe_status = " (Stripe: enabled)" if is_stripe_enabled() else " (Stripe: disabled)"
-    msg = f"Billing: Generated {invoices_created} invoices, {payment_links_created} payment links.{stripe_status} " + ("; ".join(msg_parts) if msg_parts else "None.")
+    trial_info = f" Trial customers skipped: {trial_skipped}." if trial_skipped > 0 else ""
+    msg = f"Billing: Generated {invoices_created} invoices, {payment_links_created} payment links.{stripe_status}{trial_info} " + ("; ".join(msg_parts) if msg_parts else "None.")
     print(f"[CYCLE] {msg}")
     return msg

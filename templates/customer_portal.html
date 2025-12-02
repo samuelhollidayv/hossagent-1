@@ -197,6 +197,86 @@
                 grid-template-columns: 1fr;
             }}
         }}
+        .plan-banner {{
+            border: 2px solid #333;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }}
+        .plan-banner.trial {{
+            border-color: #664400;
+            background: rgba(102, 68, 0, 0.1);
+        }}
+        .plan-banner.trial-expired {{
+            border-color: #660000;
+            background: rgba(102, 0, 0, 0.1);
+        }}
+        .plan-banner.paid {{
+            border-color: #006600;
+            background: rgba(0, 102, 0, 0.1);
+        }}
+        .plan-title {{
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }}
+        .plan-title.trial {{
+            color: #f90;
+        }}
+        .plan-title.trial-expired {{
+            color: #f00;
+        }}
+        .plan-title.paid {{
+            color: #0f0;
+        }}
+        .plan-detail {{
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }}
+        .usage-bar {{
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1rem 0;
+        }}
+        .usage-item {{
+            text-align: center;
+        }}
+        .usage-label {{
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }}
+        .usage-value {{
+            font-size: 1rem;
+            color: #fff;
+        }}
+        .usage-value.warning {{
+            color: #f90;
+        }}
+        .usage-value.danger {{
+            color: #f00;
+        }}
+        .upgrade-btn {{
+            display: inline-block;
+            background: #fff;
+            color: #0a0a0a;
+            padding: 0.75rem 2rem;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1rem;
+            font-family: Georgia, serif;
+            border: 2px solid #fff;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        .upgrade-btn:hover {{
+            background: #0a0a0a;
+            color: #fff;
+        }}
     </style>
 </head>
 <body>
@@ -205,6 +285,8 @@
             <h1>{company_name}</h1>
             <div class="subtitle">{contact_email}</div>
         </div>
+
+        {plan_banner}
 
         <div class="account-summary">
             <h2>Account Summary</h2>

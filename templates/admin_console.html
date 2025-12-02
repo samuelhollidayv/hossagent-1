@@ -470,6 +470,68 @@
         <div class="config-hint" id="stripe-hint">HossAgent automatically generates Stripe payment links for new and legacy draft invoices when ENABLE_STRIPE=TRUE.</div>
     </div>
 
+    <div class="lead-source-panel" id="subscription-panel">
+        <div class="lead-source-header">
+            <h2>SUBSCRIPTION PLAN</h2>
+            <div class="lead-source-stats">
+                <div class="lead-source-stat">
+                    <span>Price:</span>
+                    <span class="lead-source-value" id="sub-price">$99/month</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Trial Days:</span>
+                    <span class="lead-source-value" id="sub-trial-days">7</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Product Ready:</span>
+                    <span class="lead-source-value" id="sub-product-ready">-</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Price Ready:</span>
+                    <span class="lead-source-value" id="sub-price-ready">-</span>
+                </div>
+            </div>
+        </div>
+        <div class="lead-source-stats" style="margin-top: 0.5rem;">
+            <div class="lead-source-stat">
+                <span>Task Limit (Trial):</span>
+                <span class="lead-source-value" id="sub-task-limit">15</span>
+            </div>
+            <div class="lead-source-stat">
+                <span>Lead Limit (Trial):</span>
+                <span class="lead-source-value" id="sub-lead-limit">20</span>
+            </div>
+            <div class="lead-source-stat">
+                <span>Stripe Product:</span>
+                <span class="lead-source-value" id="sub-product-id">-</span>
+            </div>
+            <div class="lead-source-stat">
+                <span>Stripe Price:</span>
+                <span class="lead-source-value" id="sub-price-id">-</span>
+            </div>
+        </div>
+        <div class="config-hint">Trial users get 7 days, 15 tasks, 20 leads, DRY_RUN email only, no billing. Paid users get unlimited access.</div>
+        
+        <h3>CUSTOMER PLANS</h3>
+        <table id="customer-plans-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Company</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>Tasks Used</th>
+                    <th>Leads Used</th>
+                    <th>Days Left</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="8" class="empty-row">Loading customers...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <div class="lead-source-panel" id="bizdev-panel">
         <div class="lead-source-header">
             <h2>BIZDEV TEMPLATES</h2>
@@ -919,17 +981,128 @@
             }
         }
 
+        async function refreshSubscriptionStatus() {
+            try {
+                const res = await fetch('/api/subscription/status');
+                const data = await res.json();
+                
+                document.getElementById('sub-price').textContent = data.subscription_price || '$99/month';
+                document.getElementById('sub-trial-days').textContent = data.trial_days || '7';
+                document.getElementById('sub-task-limit').textContent = data.trial_task_limit || '15';
+                document.getElementById('sub-lead-limit').textContent = data.trial_lead_limit || '20';
+                
+                const productReadyEl = document.getElementById('sub-product-ready');
+                const priceReadyEl = document.getElementById('sub-price-ready');
+                
+                productReadyEl.textContent = data.product_ready ? 'YES' : 'NO';
+                productReadyEl.style.color = data.product_ready ? '#0f0' : '#f90';
+                
+                priceReadyEl.textContent = data.price_ready ? 'YES' : 'NO';
+                priceReadyEl.style.color = data.price_ready ? '#0f0' : '#f90';
+                
+                document.getElementById('sub-product-id').textContent = data.product_id || 'Not created';
+                document.getElementById('sub-price-id').textContent = data.price_id || 'Not created';
+                
+            } catch (e) {
+                console.error('Subscription status refresh error:', e);
+            }
+        }
+        
+        async function refreshCustomerPlans() {
+            try {
+                const customersRes = await fetch('/api/customers');
+                const customers = await customersRes.json();
+                
+                const tbody = document.getElementById('customer-plans-table').querySelector('tbody');
+                
+                if (!customers || customers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No customers yet</td></tr>';
+                    return;
+                }
+                
+                const planPromises = customers.slice(0, 20).map(c => 
+                    fetch(`/api/customer/${c.id}/plan`).then(r => r.json()).catch(() => null)
+                );
+                const plans = await Promise.all(planPromises);
+                
+                tbody.innerHTML = customers.slice(0, 20).map((c, idx) => {
+                    const plan = plans[idx];
+                    if (!plan) return '';
+                    
+                    const planBadge = plan.is_paid ? 
+                        '<span class="status-badge" style="background:#006600;color:#0f0;">PAID</span>' :
+                        plan.is_expired ?
+                        '<span class="status-badge" style="background:#660000;color:#f00;">EXPIRED</span>' :
+                        '<span class="status-badge" style="background:#664400;color:#f90;">TRIAL</span>';
+                    
+                    const statusBadge = plan.is_paid ? 'Active' :
+                        plan.is_expired ? 'Locked' :
+                        plan.can_run_tasks ? 'Active' : 'Limit Reached';
+                    
+                    const tasksUsed = plan.is_paid ? 
+                        `${plan.tasks_used} (unlimited)` :
+                        `${plan.tasks_used}/${plan.tasks_limit}`;
+                    
+                    const leadsUsed = plan.is_paid ?
+                        `${plan.leads_used} (unlimited)` :
+                        `${plan.leads_used}/${plan.leads_limit}`;
+                    
+                    const daysLeft = plan.is_paid ? '-' : plan.days_remaining;
+                    
+                    const upgradeBtn = plan.is_paid ? '' :
+                        `<button class="agent-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="upgradeCustomer(${c.id})">UPGRADE</button>`;
+                    
+                    return `
+                        <tr>
+                            <td>${c.id}</td>
+                            <td>${c.company}</td>
+                            <td>${planBadge}</td>
+                            <td>${statusBadge}</td>
+                            <td>${tasksUsed}</td>
+                            <td>${leadsUsed}</td>
+                            <td>${daysLeft}</td>
+                            <td>${upgradeBtn}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (e) {
+                console.error('Customer plans refresh error:', e);
+            }
+        }
+        
+        async function upgradeCustomer(customerId) {
+            try {
+                addLog(`Upgrading customer ${customerId}...`);
+                const res = await fetch(`/upgrade?customer_id=${customerId}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    addLog(`Customer ${customerId} upgraded to paid plan!`, 'success');
+                    refreshCustomerPlans();
+                } else {
+                    addLog(`Upgrade failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Upgrade error: ${e.message}`, 'error');
+            }
+        }
+
         loadSettingsWithHourly();
         refreshData();
         refreshEmailLog();
         refreshLeadSource();
         refreshStripeStatus();
         refreshBizdevTemplates();
+        refreshSubscriptionStatus();
+        refreshCustomerPlans();
         setInterval(refreshData, 10000);
         setInterval(refreshEmailLog, 15000);
         setInterval(refreshLeadSource, 15000);
         setInterval(refreshStripeStatus, 30000);
         setInterval(refreshBizdevTemplates, 30000);
+        setInterval(refreshSubscriptionStatus, 30000);
+        setInterval(refreshCustomerPlans, 30000);
         setInterval(loadSettingsWithHourly, 60000);
     </script>
 </body>

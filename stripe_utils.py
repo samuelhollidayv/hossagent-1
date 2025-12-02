@@ -617,3 +617,136 @@ def get_stripe_payment_mode_status() -> Dict[str, Any]:
         "status_message": "",
         "show_pay_buttons": True
     }
+
+
+@dataclass
+class SubscriptionWebhookResult:
+    """Result of processing a subscription webhook."""
+    success: bool
+    action: str  # subscription_activated, subscription_updated, subscription_canceled, payment_succeeded, unknown
+    customer_id: Optional[int]
+    subscription_id: Optional[str]
+    new_status: Optional[str]
+    error: Optional[str]
+
+
+def process_subscription_webhook(event_type: str, event_data: Dict[str, Any]) -> SubscriptionWebhookResult:
+    """
+    Process a Stripe subscription webhook event.
+    
+    Handles:
+    - invoice.payment_succeeded -> subscription_status = "active"
+    - customer.subscription.updated -> sync status
+    - customer.subscription.deleted -> subscription_status = "canceled", plan = "trial_expired"
+    
+    Args:
+        event_type: Stripe event type
+        event_data: Stripe event data object
+    
+    Returns:
+        SubscriptionWebhookResult with action taken
+    """
+    try:
+        if event_type == "invoice.payment_succeeded":
+            subscription_id = event_data.get("subscription")
+            customer_stripe_id = event_data.get("customer")
+            
+            if not subscription_id:
+                return SubscriptionWebhookResult(
+                    success=False,
+                    action="unknown",
+                    customer_id=None,
+                    subscription_id=None,
+                    new_status=None,
+                    error="No subscription ID in invoice.payment_succeeded event"
+                )
+            
+            log_stripe_event("subscription_payment_succeeded", {
+                "stripe_customer_id": customer_stripe_id,
+                "subscription_id": subscription_id
+            })
+            
+            print(f"[STRIPE][SUBSCRIPTION] Payment succeeded for subscription ...{subscription_id[-4:]}")
+            
+            return SubscriptionWebhookResult(
+                success=True,
+                action="payment_succeeded",
+                customer_id=None,
+                subscription_id=subscription_id,
+                new_status="active",
+                error=None
+            )
+        
+        elif event_type == "customer.subscription.updated":
+            subscription = event_data
+            subscription_id = subscription.get("id")
+            status = subscription.get("status")  # active, past_due, canceled, etc.
+            customer_stripe_id = subscription.get("customer")
+            metadata = subscription.get("metadata", {})
+            hossagent_customer_id = metadata.get("hossagent_customer_id")
+            
+            log_stripe_event("subscription_updated", {
+                "subscription_id": subscription_id,
+                "status": status,
+                "customer_id": hossagent_customer_id
+            })
+            
+            print(f"[STRIPE][SUBSCRIPTION] Subscription ...{subscription_id[-4:] if subscription_id else 'unknown'} updated to status: {status}")
+            
+            return SubscriptionWebhookResult(
+                success=True,
+                action="subscription_updated",
+                customer_id=int(hossagent_customer_id) if hossagent_customer_id else None,
+                subscription_id=subscription_id,
+                new_status=status,
+                error=None
+            )
+        
+        elif event_type == "customer.subscription.deleted":
+            subscription = event_data
+            subscription_id = subscription.get("id")
+            customer_stripe_id = subscription.get("customer")
+            metadata = subscription.get("metadata", {})
+            hossagent_customer_id = metadata.get("hossagent_customer_id")
+            
+            log_stripe_event("subscription_deleted", {
+                "subscription_id": subscription_id,
+                "customer_id": hossagent_customer_id
+            })
+            
+            print(f"[STRIPE][SUBSCRIPTION] Subscription ...{subscription_id[-4:] if subscription_id else 'unknown'} CANCELED")
+            
+            return SubscriptionWebhookResult(
+                success=True,
+                action="subscription_canceled",
+                customer_id=int(hossagent_customer_id) if hossagent_customer_id else None,
+                subscription_id=subscription_id,
+                new_status="canceled",
+                error=None
+            )
+        
+        else:
+            return SubscriptionWebhookResult(
+                success=False,
+                action="unknown",
+                customer_id=None,
+                subscription_id=None,
+                new_status=None,
+                error=f"Unhandled subscription event type: {event_type}"
+            )
+    
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[STRIPE][SUBSCRIPTION][ERROR] Error processing webhook: {error_msg}")
+        log_stripe_event("subscription_webhook_error", {
+            "event_type": event_type,
+            "error": error_msg
+        })
+        return SubscriptionWebhookResult(
+            success=False,
+            action="error",
+            customer_id=None,
+            subscription_id=None,
+            new_status=None,
+            error=error_msg
+        )

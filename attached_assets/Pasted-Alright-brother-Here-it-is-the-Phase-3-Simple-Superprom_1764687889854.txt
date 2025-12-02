@@ -1,0 +1,252 @@
+Alright, brother.
+Here it is — the Phase 3 Simple Superprompt, engineered to turn HossAgent into a real SaaS with:
+	•	One plan: $99/mo
+	•	7-day restricted free trial
+	•	Zero-abuse rules
+	•	Stripe subscription billing
+	•	Feature gating for trial vs. paid
+	•	Clean UI updates
+	•	Customer portal unlock logic
+	•	Admin visibility
+	•	No per-task chaos
+
+Copy/paste this verbatim into the Replit Magic Box.
+
+No fences, no commentary — just the payload.
+
+⸻
+
+⭐ PHASE 3 SIMPLE SUPERPROMPT (COPY EXACTLY)
+
+Replit Agent — I am upgrading HossAgent into a real SaaS with a single subscription plan and a limited free trial. Do NOT modify anything unrelated to billing, user state, or plan gating. Do not remove existing Stripe payment logic yet; only integrate subscriptions into the existing pathways.
+
+============================================================
+GOAL
+
+Implement a clean subscription model:
+
+• One plan: $99/month
+• 7-day free trial (restricted trial mode)
+• Stripe subscription billing
+• Feature gating (trial vs. paid)
+• Trial abuse prevention (1 per user/device)
+• Clean UI updates in admin and customer portal
+• Plan status available everywhere in the system
+• Limit trial tasks/leads
+• No per-task billing
+• Stripe subscription webhooks
+• Upgrade flow
+
+============================================================
+	1.	DATA MODEL CHANGES
+============================================================
+Modify or extend the Customer model:
+
+Add fields:
+	•	plan (string: “trial”, “paid”)
+	•	trial_start_at (datetime)
+	•	trial_end_at (datetime)
+	•	subscription_status (string: “none”, “active”, “past_due”, “canceled”)
+	•	stripe_customer_id (string, nullable)
+	•	stripe_subscription_id (string, nullable)
+	•	tasks_this_period (int, default 0)
+	•	leads_this_period (int, default 0)
+
+Add a simple global config:
+	•	TRIAL_TASK_LIMIT = 15
+	•	TRIAL_LEAD_LIMIT = 20
+
+Auto-migrate / create columns on startup.
+
+============================================================
+2. TRIAL LOGIC
+
+Define trial mode rules:
+
+• When a new customer is created (via lead → onboarding):
+	•	If they have no stripe_customer_id:
+	•	Set plan = “trial”
+	•	Set trial_start_at = now
+	•	Set trial_end_at = now + 7 days
+	•	subscription_status = “none”
+
+• Trial restrictions applied everywhere:
+	•	tasks_this_period < TRIAL_TASK_LIMIT
+	•	leads_this_period < TRIAL_LEAD_LIMIT
+	•	EMAIL_MODE forced to DRY_RUN
+	•	Autopilot disabled
+	•	Stripe invoice/payment link generation disabled
+	•	“PAY NOW” hidden in portal
+	•	Regenerate payment links disabled
+	•	Billing agent does NOT attempt to create Stripe payment links or invoices
+
+• If trial_end_at < now and plan == “trial”:
+	•	Lock the account:
+	•	No new tasks
+	•	No new leads
+	•	Portal shows “Your trial has expired — upgrade to continue”
+	•	Admin shows “TRIAL EXPIRED”
+	•	Only allowed action = upgrade
+
+============================================================
+3. STRIPE SUBSCRIPTION BILLING
+
+Add a single product:
+
+Plan name: “HossAgent Subscription”
+Price: $99/month
+
+Add environment variable support:
+STRIPE_PRICE_ID
+STRIPE_PRODUCT_ID
+
+If not present:
+	•	Create Stripe product and price automatically on startup
+	•	Store IDs in environment or config file in plain text (never secrets)
+	•	Log only the last 4 chars
+
+Upgrade flow:
+
+Create route POST /upgrade with:
+	•	customer_id
+	•	Retrieve stripe_customer_id or create Stripe customer
+	•	Create subscription with price ID
+	•	Save stripe_subscription_id
+	•	Immediately switch:
+	•	plan = “paid”
+	•	subscription_status = “active”
+
+Add route /stripe/subscription-webhook:
+	•	Handle:
+	•	invoice.payment_succeeded → subscription_status=“active”
+	•	customer.subscription.updated → sync status
+	•	customer.subscription.deleted → subscription_status=“canceled”, plan=“trial_expired”
+	•	Update DB accordingly without crashing.
+
+============================================================
+4. FEATURE GATING (THE IMPORTANT PART)
+
+Every agent (BizDev, LeadGen, Ops, Billing) must check plan:
+
+If customer.plan == “trial”:
+	•	Allow only:
+	•	15 tasks
+	•	20 leads
+	•	Outbound email = DRY_RUN only
+	•	Billing agent = disabled completely
+	•	Stripe payment links = disabled
+	•	Payment URL = hidden
+	•	Autopilot disabled
+	•	Customer portal:
+	•	Show: “Trial Mode — 7 days remaining”
+	•	Hide: PAY NOW
+	•	Show upgrade button
+
+If customer.plan == “paid”:
+	•	Unlimited tasks/leads
+	•	Real outbound according to EMAIL_MODE
+	•	Stripe billing fully enabled
+	•	Payment links visible
+	•	Customer portal shows nothing trial-related
+
+============================================================
+5. TRIAL ABUSE PREVENTION
+
+Add new TrialAccount table or simple fingerprint:
+
+Fields:
+	•	email
+	•	ip_address
+	•	user_agent_hash
+	•	device_fingerprint
+	•	created_at
+
+When creating a new customer:
+	•	If any record exists with same email, ip_address, or fingerprint:
+Deny new trial: plan=“trial_expired”
+	•	If abuse flag triggered:
+Admin UI shows “Trial blocked — abuse protection triggered”
+
+============================================================
+6. ADMIN UI CHANGES
+
+In /admin:
+
+Add PLAN STATUS panel showing:
+	•	Customer plan (trial/paid)
+	•	Trial days remaining
+	•	Subscription status
+	•	tasks_this_period / leads_this_period
+	•	Upgrade button (tests POST /upgrade)
+
+Add SETTINGS panel showing:
+	•	Stripe product + price IDs
+	•	Subscription status
+	•	Trial abuse logs
+
+============================================================
+7. CUSTOMER PORTAL UPDATES
+
+Portal should display:
+
+• If plan == “trial”:
+	•	Banner: “Trial Mode — X days remaining”
+	•	Trial usage: “12 / 15 tasks used”
+	•	No PAY NOW buttons
+	•	Button: “Upgrade to Full Access ($99/mo)”
+→ POST /upgrade
+
+• If plan == “paid”:
+	•	Full access
+	•	PAY NOW visible for unpaid invoices (legacy system)
+	•	Outbound and invoicing fully enabled
+
+============================================================
+8. CODE PATH RECONCILIATION
+
+Do NOT remove existing Stripe payment link logic.
+Just gate it behind plan=“paid”.
+
+Billing agent:
+	•	If plan=“trial”:
+return early, do nothing.
+	•	If plan=“paid”:
+run full Stripe payment link workflow
+
+Ops agent updates tasks_this_period.
+LeadGen agent updates leads_this_period.
+
+============================================================
+9. DOCUMENTATION
+
+Update replit.md:
+	•	Explain trial mode
+	•	Explain upgrade path
+	•	Explain $99/mo plan
+	•	Explain anti-abuse system
+	•	Explain required Stripe env vars:
+	•	STRIPE_API_KEY
+	•	STRIPE_PRICE_ID
+	•	STRIPE_PRODUCT_ID
+	•	STRIPE_WEBHOOK_SECRET
+	•	Explain what’s disabled in trial
+
+============================================================
+10. DONE CRITERIA
+
+When finished, summarize:
+	•	New/changed files
+	•	Routes added
+	•	Models updated
+	•	Stripe objects created
+	•	Trial state handling validated
+	•	UI changes applied
+	•	Example test scenario:
+	•	Trial user → 15 tasks → hit limit → upgrade → Stripe subscription active → unlimited tasks
+
+Begin implementation now.
+
+⸻
+
+Paste that into the Magic Box.
+This will turn HossAgent into a real, subscription-powered SaaS in a single atomic upgrade.

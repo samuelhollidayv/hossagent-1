@@ -14,8 +14,16 @@ Routes:
 - /admin/summary       → Daily/weekly summary for operators
 - /admin/send-test-email → Test email configuration
 - /stripe/webhook      → Stripe payment webhook
+- /stripe/subscription-webhook → Stripe subscription webhook
+- /upgrade             → Upgrade customer to paid plan
+- /api/subscription/status → Get subscription configuration status
+
+Subscription Model:
+- Trial: 7 days, 15 tasks, 20 leads, DRY_RUN email, no billing
+- Paid: $99/month, unlimited access
 """
 import asyncio
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import FastAPI, Depends, Request, HTTPException, Query
@@ -23,7 +31,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Lead, Customer, Task, Invoice, SystemSettings
+from models import Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity
 from agents import (
     run_bizdev_cycle,
     run_onboarding_cycle,
@@ -39,7 +47,22 @@ from stripe_utils import (
     is_stripe_enabled,
     get_stripe_payment_mode_status,
     ensure_invoice_payment_url,
-    get_invoice_payment_stats
+    get_invoice_payment_stats,
+    process_subscription_webhook,
+    verify_webhook_signature,
+    log_stripe_event,
+    get_stripe_webhook_secret
+)
+from subscription_utils import (
+    get_customer_plan_status,
+    get_subscription_status,
+    bootstrap_stripe_subscription_product,
+    create_stripe_customer,
+    create_subscription,
+    upgrade_to_paid,
+    expire_trial,
+    check_trial_abuse,
+    record_trial_identity
 )
 
 app = FastAPI(title="HossAgent Control Engine")
@@ -129,6 +152,12 @@ async def startup_event():
     create_db_and_tables()
     
     validate_stripe_at_startup()
+    
+    bootstrap_result = bootstrap_stripe_subscription_product()
+    if bootstrap_result["success"]:
+        print(f"[STARTUP] Subscription product ready: {bootstrap_result['message']}")
+    elif is_stripe_enabled():
+        print(f"[STARTUP] Subscription bootstrap: {bootstrap_result['message']}")
     
     run_retroactive_payment_links()
     
@@ -955,6 +984,254 @@ def get_stripe_status_endpoint(session: Session = Depends(get_session)):
 
 
 # ============================================================================
+# SUBSCRIPTION MANAGEMENT
+# ============================================================================
+
+
+@app.get("/api/subscription/status")
+def get_subscription_status_endpoint():
+    """Get current subscription configuration status."""
+    return get_subscription_status()
+
+
+@app.get("/api/customer/{customer_id}/plan")
+def get_customer_plan_endpoint(customer_id: int, session: Session = Depends(get_session)):
+    """Get plan status for a specific customer."""
+    customer = session.exec(
+        select(Customer).where(Customer.id == customer_id)
+    ).first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    return {
+        "customer_id": customer_id,
+        "company": customer.company,
+        "plan": plan_status.plan,
+        "is_trial": plan_status.is_trial,
+        "is_paid": plan_status.is_paid,
+        "is_expired": plan_status.is_expired,
+        "days_remaining": plan_status.days_remaining,
+        "tasks_used": plan_status.tasks_used,
+        "tasks_limit": plan_status.tasks_limit,
+        "leads_used": plan_status.leads_used,
+        "leads_limit": plan_status.leads_limit,
+        "can_run_tasks": plan_status.can_run_tasks,
+        "can_generate_leads": plan_status.can_generate_leads,
+        "can_send_real_email": plan_status.can_send_real_email,
+        "can_use_billing": plan_status.can_use_billing,
+        "can_use_autopilot": plan_status.can_use_autopilot,
+        "upgrade_required": plan_status.upgrade_required,
+        "status_message": plan_status.status_message
+    }
+
+
+@app.post("/upgrade")
+def upgrade_customer(
+    customer_id: int = Query(..., description="Customer ID to upgrade"),
+    session: Session = Depends(get_session)
+):
+    """
+    Upgrade a customer from trial to paid plan.
+    
+    Creates Stripe customer and subscription, then updates customer plan.
+    
+    Returns:
+        Success/failure with subscription details
+    """
+    customer = session.exec(
+        select(Customer).where(Customer.id == customer_id)
+    ).first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if plan_status.is_paid:
+        return {
+            "success": True,
+            "message": "Customer already on paid plan",
+            "customer_id": customer_id,
+            "plan": "paid"
+        }
+    
+    if not is_stripe_enabled():
+        customer = upgrade_to_paid(customer, stripe_subscription_id=None)
+        session.add(customer)
+        session.commit()
+        
+        print(f"[UPGRADE] Customer {customer_id} upgraded to paid (Stripe disabled)")
+        return {
+            "success": True,
+            "message": "Upgraded to paid plan (Stripe disabled - manual billing)",
+            "customer_id": customer_id,
+            "plan": "paid",
+            "stripe_subscription_id": None
+        }
+    
+    stripe_customer_id = customer.stripe_customer_id
+    if not stripe_customer_id:
+        stripe_customer_id, error = create_stripe_customer(
+            customer_id=customer.id,
+            email=customer.contact_email,
+            company=customer.company
+        )
+        
+        if error:
+            print(f"[UPGRADE][ERROR] Failed to create Stripe customer: {error}")
+            return {
+                "success": False,
+                "error": f"Failed to create Stripe customer: {error}",
+                "customer_id": customer_id
+            }
+        
+        customer.stripe_customer_id = stripe_customer_id
+        session.add(customer)
+        session.flush()
+    
+    if not stripe_customer_id:
+        return {
+            "success": False,
+            "error": "Stripe customer ID missing",
+            "customer_id": customer_id
+        }
+    
+    subscription_id, error = create_subscription(
+        stripe_customer_id=stripe_customer_id,
+        customer_id=customer.id
+    )
+    
+    if error:
+        print(f"[UPGRADE][ERROR] Failed to create subscription: {error}")
+        return {
+            "success": False,
+            "error": f"Failed to create subscription: {error}",
+            "customer_id": customer_id,
+            "stripe_customer_id": stripe_customer_id
+        }
+    
+    if not subscription_id:
+        return {
+            "success": False,
+            "error": "Failed to get subscription ID",
+            "customer_id": customer_id,
+            "stripe_customer_id": stripe_customer_id
+        }
+    
+    customer = upgrade_to_paid(customer, stripe_subscription_id=subscription_id)
+    session.add(customer)
+    session.commit()
+    
+    print(f"[UPGRADE] Customer {customer_id} upgraded to paid plan, subscription ...{subscription_id[-4:]}")
+    log_stripe_event("customer_upgraded", {
+        "customer_id": customer_id,
+        "stripe_customer_id": stripe_customer_id,
+        "subscription_id": subscription_id
+    })
+    
+    return {
+        "success": True,
+        "message": "Upgraded to paid plan - $99/month subscription active",
+        "customer_id": customer_id,
+        "plan": "paid",
+        "stripe_customer_id": stripe_customer_id,
+        "stripe_subscription_id": subscription_id
+    }
+
+
+@app.post("/stripe/subscription-webhook")
+async def stripe_subscription_webhook(request: Request, session: Session = Depends(get_session)):
+    """
+    Handle Stripe subscription webhook events.
+    
+    Validates webhook signature and processes subscription events.
+    Updates customer plan status based on subscription changes.
+    
+    Supported events:
+      - invoice.payment_succeeded: Subscription payment succeeded
+      - customer.subscription.updated: Subscription status changed
+      - customer.subscription.deleted: Subscription canceled
+    
+    Returns:
+      200 with status on success
+      400 on invalid signature
+    """
+    try:
+        payload = await request.body()
+    except Exception as e:
+        print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Failed to read request body: {e}")
+        raise HTTPException(status_code=400, detail="Invalid request body")
+    
+    signature = request.headers.get("Stripe-Signature", "")
+    
+    if not signature:
+        print("[STRIPE][SUBSCRIPTION-WEBHOOK] Missing Stripe-Signature header")
+        log_stripe_event("subscription_webhook_missing_signature", {})
+        raise HTTPException(status_code=400, detail="Missing signature header")
+    
+    webhook_secret = get_stripe_webhook_secret()
+    if not webhook_secret:
+        print("[STRIPE][SUBSCRIPTION-WEBHOOK] No webhook secret - accepting unverified")
+    elif not verify_webhook_signature(payload, signature):
+        print("[STRIPE][SUBSCRIPTION-WEBHOOK] Invalid signature - rejecting")
+        log_stripe_event("subscription_webhook_invalid_signature", {})
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    try:
+        event = json.loads(payload)
+        event_type = event.get("type", "unknown")
+        event_id = event.get("id", "unknown")
+        event_data = event.get("data", {}).get("object", {})
+        
+        print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Received: {event_type} (id={event_id})")
+        
+        result = process_subscription_webhook(event_type, event_data)
+        
+        if result.success and result.customer_id:
+            customer = session.exec(
+                select(Customer).where(Customer.id == result.customer_id)
+            ).first()
+            
+            if customer:
+                if result.action == "subscription_canceled":
+                    customer = expire_trial(customer)
+                    print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Customer {customer.id} subscription canceled - plan set to trial_expired")
+                elif result.new_status == "active":
+                    customer.subscription_status = "active"
+                    if customer.plan != "paid":
+                        customer.plan = "paid"
+                        print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Customer {customer.id} set to paid")
+                elif result.new_status in ["past_due", "canceled", "unpaid"]:
+                    customer.subscription_status = result.new_status
+                    print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Customer {customer.id} subscription status: {result.new_status}")
+                
+                session.add(customer)
+                session.commit()
+        
+        return {
+            "status": "processed",
+            "event_type": event_type,
+            "event_id": event_id,
+            "action": result.action,
+            "customer_id": result.customer_id,
+            "new_status": result.new_status
+        }
+        
+    except json.JSONDecodeError as e:
+        print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Invalid JSON: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except Exception as e:
+        print(f"[STRIPE][SUBSCRIPTION-WEBHOOK] Error: {e}")
+        return JSONResponse(
+            status_code=200,
+            content={"status": "error", "message": "Processing failed but acknowledged"}
+        )
+
+
+# ============================================================================
 # RELEASE MODE & SUMMARY
 # ============================================================================
 
@@ -1108,6 +1385,57 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     else:
         payment_message = ""
     
+    plan_status = get_customer_plan_status(customer)
+    
+    if plan_status.is_paid:
+        plan_banner = """
+        <div class="plan-banner paid">
+            <div class="plan-title paid">PAID PLAN</div>
+            <div class="plan-detail">Full access to all HossAgent features</div>
+        </div>
+        """
+    elif plan_status.is_expired:
+        plan_banner = f"""
+        <div class="plan-banner trial-expired">
+            <div class="plan-title trial-expired">TRIAL EXPIRED</div>
+            <div class="plan-detail">Your trial period has ended. Upgrade to continue using HossAgent.</div>
+            <div class="usage-bar">
+                <div class="usage-item">
+                    <div class="usage-label">Tasks Used</div>
+                    <div class="usage-value danger">{plan_status.tasks_used}/{plan_status.tasks_limit}</div>
+                </div>
+                <div class="usage-item">
+                    <div class="usage-label">Leads Used</div>
+                    <div class="usage-value danger">{plan_status.leads_used}/{plan_status.leads_limit}</div>
+                </div>
+            </div>
+        </div>
+        """
+    else:
+        tasks_class = "danger" if plan_status.tasks_used >= plan_status.tasks_limit else "warning" if plan_status.tasks_used >= plan_status.tasks_limit * 0.8 else ""
+        leads_class = "danger" if plan_status.leads_used >= plan_status.leads_limit else "warning" if plan_status.leads_used >= plan_status.leads_limit * 0.8 else ""
+        
+        plan_banner = f"""
+        <div class="plan-banner trial">
+            <div class="plan-title trial">FREE TRIAL</div>
+            <div class="plan-detail">{plan_status.days_remaining} days remaining - Limited to {plan_status.tasks_limit} tasks and {plan_status.leads_limit} leads</div>
+            <div class="usage-bar">
+                <div class="usage-item">
+                    <div class="usage-label">Tasks Used</div>
+                    <div class="usage-value {tasks_class}">{plan_status.tasks_used}/{plan_status.tasks_limit}</div>
+                </div>
+                <div class="usage-item">
+                    <div class="usage-label">Leads Used</div>
+                    <div class="usage-value {leads_class}">{plan_status.leads_used}/{plan_status.leads_limit}</div>
+                </div>
+                <div class="usage-item">
+                    <div class="usage-label">Days Left</div>
+                    <div class="usage-value">{plan_status.days_remaining}</div>
+                </div>
+            </div>
+        </div>
+        """
+    
     with open("templates/customer_portal.html", "r") as f:
         template = f.read()
     
@@ -1129,7 +1457,9 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
     outstanding_rows = ""
     for i in outstanding_invoices:
         payment_btn = ""
-        if i.payment_url and len(i.payment_url) > 10:
+        if not plan_status.can_use_billing:
+            payment_btn = '<span class="payment-unavailable">Upgrade to enable payments</span>'
+        elif i.payment_url and len(i.payment_url) > 10:
             payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
         elif stripe_enabled:
             payment_btn = '<span class="payment-unavailable">Awaiting payment link...</span>'
@@ -1169,7 +1499,8 @@ def customer_portal(public_token: str, session: Session = Depends(get_session)):
         tasks_rows=tasks_rows,
         outstanding_rows=outstanding_rows,
         paid_rows=paid_rows,
-        payment_message=payment_message
+        payment_message=payment_message,
+        plan_banner=plan_banner
     )
     
     return html
