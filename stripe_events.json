@@ -118,5 +118,53 @@
       "invoice_id": 3,
       "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
     }
+  },
+  {
+    "timestamp": "2025-12-02T15:47:41.934010",
+    "event_type": "price_creation_failed",
+    "data": {
+      "invoice_id": 1,
+      "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
+    }
+  },
+  {
+    "timestamp": "2025-12-02T15:47:41.985450",
+    "event_type": "price_creation_failed",
+    "data": {
+      "invoice_id": 2,
+      "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
+    }
+  },
+  {
+    "timestamp": "2025-12-02T15:47:42.045724",
+    "event_type": "price_creation_failed",
+    "data": {
+      "invoice_id": 3,
+      "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
+    }
+  },
+  {
+    "timestamp": "2025-12-02T15:53:53.118854",
+    "event_type": "price_creation_failed",
+    "data": {
+      "invoice_id": 1,
+      "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
+    }
+  },
+  {
+    "timestamp": "2025-12-02T15:53:53.180116",
+    "event_type": "price_creation_failed",
+    "data": {
+      "invoice_id": 2,
+      "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
+    }
+  },
+  {
+    "timestamp": "2025-12-02T15:53:53.260681",
+    "event_type": "price_creation_failed",
+    "data": {
+      "invoice_id": 3,
+      "error": "Price creation failed: {\n  \"error\": {\n    \"message\": \"Invalid API Key provided: sk_live_***************************************************************************************************Mk8H\",\n    \"type\": \"invalid_request_"
+    }
   }
 ]

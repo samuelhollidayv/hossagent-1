@@ -1,0 +1,186 @@
+Yep, you’re seeing it clearly:
+
+Right now you basically have an internal operator dashboard wearing a fake customer hat.
+We need:
+	•	A true customer-facing portal (what your client sees)
+	•	A separate operator/admin console (what you see)
+	•	Clean subscription UX wired to Stripe Payment Links (which already handle Apple Pay / Google Pay / cards).
+
+Here’s the simplest mental model:
+	•	/admin → you (internal)
+	•	/portal/<public_token> → customer project/status
+	•	/subscribe + /billing → customer money stuff (plans + pay/upgrade/manage)
+
+Stripe will automatically show Apple Pay etc on the hosted checkout / payment link page as long as they support it; we just have to send people there.
+
+⸻
+
+Drop this into the Replit Agent (text only)
+
+Paste this exactly; fill in the YOUR_STRIPE_PRICE_ID with your real Stripe Price ID once you have it.
+
+⸻
+
+Replit Agent — I need you to fix the customer-facing experience and separate it cleanly from the internal admin view. The goal is:
+	•	Customers see a simple, clear portal with plan info and a “Pay / Manage Subscription” entry point.
+	•	Operators keep the richer /admin dashboard with revenue/profit/internal metrics.
+	•	Billing is based on the existing $99/mo subscription (with trial support), using Stripe Payment Links / Checkout so wallets like Apple Pay just work.
+
+Please do all of the following without breaking existing functionality:
+
+============================================================
+	1.	SEPARATE CUSTOMER PORTAL VS ADMIN CONSOLE
+============================================================
+
+Current situation: the “customer portal” is basically re-using admin-ish UI (green revenue cards, internal metrics). I want a clean split:
+	•	Keep /admin exactly as the internal console (email health, leads, invoices, Stripe status, etc.).
+	•	Make /portal/<public_token> a true customer view:
+	•	No internal revenue/profit metrics for you.
+	•	No admin-only controls.
+	•	Clean, minimal UX focused on:
+	•	What work has been done
+	•	What’s planned / in progress
+	•	Their subscription status and “Pay / Manage billing” entry point
+
+If any portal templates are currently reusing admin partials, extract shared pieces carefully so that admin-only elements never appear in the portal.
+
+============================================================
+2) CUSTOMER PORTAL: CONTENT & LAYOUT
+
+In templates/customer_portal.html (or equivalent), redesign the page for customers as follows:
+
+Top section (hero):
+	•	Simple headline: “Your HossAgent Ops Portal”
+	•	Subtext: short sentence explaining this is where they see work done + manage their subscription.
+
+Then three sections, in this order:
+
+(1) Plan & Billing
+	•	Show:
+	•	Plan name: “HossAgent Pro”
+	•	Price: “$99/month”
+	•	Trial status:
+	•	If in trial: “In trial – X days remaining”
+	•	If active paid: “Active subscription – $99/month”
+	•	If expired/cancelled: “Subscription inactive”
+	•	CTA button:
+	•	If trial / inactive: “Start Paid Subscription”
+	•	If already paid: “Manage Billing / Update Card”
+	•	That button should link to the active Stripe payment link / customer portal URL (see section 3 below).
+
+(2) Recent Work
+	•	Table or list:
+	•	Date, Task, Status (done/pending), short description
+	•	Only show customer-relevant info (no cost/profit columns).
+
+(3) Invoices
+	•	List invoices for this customer:
+	•	Invoice ID, date, amount, status (draft/paid)
+	•	If an invoice has payment_url and status != paid:
+	•	Show a “Pay Now” button that links directly to payment_url.
+	•	If Stripe is disabled or no payment_url exists, show a small note: “Online payment not yet configured – your account manager will send a separate invoice.”
+
+Keep the noir black/white style but make sure the hierarchy is obvious and it feels like a client portal, not an internal screen.
+
+============================================================
+3) SUBSCRIPTION MODEL & STRIPE INTEGRATION
+
+We already converted to a $99/mo model with 7-day trial. Please wire that into a simple Stripe subscription flow:
+
+Backend:
+	•	Create a helper in subscription_utils.py (or similar):
+	•	get_or_create_subscription_checkout_link(customer):
+	•	Uses STRIPE_API_KEY.
+	•	Creates or reuses a Stripe Checkout Session or Payment Link for the $99/mo plan.
+	•	You can hardcode a placeholder Stripe Price ID for now (YOUR_STRIPE_PRICE_ID), but make it configurable via env var:
+	•	STRIPE_PRICE_ID_PRO=price_...
+	•	Store the resulting URL in the customer record (e.g., customer.subscription_checkout_url) or in a dedicated subscription table.
+	•	If Stripe is disabled or misconfigured:
+	•	Do not crash. Return None and log a [STRIPE][SUBSCRIPTION][DRY_RUN_FALLBACK] message.
+
+Routes:
+	•	Add /subscribe/<public_token>:
+	•	Looks up customer by public_token.
+	•	If subscription is inactive/trial and Stripe is enabled:
+	•	Redirect to the Stripe Checkout / payment link URL.
+	•	If Stripe not configured:
+	•	Show a simple message explaining that online billing isn’t configured yet.
+	•	In the customer portal, the “Start Paid Subscription” button should hit /subscribe/<public_token>.
+
+Webhooks:
+	•	Extend the existing /stripe/webhook handling to:
+	•	Detect subscription/checkout completion events (e.g. checkout.session.completed, invoice.payment_succeeded).
+	•	Mark the associated customer as:
+	•	plan = "pro_monthly"
+	•	subscription_status = "active"
+	•	Set subscription_started_at, current_period_end, etc.
+	•	Make sure this logic coexists with existing invoice paid handling.
+
+============================================================
+4) TRIAL / ABUSE GUARDRAILS (KEEP SIMPLE)
+
+We already have trial and TrialIdentity tables. Ensure the portal reflects this clearly and that limits are enforced:
+	•	Trial limits remain:
+	•	7-day free trial
+	•	Max 15 tasks, 20 leads
+	•	In all agent loops, if the customer is in trial and over limits:
+	•	Do not perform new paid work.
+	•	Show in admin console that trial limits were hit.
+	•	In the customer portal:
+	•	If trial limits reached and they are still in trial:
+	•	Show a friendly message near the plan section:
+“You’ve reached the limits of the free trial. Start your paid subscription to keep HossAgent working.”
+
+No need for complex KYC here beyond what you already implemented; just make sure we never run unlimited trial work.
+
+============================================================
+5) CLEAN UP ADMIN CONSOLE VS PORTAL
+
+Admin console (/admin):
+	•	Keep all the existing metrics: revenue, profit, per-task rewards, Stripe status, logs, etc.
+	•	Add a small link in the customer section to “View as customer” that opens their /portal/<public_token> in a new tab.
+
+Customer portal (/portal/<public_token>):
+	•	Strip out:
+	•	Internal revenue/profit/lead metrics.
+	•	Any email mode or DRY_RUN toggles.
+	•	Any Stripe debug panels.
+	•	Only show the three sections described above: Plan & Billing, Recent Work, Invoices.
+
+============================================================
+6) ENV VARS & DOCS
+
+Update replit.md (or project docs) to include:
+
+Required env vars for subscriptions:
+	•	ENABLE_STRIPE=TRUE/FALSE
+	•	STRIPE_API_KEY=sk_live_… (or sk_test_… in dev)
+	•	STRIPE_PUBLIC_KEY=pk_live_… (if you need it)
+	•	STRIPE_WEBHOOK_SECRET=whsec_… (recommended)
+	•	STRIPE_PRICE_ID_PRO=price_… (Stripe Price ID for $99/month plan)
+
+Explain briefly:
+	•	How to set these in Replit Secrets.
+	•	How to get a portal URL for a customer (/portal/<public_token>).
+	•	How the “Start Paid Subscription” and “Pay Now” buttons route through Stripe.
+
+============================================================
+7) FINAL CHECKLIST
+
+When you’re done, please:
+	1.	List all modified/created files.
+	2.	Confirm:
+	•	/admin still functions with all internal metrics.
+	•	/portal/<public_token> renders as a clean customer view with plan/billing + work + invoices.
+	•	“Start Paid Subscription” button correctly redirects to Stripe when enabled.
+	•	“Pay Now” buttons appear on unpaid invoices with payment_url.
+	•	Trial limits are respected and clearly shown.
+	3.	Call out any places where I must manually paste Stripe IDs (e.g., STRIPE_PRICE_ID_PRO).
+
+Do not remove or weaken DRY_RUN safety: if Stripe is missing or misconfigured, the system must fail safe (no real charges, just logs and disabled buttons).
+
+Begin now.
+
+⸻
+
+That should nudge the box exactly where you’re feeling the gap: customer-facing money screen + clean separation from your internal cockpit, without overcomplicating the model.
