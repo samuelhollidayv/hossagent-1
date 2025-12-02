@@ -33,6 +33,12 @@
             gap: 1rem;
             align-items: center;
         }
+        .status-panel {
+            text-align: right;
+        }
+        .status-row {
+            margin-bottom: 0.25rem;
+        }
         .toggle-btn {
             background: #fff;
             color: #0a0a0a;
@@ -54,6 +60,14 @@
         }
         .status.disabled {
             color: #f00;
+        }
+        .status.warning {
+            color: #f90;
+        }
+        .config-hint {
+            font-size: 0.7rem;
+            color: #555;
+            margin-top: 0.25rem;
         }
         .metrics {
             display: grid;
@@ -80,7 +94,7 @@
         .agents {
             margin: 2rem 0;
         }
-        .agents h2 {
+        .agents h2, .email-health h2 {
             font-size: 1rem;
             font-weight: normal;
             letter-spacing: 1px;
@@ -131,6 +145,30 @@
         .log-entry.error {
             color: #f00;
         }
+        .email-health {
+            margin: 2rem 0;
+            border: 1px solid #333;
+            padding: 1.5rem;
+        }
+        .email-health-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .email-stats {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.85rem;
+            color: #999;
+        }
+        .email-stat {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .email-stat-value {
+            color: #fff;
+        }
         .data-section h2 {
             font-size: 1rem;
             margin-top: 2rem;
@@ -173,6 +211,15 @@
         .status-badge.done {
             background: #006600;
         }
+        .status-badge.success {
+            background: #006600;
+        }
+        .status-badge.failed {
+            background: #660000;
+        }
+        .status-badge.dry-run {
+            background: #664400;
+        }
         .back-link {
             display: inline-block;
             margin-bottom: 1rem;
@@ -183,22 +230,28 @@
         .back-link:hover {
             color: #fff;
         }
+        .empty-row {
+            color: #555;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">← Customer Dashboard</a>
+    <a href="/" class="back-link">Customer Dashboard</a>
     
     <div class="header">
         <h1>HOSS CONTROL ROOM</h1>
         <div class="autopilot-control">
-            <div style="text-align: right;">
-                <div>
+            <div class="status-panel">
+                <div class="status-row">
                     <span>Autopilot:</span>
                     <span class="status" id="autopilot-status">Loading...</span>
                 </div>
-                <div style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">
-                    Outbound: <span id="email-mode" style="color: #999;">...</span>
+                <div class="status-row">
+                    <span>Outbound:</span>
+                    <span class="status" id="email-mode">...</span>
                 </div>
+                <div class="config-hint" id="email-hint">Configure EMAIL_MODE in Secrets</div>
             </div>
             <button class="toggle-btn" id="autopilot-toggle" onclick="toggleAutopilot()">ENABLE</button>
         </div>
@@ -237,6 +290,38 @@
         <div class="log-entry">Awaiting agent execution...</div>
     </div>
 
+    <div class="email-health">
+        <div class="email-health-header">
+            <h2>EMAIL HEALTH</h2>
+            <div class="email-stats">
+                <div class="email-stat">
+                    <span>Mode:</span>
+                    <span class="email-stat-value" id="email-mode-detail">-</span>
+                </div>
+                <div class="email-stat">
+                    <span>Max/Cycle:</span>
+                    <span class="email-stat-value" id="email-max-cycle">10</span>
+                </div>
+            </div>
+        </div>
+        <table id="email-log-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Lead</th>
+                    <th>Company</th>
+                    <th>Email</th>
+                    <th>Subject</th>
+                    <th>Mode</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="7" class="empty-row">No email attempts yet</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <div class="data-section">
         <h2>RECENT TASKS</h2>
         <table id="tasks-table">
@@ -272,6 +357,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Name</th>
                     <th>Company</th>
                     <th>Niche</th>
                     <th>Status</th>
@@ -292,9 +378,23 @@
             updateAutopilotUI();
             
             const emailModeEl = document.getElementById('email-mode');
-            if (data.email_mode) {
-                emailModeEl.textContent = data.email_mode.toUpperCase();
-                emailModeEl.style.color = data.email_mode === 'dry-run' ? '#f90' : '#0f0';
+            const emailModeDetailEl = document.getElementById('email-mode-detail');
+            const emailMaxCycleEl = document.getElementById('email-max-cycle');
+            const emailHintEl = document.getElementById('email-hint');
+            
+            if (data.email) {
+                const mode = data.email.mode;
+                emailModeEl.textContent = mode;
+                emailModeDetailEl.textContent = mode;
+                emailMaxCycleEl.textContent = data.email.max_per_cycle || 10;
+                
+                if (mode === 'DRY_RUN') {
+                    emailModeEl.className = 'status warning';
+                    emailHintEl.textContent = 'Set EMAIL_MODE=SENDGRID in Secrets';
+                } else {
+                    emailModeEl.className = 'status enabled';
+                    emailHintEl.textContent = data.email.message || 'Configured';
+                }
             }
         }
 
@@ -328,6 +428,7 @@
                 const data = await res.json();
                 addLog(data.message, 'success');
                 setTimeout(refreshData, 500);
+                setTimeout(refreshEmailLog, 1000);
             } catch (e) {
                 addLog(`Error: ${e.message}`, 'error');
             }
@@ -340,6 +441,38 @@
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
             panel.appendChild(entry);
             panel.scrollTop = panel.scrollHeight;
+        }
+
+        async function refreshEmailLog() {
+            try {
+                const res = await fetch('/api/email-log?limit=10');
+                const data = await res.json();
+                const tbody = document.getElementById('email-log-table').querySelector('tbody');
+                
+                if (!data.entries || data.entries.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-row">No email attempts yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.entries.reverse().map(e => {
+                    const time = new Date(e.timestamp).toLocaleTimeString();
+                    const resultClass = e.result === 'success' ? 'success' : 
+                                       e.result === 'failed' ? 'failed' : 'dry-run';
+                    return `
+                        <tr>
+                            <td>${time}</td>
+                            <td>${e.lead_name || '-'}</td>
+                            <td>${e.company || '-'}</td>
+                            <td>${e.to_email}</td>
+                            <td>${(e.subject || '').substring(0, 30)}...</td>
+                            <td>${e.mode}</td>
+                            <td><span class="status-badge ${resultClass}">${e.result}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Email log refresh error:', e);
+            }
         }
 
         async function refreshData() {
@@ -356,7 +489,6 @@
                 document.getElementById('tasks-count').textContent = tasks.filter(t => t.status === 'pending').length;
                 document.getElementById('invoices-count').textContent = invoices.filter(i => i.status === 'draft').length;
 
-                // Tasks table
                 const tasksBody = document.getElementById('tasks-table').querySelector('tbody');
                 tasksBody.innerHTML = tasks.slice(-10).map(t => `
                     <tr>
@@ -369,7 +501,6 @@
                     </tr>
                 `).join('');
 
-                // Invoices table
                 const invoicesBody = document.getElementById('invoices-table').querySelector('tbody');
                 invoicesBody.innerHTML = invoices.slice(-10).map(i => {
                     const cust = customers.find(c => c.id === i.customer_id);
@@ -384,17 +515,17 @@
                     `;
                 }).join('');
 
-                // Leads table
                 const leadsBody = document.getElementById('leads-table').querySelector('tbody');
                 leadsBody.innerHTML = leads.slice(-10).map(l => {
                     const statusClass = l.status === 'contacted' ? 'running' : 
                                        l.status === 'responded' ? 'done' : 
                                        l.status === 'qualified' ? 'done' : '';
                     const lastContacted = l.last_contacted_at ? 
-                        new Date(l.last_contacted_at).toLocaleDateString() : '—';
+                        new Date(l.last_contacted_at).toLocaleDateString() : '-';
                     return `
                         <tr>
                             <td>${l.id}</td>
+                            <td>${l.name || '-'}</td>
                             <td>${l.company}</td>
                             <td>${l.niche}</td>
                             <td><span class="status-badge ${statusClass}">${l.status.toUpperCase()}</span></td>
@@ -407,10 +538,11 @@
             }
         }
 
-        // Initial load
         loadSettings();
         refreshData();
+        refreshEmailLog();
         setInterval(refreshData, 10000);
+        setInterval(refreshEmailLog, 15000);
     </script>
 </body>
 </html>

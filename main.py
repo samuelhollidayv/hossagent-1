@@ -30,7 +30,7 @@ from agents import (
     run_ops_cycle,
     run_billing_cycle,
 )
-from email_utils import send_email, get_email_mode
+from email_utils import send_email, get_email_status, get_email_log
 
 app = FastAPI(title="HossAgent Control Engine")
 
@@ -398,16 +398,24 @@ async def toggle_autopilot(enabled: bool, session: Session = Depends(get_session
 
 @app.get("/api/settings")
 def get_settings(session: Session = Depends(get_session)):
-    """Get current system settings including email mode."""
+    """Get current system settings including email configuration."""
     settings = session.exec(
         select(SystemSettings).where(SystemSettings.id == 1)
     ).first()
+    email_status = get_email_status()
+    
     if settings:
         return {
             "autopilot_enabled": settings.autopilot_enabled,
-            "email_mode": get_email_mode()
+            "email": email_status
         }
-    return {"error": "Settings not found", "email_mode": get_email_mode()}
+    return {"error": "Settings not found", "email": email_status}
+
+
+@app.get("/api/email-log")
+def get_email_log_endpoint(limit: int = Query(default=10, le=50)):
+    """Get recent email attempts for admin console display."""
+    return {"entries": get_email_log(limit)}
 
 
 # ============================================================================
@@ -466,26 +474,43 @@ def send_test_email(
     subject: Optional[str] = Query(default="HossAgent Test Email", description="Email subject"),
     body: Optional[str] = Query(default=None, description="Email body")
 ):
-    """Send a test email to verify configuration."""
-    mode = get_email_mode()
+    """
+    Send a test email to verify configuration.
+    
+    Usage: POST /admin/send-test-email?to_email=your@email.com
+    
+    Returns JSON with:
+        - mode: Current email mode (DRY_RUN, SENDGRID, SMTP)
+        - to: Recipient address
+        - success: Whether email was actually sent
+        - message: Human-readable status
+    """
+    email_status = get_email_status()
+    mode = email_status["mode"]
     
     if body is None:
         body = f"""This is a test email from HossAgent.
 
 Your outbound email system is configured and working.
 
-Mode: {mode.upper()}
+Mode: {mode}
 Sent at: {datetime.utcnow().isoformat()}
 
 - HossAgent"""
     
-    success = send_email(to_email, subject, body)
+    success = send_email(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        lead_name="Test",
+        company="Test Email"
+    )
     
     return {
         "success": success,
         "mode": mode,
-        "recipient": to_email,
-        "message": f"Email {'sent' if success else 'not sent (check mode)'} via {mode}"
+        "to": to_email,
+        "message": f"Email {'sent successfully' if success else 'logged (dry-run mode)'} via {mode}"
     }
 
 
