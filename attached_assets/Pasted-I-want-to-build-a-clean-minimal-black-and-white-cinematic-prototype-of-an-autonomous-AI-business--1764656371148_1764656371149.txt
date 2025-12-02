@@ -1,0 +1,78 @@
+I want to build a clean, minimal, black-and-white, cinematic prototype of an autonomous AI business engine called HossAgent. This system must include a FastAPI backend, a SQLite database, four autonomous agents (BizDev, Onboarding, Ops, Billing), and a modern noir-style landing page plus a control-room admin interface. The system should not use emojis, playful colors, gradients, or purple UI elements. The aesthetic must be matte black, white, gunmetal gray, high contrast, premium typography, minimal spacing, subtle transitions, and a serious founder-to-investor tone. Think high-end SaaS with an outlaw edge.
+
+BACKEND REQUIREMENTS
+Use: Python, FastAPI, SQLModel (or SQLAlchemy), SQLite, Uvicorn.
+File structure: main.py, models.py, agents.py, database.py, templates/, static/.
+Set up FastAPI routing to serve both the landing page and the control room.
+
+DATA MODELS (SQLModel preferred)
+Lead: id, name, email, company, niche, status (new/contacted/responded/qualified/dead), last_contacted_at
+Customer: id, company, contact_email, plan, status (active/trial/paused), notes
+Task: id, customer_id (FK), description, status (pending/running/done/failed), reward_cents, cost_cents, profit_cents, result_summary, created_at, completed_at
+Invoice: id, customer_id (FK), amount_cents, status (draft/sent/paid), created_at, paid_at, notes
+
+AGENT LOGIC (agents.py)
+Create four stub functions that manipulate the DB. They should log in plain, dry operational language (no emojis, no jokes).
+run_bizdev_agent(session): generate 1–2 realistic leads, status=“new”.
+run_onboarding_agent(session): convert a responded lead into a customer; create 1–2 template tasks; set lead to qualified.
+run_ops_agent(session): pick next pending task, mark running, simulate OpenAI call (return fake summary string), set cost_cents (e.g., 3), compute profit, mark done. Add clear comment where real OpenAI calls will plug in later.
+run_billing_agent(session): aggregate completed tasks per customer since last invoice, generate a draft invoice record.
+
+API ENDPOINTS
+GET /api/leads
+GET /api/customers
+GET /api/tasks
+GET /api/invoices
+POST /api/run/bizdev
+POST /api/run/onboarding
+POST /api/run/ops
+POST /api/run/billing
+POST /api/tasks/{id}/complete (placeholder for future integration)
+
+CONTROL ROOM (templates/control_room.html)
+A black/white minimal admin interface. No emojis, no playful colors. Use Tailwind CDN.
+Display four metric cards: total leads, total customers, pending tasks, draft invoices.
+Under that, four large rectangular buttons: Run BizDev Agent, Run Onboarding Agent, Run Ops Agent, Run Billing Agent. Each button triggers the corresponding POST endpoint via fetch() and refreshes data.
+Below the buttons, display four collapsible sections or tabs: Leads, Customers, Tasks, Invoices. Each table must be clean, monochrome, modern, with subtle borders and ample spacing.
+JavaScript should load all data from /api/* on page load and refresh after agent runs.
+
+LANDING PAGE (templates/index.html)
+Noir, cinematic, black background (#0A0A0A), white text, minimal accent color (very subtle steel blue if needed). Big serif headline + clean sans-serif body copy. No gradients except extremely subtle linear fades. No shadows except minimal drop for contrast.
+Sections:
+Hero
+Headline: “Autonomous AI workers, designed to earn.”
+Subheadline: “HossAgent is a prototype of an autonomous business: finding work, doing work, and proving its profit in real time.”
+Buttons: “See the System” (scroll to demo) and “Talk to the Founder” (mailto placeholder).
+Use a monochrome abstract geometric background.
+
+What This Is
+Plain-spoken paragraph explaining the system: four agents, one data model, a closed business loop: Lead → Customer → Task → Invoice.
+
+Why It Matters
+Three cards:
+“Manual digital work is expensive.”
+“AI tools rarely tie cost to ROI.”
+“Autonomy only matters when it pays for itself.”
+
+Architecture
+A horizontal step diagram visually representing: Lead → Customer → Task → Invoice. Underneath: “A minimal closed-loop business engine.”
+
+Live Demo
+Embed the control room at a dedicated route such as /control. Use a clean framed iframe placeholder with a comment indicating where to insert the real URL.
+
+Vision
+Clear paragraph describing the roadmap: multi-agent fleets, outbound automation, integrations, autonomous revenue loops, scaled operations without headcount.
+
+Footer
+Minimal text: “© 2025 HossAgent. Built in a garage. Designed for scale.”
+
+IMPLEMENTATION DETAILS
+Serve index.html at “/”.
+Serve control_room.html at “/control”.
+Use Tailwind CDN.
+Use a small script.js for smooth scrolling, collapsible sections, table refresh.
+Ensure everything is responsive on mobile.
+Comment clearly in agents.py where real OpenAI calls and real Stripe billing logic will be integrated.
+Include a summary of the final file/tree structure at the end so I can verify everything was created.
+
+Build this entire system cleanly from scratch, replacing any existing playful UI, emojis, purple themes, or old code remnants. The result must be a polished noir-style SaaS prototype with working backend endpoints and a functioning control room.
