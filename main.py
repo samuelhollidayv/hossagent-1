@@ -31,6 +31,8 @@ from agents import (
     run_billing_cycle,
 )
 from email_utils import send_email, get_email_status, get_email_log
+from lead_service import generate_new_leads_from_source, get_lead_source_log
+from lead_sources import get_lead_source_status
 
 app = FastAPI(title="HossAgent Control Engine")
 
@@ -53,7 +55,12 @@ async def autopilot_loop():
     Background task: Runs agent cycles automatically when autopilot is enabled.
     
     Checks SystemSettings.autopilot_enabled every 5 minutes.
-    If enabled, runs all four agent cycles in sequence.
+    If enabled, runs the full pipeline:
+      1. Lead Generation - Fetch new leads from configured source (capped by MAX_NEW_LEADS_PER_CYCLE)
+      2. BizDev - Send outreach emails to NEW leads (capped by MAX_EMAILS_PER_CYCLE)
+      3. Onboarding - Convert qualified leads to customers
+      4. Ops - Execute pending tasks
+      5. Billing - Generate invoices for completed work
     
     Safe: Catches and logs exceptions without crashing the loop.
     """
@@ -66,6 +73,9 @@ async def autopilot_loop():
 
                 if settings and settings.autopilot_enabled:
                     print("\n[AUTOPILOT] Starting cycle...")
+                    
+                    generate_new_leads_from_source(session)
+                    
                     await run_bizdev_cycle(session)
                     await run_onboarding_cycle(session)
                     await run_ops_cycle(session)
@@ -416,6 +426,38 @@ def get_settings(session: Session = Depends(get_session)):
 def get_email_log_endpoint(limit: int = Query(default=10, le=50)):
     """Get recent email attempts for admin console display."""
     return {"entries": get_email_log(limit)}
+
+
+@app.get("/api/lead-source")
+def get_lead_source_endpoint():
+    """
+    Get current lead source configuration and status.
+    
+    Returns:
+        - niche: Target ICP description
+        - geography: Geographic constraint (if any)
+        - provider: Current provider (DummySeed or SearchApi)
+        - max_new_leads_per_cycle: Lead generation cap
+        - last_run: Timestamp of last lead generation run
+        - last_created_count: Number of leads created in last run
+    """
+    status = get_lead_source_status()
+    log = get_lead_source_log()
+    
+    return {
+        **status,
+        "last_run": log.get("last_run"),
+        "last_created_count": log.get("last_created_count", 0),
+        "runs": log.get("runs", [])[-10:],
+        "recent_leads": log.get("recent_leads", [])[-10:]
+    }
+
+
+@app.post("/api/run/lead-source")
+def run_lead_source_manual(session: Session = Depends(get_session)):
+    """Manually trigger lead source generation cycle."""
+    message = generate_new_leads_from_source(session)
+    return {"message": message}
 
 
 # ============================================================================
