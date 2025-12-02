@@ -1,0 +1,46 @@
+Archive the current investor-facing landing page (don’t delete it—just move or hide it so we can access later). Then reframe the current “Control Room” as the Admin Dashboard for internal use (admin-only), and build a Customer Portal for external client access. Here’s what each interface should include:
+
+⸻
+
+1. Admin Dashboard (for me):
+	•	Show all leads, customers, tasks, invoices, and agents
+	•	Allow override or debugging (e.g., manually edit customer/task data)
+	•	Toggle automation on/off per customer or globally
+	•	View logs of agent activity
+	•	View revenue and profit stats
+	•	Add new customers or leads manually if needed
+
+⸻
+
+2. Customer Portal (for them):
+
+Accessible by customer login/email or a secure token-based link.
+
+Show each customer:
+	•	Their company name and contact
+	•	Their current status and plan
+	•	Active + completed tasks (what’s being worked on and what’s done)
+	•	Agent summaries / research summaries
+	•	Invoices with amount, due dates, and payment status
+	•	Stripe billing integration (update card, pay invoices, view history)
+	•	Optional: ability to approve or reject new scopes of work (e.g., new research jobs, proposals, etc.)
+
+⸻
+
+3. Automation (Core Logic Refactor):
+
+Remove the need to manually click “Run BizDev” or “Run Invoicing” in the UI.
+
+Instead:
+	•	System should autonomously initiate lead gen and business operations on a schedule (e.g. every X hours)
+	•	Automatically create tasks when leads are converted
+	•	Automatically assign tasks to agents
+	•	Automatically invoice customers upon task completion
+	•	Automatically update the database and UI to reflect all this activity
+	•	Admin should be able to toggle automation on/off (globally or per customer)
+
+Use background tasks / scheduling (e.g., FastAPI background tasks or APScheduler) to run these loops outside the main request cycle.
+
+Make sure agents do not require human initiation to perform their job loops.
+
+If needed, introduce an async event loop or lightweight task queue pattern to manage jobs across agents.
