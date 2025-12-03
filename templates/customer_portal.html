@@ -1189,6 +1189,7 @@
         
         const opportunityCache = {{}};
         let activeOpportunityId = null;
+        const currentCustomerId = {customer_id};
         
         async function showOpportunityDetail(opportunityId) {{
             const detailRow = document.getElementById('opp-detail-' + opportunityId);
@@ -1221,7 +1222,7 @@
             contentDiv.innerHTML = '<div class="loading-indicator">Loading details...</div>';
             
             try {{
-                const response = await fetch('/api/opportunity/' + opportunityId + '/detail');
+                const response = await fetch('/api/opportunity/' + opportunityId + '/detail?customer_id=' + currentCustomerId);
                 if (!response.ok) {{
                     throw new Error('Failed to load opportunity details');
                 }}

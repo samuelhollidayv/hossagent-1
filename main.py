@@ -2602,6 +2602,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         payment_banner = '<div class="payment-success">Your subscription has been reactivated. Thank you for staying with us!</div>'
     
     html = template.format(
+        customer_id=customer.id,
         tasks_rows=tasks_rows,
         plan_section=plan_section,
         invoices_section=invoices_section,
@@ -3092,7 +3093,8 @@ def get_output_history(
 def get_opportunity_detail(
     opportunity_id: int,
     request: Request,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    customer_id: Optional[int] = Query(None, description="Customer ID for portal access")
 ):
     """
     Get detailed opportunity (LeadEvent) data for customer portal.
@@ -3104,10 +3106,18 @@ def get_opportunity_detail(
     - Related Report records
     - Lead info (if linked)
     
-    Authenticated via customer session cookie.
+    Authenticated via customer session cookie OR customer_id parameter.
+    The customer_id parameter is used when viewing portal via admin token.
     """
+    customer = None
+    
     session_token = request.cookies.get(SESSION_COOKIE_NAME)
-    customer = get_customer_from_session(session, session_token)
+    if session_token:
+        customer = get_customer_from_session(session, session_token)
+    
+    if not customer and customer_id:
+        customer = session.exec(select(Customer).where(Customer.id == customer_id)).first()
+    
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     
