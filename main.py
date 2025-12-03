@@ -808,9 +808,9 @@ async def run_billing(session: Session = Depends(get_session)):
 
 
 @app.post("/api/run/signals")
-def run_signals_manual(session: Session = Depends(get_session)):
+def run_signals_manual(request: Request, session: Session = Depends(get_session)):
     """
-    Manually trigger Signals Agent cycle.
+    Manually trigger Signals Agent cycle (admin only).
     
     The Signals Agent:
     - Monitors external context signals about companies
@@ -821,6 +821,10 @@ def run_signals_manual(session: Session = Depends(get_session)):
         - signals_created: Number of new signals generated
         - events_created: Number of new lead events created
     """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
     result = run_signals_agent(session)
     return {
         "message": f"Signals: Created {result['signals_created']} signals, {result['events_created']} events",
@@ -829,12 +833,16 @@ def run_signals_manual(session: Session = Depends(get_session)):
 
 
 @app.post("/api/run/event-bizdev")
-async def run_event_bizdev(session: Session = Depends(get_session)):
+async def run_event_bizdev(request: Request, session: Session = Depends(get_session)):
     """
-    Manually trigger Event-Driven BizDev cycle.
+    Manually trigger Event-Driven BizDev cycle (admin only).
     
     Processes LeadEvents with status='new' and sends contextual Miami-style outreach.
     """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
     message = await run_event_driven_bizdev_cycle(session)
     return {"message": message}
 

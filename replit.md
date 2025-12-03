@@ -49,11 +49,18 @@ The system adopts a "black-label noir" aesthetic with deep black backgrounds (`#
 
 **Core Features:**
 - **Autonomous Agents**:
-    - **BizDev Cycle**: Prospects new leads via outreach emails.
+    - **Signals Agent**: Monitors external context signals (job postings, reviews, competitor updates, permits, weather) and generates actionable LeadEvents for moment-aware outreach.
+    - **BizDev Cycle**: Prospects new leads via outreach emails (standard templates).
+    - **Event-Driven BizDev Cycle**: Sends contextual outreach emails based on LeadEvents with Miami-tuned templates.
     - **Onboarding Cycle**: Converts qualified leads into customers and initiates tasks.
     - **Ops Cycle**: Executes tasks, calculating reward, cost, and profit.
     - **Billing Cycle**: Generates invoices and integrates with Stripe for payment links.
-- **Data Models**: `SystemSettings`, `Lead`, `Customer`, `Task`, `Invoice`, `TrialIdentity` manage system state and business entities.
+- **Signals Engine**: The "Ethical Briefcase System" - transforms HossAgent from generic lead gen into a context-aware intelligence engine:
+    - **Signal Types**: job_posting, review, competitor_update, permit, weather, news, demographics
+    - **LeadEvent Categories**: HURRICANE_SEASON, COMPETITOR_SHIFT, GROWTH_SIGNAL, BILINGUAL_OPPORTUNITY, REPUTATION_CHANGE, MIAMI_PRICE_MOVE, OPPORTUNITY
+    - **Urgency Scoring**: 0-100 scale, events with urgency >= 75 are marked as "[Time-Sensitive]"
+    - **Miami-Tuned Heuristics**: Templates and categories tailored to South Florida market
+- **Data Models**: `SystemSettings`, `Lead`, `Customer`, `Task`, `Invoice`, `TrialIdentity`, `Signal`, `LeadEvent` manage system state and business entities.
 - **Email Infrastructure**: Supports SendGrid and SMTP with robust throttling and DRY_RUN mode for safety.
 - **Lead Generation**: Configurable lead sourcing with domain-based deduplication.
 - **Stripe Integration**: Handles subscription checkout, invoice payment links, billing portal, webhook processing, and payment status updates.
@@ -154,11 +161,12 @@ The system automatically creates a Stripe product ("HossAgent Subscription") and
 ```
 main.py                  # FastAPI application, routes, and agent orchestration
 auth_utils.py            # Authentication utilities (password hashing, sessions)
-models.py                # SQLModel data models (Customer, Lead, Task, Invoice, TrialIdentity)
+models.py                # SQLModel data models (Customer, Lead, Task, Invoice, TrialIdentity, Signal, LeadEvent)
 database.py              # Database connection and session management
 subscription_utils.py    # Subscription logic, plan gating, checkout link creation
 stripe_utils.py          # Stripe API integration (payments, subscriptions, webhooks)
-agents.py                # Agent cycle implementations with plan gating
+agents.py                # Agent cycle implementations with plan gating (includes event-driven BizDev)
+signals_agent.py         # Signals Engine: context monitoring and LeadEvent generation
 email_utils.py           # Email sending infrastructure
 bizdev_templates.py      # BizDev email template management
 lead_sources.py          # External lead API integration
@@ -168,8 +176,8 @@ templates/
   auth_signup.html       # Customer signup form
   auth_login.html        # Customer login form
   admin_login.html       # Admin password form
-  admin_console.html     # Internal admin interface with all metrics and controls
-  customer_portal.html   # Clean customer-facing portal (Plan, Work, Invoices)
+  admin_console.html     # Internal admin interface with Signals Engine controls
+  customer_portal.html   # Clean customer-facing portal with Today's Opportunities
 hossagent.db            # SQLite database file
 ```
 
@@ -183,6 +191,14 @@ hossagent.db            # SQLite database file
 - **External Lead API**: Optional third-party service for lead sourcing.
 
 ## Recent Changes
+- **Signals Engine Implementation**: Added complete context-aware intelligence system
+  - Created Signal and LeadEvent database models for tracking opportunities
+  - Created signals_agent.py with Miami-tuned heuristics for 7 signal types
+  - Added event-driven BizDev cycle with contextual email templates
+  - Integrated "Today's Opportunities" panel in customer portal (urgency-sorted)
+  - Added Signals Engine section in admin console with run controls
+  - Urgency scoring with fire icons for high-priority events (70+)
+  - Time-sensitive flagging for events with urgency >= 75
 - Added complete authentication system with email+password login
 - Created marketing landing page at / with trial CTA
 - Implemented customer signup flow with trial abuse prevention
