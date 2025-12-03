@@ -322,6 +322,88 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+        .detail-row {
+            display: none;
+        }
+        .detail-row.open {
+            display: table-row;
+        }
+        .detail-row td {
+            padding: 0;
+            background: #111;
+        }
+        .detail-content {
+            padding: 1.5rem;
+            border-left: 3px solid #333;
+            margin-left: 1rem;
+        }
+        .detail-section {
+            margin-bottom: 1.5rem;
+        }
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+        .detail-section-title {
+            color: #888;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .detail-text {
+            color: #ccc;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .detail-item {
+            margin-bottom: 0.5rem;
+        }
+        .detail-label {
+            color: #666;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        .detail-value {
+            color: #fff;
+            font-size: 0.85rem;
+        }
+        .detail-outbound, .detail-report {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .detail-outbound-subject {
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .detail-outbound-to {
+            color: #888;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        .detail-outbound-body {
+            color: #aaa;
+            font-size: 0.8rem;
+            max-height: 100px;
+            overflow: hidden;
+        }
+        .no-data {
+            color: #555;
+            font-style: italic;
+            font-size: 0.8rem;
+        }
+        tr.expanded {
+            background: #1a1a1a;
+        }
     </style>
 </head>
 <body>
@@ -646,7 +728,7 @@
                     const statusClass = (e.status || '').toLowerCase();
                     const created = e.created_at ? new Date(e.created_at).toLocaleString() : '-';
                     return `
-                        <tr class="clickable">
+                        <tr class="clickable" data-event-id="${e.id}" onclick="toggleEventDetail(this, ${e.id})">
                             <td class="summary-truncate">${summary}</td>
                             <td>${e.category || '-'}</td>
                             <td>${e.urgency_score || 0}</td>
@@ -656,10 +738,107 @@
                             <td>${e.company || '-'}</td>
                             <td>${created}</td>
                         </tr>
+                        <tr class="detail-row" id="detail-row-${e.id}">
+                            <td colspan="8">
+                                <div class="detail-content" id="detail-content-${e.id}">
+                                    <div class="no-data">Loading...</div>
+                                </div>
+                            </td>
+                        </tr>
                     `;
                 }).join('');
             } catch (e) {
                 console.error('Lead events refresh error:', e);
+            }
+        }
+
+        async function toggleEventDetail(row, eventId) {
+            const detailRow = document.getElementById('detail-row-' + eventId);
+            const detailContent = document.getElementById('detail-content-' + eventId);
+            
+            if (detailRow.classList.contains('open')) {
+                detailRow.classList.remove('open');
+                row.classList.remove('expanded');
+                return;
+            }
+            
+            document.querySelectorAll('.detail-row.open').forEach(r => r.classList.remove('open'));
+            document.querySelectorAll('tr.expanded').forEach(r => r.classList.remove('expanded'));
+            
+            detailRow.classList.add('open');
+            row.classList.add('expanded');
+            
+            try {
+                const res = await fetch('/api/admin/lead_event/' + eventId + '/detail');
+                const data = await res.json();
+                
+                let html = '';
+                
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">Full Summary</div>';
+                html += '<div class="detail-text">' + (data.summary || 'No summary') + '</div>';
+                html += '</div>';
+                
+                if (data.signal) {
+                    html += '<div class="detail-section">';
+                    html += '<div class="detail-section-title">Signal Context</div>';
+                    html += '<div class="detail-grid">';
+                    html += '<div class="detail-item"><div class="detail-label">Source</div><div class="detail-value">' + (data.signal.source_type || '-') + '</div></div>';
+                    html += '<div class="detail-item"><div class="detail-label">Geography</div><div class="detail-value">' + (data.signal.geography || '-') + '</div></div>';
+                    html += '</div>';
+                    html += '<div class="detail-text" style="margin-top: 0.5rem;">' + (data.signal.context_summary || 'No context') + '</div>';
+                    html += '</div>';
+                }
+                
+                if (data.lead) {
+                    html += '<div class="detail-section">';
+                    html += '<div class="detail-section-title">Lead Info</div>';
+                    html += '<div class="detail-grid">';
+                    html += '<div class="detail-item"><div class="detail-label">Name</div><div class="detail-value">' + (data.lead.name || '-') + '</div></div>';
+                    html += '<div class="detail-item"><div class="detail-label">Company</div><div class="detail-value">' + (data.lead.company || '-') + '</div></div>';
+                    html += '<div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">' + (data.lead.email || '-') + '</div></div>';
+                    html += '<div class="detail-item"><div class="detail-label">Niche</div><div class="detail-value">' + (data.lead.niche || '-') + '</div></div>';
+                    html += '<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">' + (data.lead.status || '-') + '</div></div>';
+                    html += '<div class="detail-item"><div class="detail-label">Source</div><div class="detail-value">' + (data.lead.source || '-') + '</div></div>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+                
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">Outbound Messages (' + (data.outbound_messages ? data.outbound_messages.length : 0) + ')</div>';
+                if (data.outbound_messages && data.outbound_messages.length > 0) {
+                    data.outbound_messages.forEach(o => {
+                        html += '<div class="detail-outbound">';
+                        html += '<div class="detail-outbound-subject">' + (o.subject || 'No subject') + '</div>';
+                        html += '<div class="detail-outbound-to">To: ' + (o.to_email || '-') + ' | Status: ' + (o.status || '-') + '</div>';
+                        html += '<div class="detail-outbound-body">' + (o.body || 'No body').substring(0, 200) + '...</div>';
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<div class="no-data">No outbound messages</div>';
+                }
+                html += '</div>';
+                
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">Reports (' + (data.reports ? data.reports.length : 0) + ')</div>';
+                if (data.reports && data.reports.length > 0) {
+                    data.reports.forEach(r => {
+                        html += '<div class="detail-report">';
+                        html += '<div class="detail-outbound-subject">' + (r.title || 'Untitled Report') + '</div>';
+                        html += '<div class="detail-outbound-to">Type: ' + (r.report_type || '-') + '</div>';
+                        if (r.description) {
+                            html += '<div class="detail-outbound-body">' + r.description + '</div>';
+                        }
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<div class="no-data">No reports</div>';
+                }
+                html += '</div>';
+                
+                detailContent.innerHTML = html;
+            } catch (err) {
+                detailContent.innerHTML = '<div class="no-data">Error loading details: ' + err.message + '</div>';
             }
         }
 

@@ -3186,6 +3186,144 @@ def get_opportunity_detail(
     }
 
 
+# ============================================================================
+# LEAD EVENT DETAIL API - ADMIN CONSOLE
+# ============================================================================
+
+
+@app.get("/api/admin/lead_event/{event_id}/detail")
+def get_lead_event_detail_admin(
+    event_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get detailed LeadEvent data for admin console.
+    
+    Returns:
+    - Full LeadEvent data
+    - Related Signal context
+    - Related PendingOutbound records
+    - Related Report records
+    - Lead info (if linked)
+    
+    Authenticated via admin session cookie.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    event = session.exec(
+        select(LeadEvent).where(LeadEvent.id == event_id)
+    ).first()
+    
+    if not event:
+        raise HTTPException(status_code=404, detail="Lead event not found")
+    
+    signal_data = None
+    if event.signal_id:
+        signal = session.exec(
+            select(Signal).where(Signal.id == event.signal_id)
+        ).first()
+        if signal:
+            signal_data = {
+                "id": signal.id,
+                "source_type": signal.source_type,
+                "context_summary": signal.context_summary,
+                "geography": signal.geography,
+                "created_at": signal.created_at.isoformat() if signal.created_at else None
+            }
+    
+    outbound_records = session.exec(
+        select(PendingOutbound).where(
+            PendingOutbound.lead_event_id == event.id
+        ).order_by(PendingOutbound.created_at.desc())
+    ).all()
+    
+    outbound_list = []
+    for o in outbound_records:
+        outbound_list.append({
+            "id": o.id,
+            "to_email": o.to_email,
+            "to_name": o.to_name,
+            "subject": o.subject,
+            "body": o.body,
+            "context_summary": o.context_summary,
+            "status": o.status,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "sent_at": o.sent_at.isoformat() if o.sent_at else None
+        })
+    
+    report_records = session.exec(
+        select(Report).where(
+            (Report.lead_event_id == event.id) |
+            (Report.lead_id == event.lead_id)
+        ).order_by(Report.created_at.desc())
+    ).all() if event.lead_id else session.exec(
+        select(Report).where(Report.lead_event_id == event.id).order_by(Report.created_at.desc())
+    ).all()
+    
+    reports_list = []
+    for r in report_records:
+        reports_list.append({
+            "id": r.id,
+            "title": r.title,
+            "description": r.description,
+            "content": r.content,
+            "report_type": r.report_type,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+    
+    lead_data = None
+    if event.lead_id:
+        lead = session.exec(
+            select(Lead).where(Lead.id == event.lead_id)
+        ).first()
+        if lead:
+            lead_data = {
+                "id": lead.id,
+                "name": lead.name,
+                "email": lead.email,
+                "company": lead.company,
+                "niche": lead.niche,
+                "status": lead.status,
+                "website": lead.website,
+                "source": lead.source
+            }
+    
+    company_data = None
+    if event.company_id:
+        customer = session.exec(
+            select(Customer).where(Customer.id == event.company_id)
+        ).first()
+        if customer:
+            company_data = {
+                "id": customer.id,
+                "company": customer.company,
+                "email": customer.email
+            }
+    
+    return {
+        "id": event.id,
+        "summary": event.summary,
+        "category": event.category,
+        "urgency_score": event.urgency_score,
+        "status": event.status,
+        "recommended_action": event.recommended_action,
+        "outbound_message": event.outbound_message,
+        "last_contact_at": event.last_contact_at.isoformat() if event.last_contact_at else None,
+        "last_contact_summary": event.last_contact_summary,
+        "next_step": event.next_step,
+        "next_step_owner": event.next_step_owner,
+        "created_at": event.created_at.isoformat() if event.created_at else None,
+        "signal": signal_data,
+        "outbound_messages": outbound_list,
+        "reports": reports_list,
+        "lead": lead_data,
+        "company": company_data
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)
