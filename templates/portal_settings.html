@@ -1,197 +1,332 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Settings - HossAgent Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {{
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+            --accent-red: #ef4444;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }}
+        
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
+        
         body {{
-            background: #0a0a0a;
-            color: #fff;
-            font-family: Georgia, 'Times New Roman', serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
             padding: 2rem;
             min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }}
+        
         .container {{
             max-width: 800px;
             margin: 0 auto;
         }}
+        
         .header-nav {{
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding-bottom: 1.5rem;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-subtle);
             margin-bottom: 2rem;
         }}
+        
         .logo-link {{
-            font-size: 1rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
             text-decoration: none;
+            transition: opacity var(--transition-normal);
         }}
+        
+        .logo-link:hover {{
+            opacity: 0.8;
+        }}
+        
         .nav-links {{
             display: flex;
             gap: 1.5rem;
         }}
+        
         .nav-link {{
-            color: #666;
+            color: var(--text-secondary);
             text-decoration: none;
             font-size: 0.9rem;
+            font-weight: 400;
+            transition: color var(--transition-normal);
         }}
+        
         .nav-link:hover {{
-            color: #fff;
+            color: var(--text-primary);
         }}
+        
         .nav-link.active {{
-            color: #fff;
+            color: var(--text-primary);
         }}
+        
         .hero {{
             text-align: center;
-            padding: 2rem 0 3rem;
-            border-bottom: 1px solid #333;
+            padding: 2.5rem 0 3rem;
+            border-bottom: 1px solid var(--border-subtle);
             margin-bottom: 2.5rem;
         }}
+        
         h1 {{
-            font-size: 2rem;
-            font-weight: normal;
-            letter-spacing: 1px;
+            font-size: 2.25rem;
+            font-weight: 500;
+            letter-spacing: -0.02em;
             margin-bottom: 0.75rem;
         }}
+        
         .hero-subtitle {{
-            color: #888;
+            color: var(--text-secondary);
             font-size: 1rem;
+            font-weight: 300;
         }}
+        
         .section {{
-            margin: 2.5rem 0;
-            border: 1px solid #333;
-            padding: 1.5rem;
+            margin: 2rem 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            transition: border-color var(--transition-normal);
         }}
+        
+        .section:hover {{
+            border-color: var(--border-medium);
+        }}
+        
         .section-title {{
-            font-size: 0.9rem;
-            font-weight: normal;
-            letter-spacing: 2px;
-            color: #999;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: var(--accent-green);
             text-transform: uppercase;
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         .form-group {{
             margin-bottom: 1.5rem;
         }}
+        
         .form-group label {{
             display: block;
             font-size: 0.85rem;
-            color: #999;
+            color: var(--text-secondary);
             margin-bottom: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.05em;
+            font-weight: 500;
         }}
+        
         .form-group input,
         .form-group textarea,
         .form-group select {{
             width: 100%;
-            background: #111;
-            border: 1px solid #333;
-            color: #fff;
-            padding: 0.75rem;
-            font-family: Georgia, serif;
-            font-size: 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            color: var(--text-primary);
+            padding: 0.85rem 1rem;
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
         }}
+        
+        .form-group input:hover,
+        .form-group textarea:hover,
+        .form-group select:hover {{
+            border-color: var(--text-tertiary);
+        }}
+        
         .form-group input:focus,
         .form-group textarea:focus,
         .form-group select:focus {{
             outline: none;
-            border-color: #fff;
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 3px var(--accent-green-dim);
         }}
+        
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {{
+            color: var(--text-tertiary);
+        }}
+        
         .form-group textarea {{
             min-height: 100px;
             resize: vertical;
+            line-height: 1.6;
         }}
+        
+        .form-group select {{
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23666666'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1.25rem;
+            padding-right: 2.5rem;
+        }}
+        
+        .form-group select option {{
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 0.5rem;
+        }}
+        
         .form-group .hint {{
             font-size: 0.75rem;
-            color: #666;
-            margin-top: 0.25rem;
+            color: var(--text-tertiary);
+            margin-top: 0.5rem;
+            line-height: 1.5;
         }}
+        
         .form-row {{
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+            gap: 1.25rem;
         }}
+        
         .btn-submit {{
             display: inline-block;
-            background: #fff;
-            color: #0a0a0a;
-            padding: 0.85rem 2.5rem;
-            border: 2px solid #fff;
-            font-weight: bold;
-            font-size: 1rem;
-            font-family: Georgia, serif;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 0.95rem 2.5rem;
+            border: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            font-family: var(--font-sans);
             cursor: pointer;
-            transition: all 0.2s ease;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
         }}
+        
         .btn-submit:hover {{
-            background: #0a0a0a;
-            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.12);
         }}
+        
+        .btn-submit:active {{
+            transform: translateY(0);
+        }}
+        
         .btn-secondary {{
             display: inline-block;
             background: transparent;
-            color: #fff;
-            padding: 0.85rem 2.5rem;
-            border: 1px solid #666;
-            font-weight: bold;
-            font-size: 1rem;
-            font-family: Georgia, serif;
+            color: var(--text-primary);
+            padding: 0.95rem 2.5rem;
+            border: 1px solid var(--border-medium);
+            font-weight: 500;
+            font-size: 0.95rem;
+            font-family: var(--font-sans);
             text-decoration: none;
             cursor: pointer;
-            transition: all 0.2s ease;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
             margin-left: 1rem;
         }}
+        
         .btn-secondary:hover {{
-            border-color: #fff;
+            border-color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
         }}
+        
         .form-actions {{
             margin-top: 2rem;
             padding-top: 1.5rem;
-            border-top: 1px solid #333;
+            border-top: 1px solid var(--border-subtle);
         }}
+        
         .success-message {{
-            background: rgba(0, 255, 0, 0.1);
-            border: 1px solid #006600;
-            padding: 1rem;
+            background: var(--accent-green-dim);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            padding: 1rem 1.25rem;
             text-align: center;
             margin-bottom: 2rem;
-            color: #0f0;
+            color: var(--accent-green);
+            border-radius: var(--radius-md);
         }}
+        
         .error-message {{
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid #660000;
-            padding: 1rem;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 1rem 1.25rem;
             text-align: center;
             margin-bottom: 2rem;
-            color: #f00;
+            color: var(--accent-red);
+            border-radius: var(--radius-md);
         }}
+        
         .footer {{
             margin-top: 3rem;
-            padding-top: 1rem;
-            border-top: 1px solid #222;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-subtle);
             text-align: center;
-            color: #444;
+            color: var(--text-tertiary);
             font-size: 0.8rem;
         }}
+        
         @media (max-width: 768px) {{
             body {{
                 padding: 1rem;
             }}
+            
             .form-row {{
                 grid-template-columns: 1fr;
+            }}
+            
+            .header-nav {{
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }}
+            
+            .btn-secondary {{
+                margin-left: 0;
+                margin-top: 0.75rem;
+            }}
+            
+            .form-actions {{
+                display: flex;
+                flex-direction: column;
+            }}
+            
+            .btn-submit,
+            .btn-secondary {{
+                width: 100%;
+                text-align: center;
             }}
         }}
     </style>
@@ -199,7 +334,7 @@
 <body>
     <div class="container">
         <div class="header-nav">
-            <a href="/" class="logo-link">HOSSAGENT</a>
+            <a href="/" class="logo-link">HossAgent</a>
             <div class="nav-links">
                 <a href="/portal" class="nav-link">Portal</a>
                 <a href="/portal/settings" class="nav-link active">Settings</a>

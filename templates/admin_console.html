@@ -2,318 +2,526 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HossAgent - Admin Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            background: #0a0a0a;
-            color: #fff;
-            font-family: 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
             padding: 2rem;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
+
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid #333;
-            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-medium);
+            padding-bottom: 1.5rem;
         }
+
         h1 {
-            font-size: 2rem;
-            font-weight: normal;
-            letter-spacing: 2px;
+            font-size: 1.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--text-primary);
         }
+
         .autopilot-control {
             display: flex;
-            gap: 1rem;
+            gap: 1.5rem;
             align-items: center;
         }
+
         .status-panel {
             text-align: right;
         }
+
         .status-row {
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.35rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
         }
+
         .toggle-btn {
-            background: #fff;
-            color: #0a0a0a;
+            background: var(--text-primary);
+            color: var(--bg-primary);
             border: none;
-            padding: 0.5rem 1.5rem;
+            padding: 0.625rem 1.75rem;
             cursor: pointer;
-            font-weight: bold;
-            font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
+            letter-spacing: 0.03em;
         }
+
         .toggle-btn:hover {
-            background: #ddd;
+            background: var(--text-secondary);
+            transform: translateY(-1px);
         }
+
+        .toggle-btn:active {
+            transform: translateY(0);
+        }
+
         .status {
-            font-size: 0.85rem;
-            color: #666;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            transition: color var(--transition-fast);
         }
+
         .status.enabled {
-            color: #0f0;
+            color: var(--accent-green);
         }
+
         .status.disabled {
-            color: #f00;
+            color: var(--accent-red);
         }
+
         .status.warning {
-            color: #f90;
+            color: var(--accent-orange);
         }
 
         .kpi-bar {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 1px;
-            background: #333;
-            border: 1px solid #333;
+            gap: 1rem;
             margin-bottom: 2rem;
         }
+
         .kpi-item {
-            background: #0a0a0a;
-            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
             text-align: center;
+            transition: all var(--transition-normal);
         }
+
+        .kpi-item:hover {
+            border-color: var(--border-medium);
+            transform: translateY(-2px);
+        }
+
         .kpi-value {
             font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 0.25rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            color: var(--text-primary);
         }
+
         .kpi-label {
-            font-size: 0.7rem;
-            color: #888;
+            font-size: 0.65rem;
+            color: var(--text-tertiary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.1em;
+            font-weight: 500;
         }
+
         .kpi-item.error .kpi-value {
-            color: #f66;
+            color: var(--accent-red);
         }
 
         .panel {
-            border: 1px solid #333;
-            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 1.25rem;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: border-color var(--transition-normal);
         }
+
+        .panel:hover {
+            border-color: var(--border-medium);
+        }
+
         .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 1rem 1.5rem;
-            background: #111;
+            background: var(--bg-secondary);
             cursor: pointer;
             user-select: none;
+            transition: background var(--transition-fast);
         }
+
         .panel-header:hover {
-            background: #1a1a1a;
+            background: var(--bg-tertiary);
         }
+
         .panel-title {
-            font-size: 0.9rem;
-            font-weight: normal;
-            letter-spacing: 1px;
-            color: #999;
-        }
-        .panel-toggle {
-            color: #666;
             font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
         }
+
+        .panel-toggle {
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
+            transition: transform var(--transition-fast);
+        }
+
         .panel-content {
             padding: 1.5rem;
             display: none;
+            background: var(--bg-primary);
         }
+
         .panel-content.open {
             display: block;
         }
+
         .panel.primary .panel-header {
-            background: #1a1a1a;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-subtle);
         }
+
+        .panel.primary .panel-header:hover {
+            background: #222222;
+        }
+
         .panel.primary .panel-title {
-            color: #fff;
-        }
-        .panel.primary .panel-content {
-            display: block;
+            color: var(--text-primary);
+            font-weight: 600;
         }
 
         .agents {
             display: flex;
-            gap: 1rem;
+            gap: 0.75rem;
             margin-bottom: 1.5rem;
             flex-wrap: wrap;
         }
+
         .agent-btn {
-            background: #fff;
-            color: #0a0a0a;
+            background: var(--text-primary);
+            color: var(--bg-primary);
             border: none;
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 1.25rem;
             cursor: pointer;
-            font-weight: bold;
-            font-size: 0.8rem;
-            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
+            letter-spacing: 0.03em;
         }
+
         .agent-btn:hover {
-            background: #ddd;
+            background: var(--text-secondary);
+            transform: translateY(-1px);
         }
+
+        .agent-btn:active {
+            transform: translateY(0);
+        }
+
         .agent-btn:disabled {
-            background: #666;
-            color: #999;
+            background: var(--text-tertiary);
+            color: var(--bg-tertiary);
             cursor: not-allowed;
+            transform: none;
         }
+
         .agent-btn.secondary {
-            background: #333;
-            color: #fff;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-medium);
         }
+
         .agent-btn.secondary:hover {
-            background: #444;
+            background: var(--border-medium);
+            color: var(--text-primary);
+            border-color: var(--text-tertiary);
         }
 
         .log-panel {
-            background: #111;
-            border: 1px solid #333;
-            padding: 1rem;
-            font-size: 0.8rem;
-            max-height: 200px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            font-size: 0.75rem;
+            max-height: 180px;
             overflow-y: auto;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
+
+        .log-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-panel::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        .log-panel::-webkit-scrollbar-thumb {
+            background: var(--border-medium);
+            border-radius: 3px;
+        }
+
         .log-entry {
-            margin-bottom: 0.25rem;
-            color: #888;
+            margin-bottom: 0.35rem;
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
         }
+
         .log-entry.success {
-            color: #0f0;
+            color: var(--accent-green);
         }
+
         .log-entry.error {
-            color: #f00;
+            color: var(--accent-red);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
+
         table th {
             text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid #333;
-            color: #666;
-            font-weight: normal;
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border-medium);
+            color: var(--text-tertiary);
+            font-weight: 500;
             text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 1px;
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            background: var(--bg-secondary);
         }
+
         table td {
-            padding: 0.75rem;
-            border-bottom: 1px solid #222;
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
         }
-        table tr:hover {
-            background: #111;
+
+        table tbody tr {
+            transition: background var(--transition-fast);
         }
+
+        table tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        table tbody tr:hover td {
+            color: var(--text-primary);
+        }
+
         table tr.clickable {
             cursor: pointer;
         }
+
         table tr.clickable:hover {
-            background: #1a1a1a;
+            background: var(--bg-tertiary);
         }
 
         .status-badge {
             display: inline-block;
-            padding: 0.2rem 0.5rem;
-            background: #333;
-            font-size: 0.7rem;
+            padding: 0.25rem 0.625rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            font-size: 0.65rem;
+            font-weight: 500;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all var(--transition-fast);
         }
-        .status-badge.new { background: #004466; }
-        .status-badge.contacted { background: #664400; }
-        .status-badge.responded { background: #446600; }
-        .status-badge.qualified { background: #006644; }
-        .status-badge.pending { background: #664400; }
-        .status-badge.approved { background: #004466; }
-        .status-badge.sent { background: #006600; }
-        .status-badge.failed { background: #660000; }
-        .status-badge.skipped { background: #663300; }
-        .status-badge.trial { background: #664400; color: #f90; }
-        .status-badge.paid { background: #006600; color: #0f0; }
-        .status-badge.expired { background: #660000; color: #f00; }
+
+        .status-badge.new { 
+            background: rgba(59, 130, 246, 0.15); 
+            color: #3b82f6;
+        }
+        .status-badge.contacted { 
+            background: rgba(249, 115, 22, 0.15); 
+            color: var(--accent-orange);
+        }
+        .status-badge.responded { 
+            background: rgba(132, 204, 22, 0.15); 
+            color: #84cc16;
+        }
+        .status-badge.qualified { 
+            background: var(--accent-green-dim); 
+            color: var(--accent-green);
+        }
+        .status-badge.pending { 
+            background: rgba(249, 115, 22, 0.15); 
+            color: var(--accent-orange);
+        }
+        .status-badge.approved { 
+            background: rgba(59, 130, 246, 0.15); 
+            color: #3b82f6;
+        }
+        .status-badge.sent { 
+            background: var(--accent-green-dim); 
+            color: var(--accent-green);
+        }
+        .status-badge.failed { 
+            background: rgba(239, 68, 68, 0.15); 
+            color: var(--accent-red);
+        }
+        .status-badge.skipped { 
+            background: rgba(249, 115, 22, 0.15); 
+            color: var(--accent-orange);
+        }
+        .status-badge.trial { 
+            background: rgba(249, 115, 22, 0.15); 
+            color: var(--accent-orange);
+        }
+        .status-badge.paid { 
+            background: var(--accent-green-dim); 
+            color: var(--accent-green);
+        }
+        .status-badge.expired { 
+            background: rgba(239, 68, 68, 0.15); 
+            color: var(--accent-red);
+        }
 
         .bool-indicator {
             display: inline-block;
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #333;
+            background: var(--bg-tertiary);
+            transition: all var(--transition-fast);
         }
+
         .bool-indicator.yes {
-            background: #0f0;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green-dim);
         }
+
         .bool-indicator.no {
-            background: #660000;
+            background: rgba(239, 68, 68, 0.4);
         }
 
         .empty-row {
-            color: #555;
+            color: var(--text-tertiary);
             font-style: italic;
         }
 
         .tabs {
             display: flex;
             gap: 0;
-            border-bottom: 1px solid #333;
-            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+            margin-bottom: 1.25rem;
         }
+
         .tab {
-            padding: 0.75rem 1.5rem;
+            padding: 0.875rem 1.5rem;
             cursor: pointer;
-            color: #666;
+            color: var(--text-tertiary);
             border-bottom: 2px solid transparent;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all var(--transition-fast);
+            letter-spacing: 0.02em;
         }
+
         .tab:hover {
-            color: #999;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
         }
+
         .tab.active {
-            color: #fff;
-            border-bottom-color: #fff;
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-green);
         }
+
         .tab-content {
             display: none;
         }
+
         .tab-content.active {
             display: block;
         }
 
         .back-link {
-            display: inline-block;
-            margin-bottom: 1rem;
-            color: #666;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-tertiary);
             text-decoration: none;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            transition: color var(--transition-fast);
+            font-weight: 500;
         }
+
         .back-link:hover {
-            color: #999;
+            color: var(--text-secondary);
         }
 
         .upgrade-btn {
-            background: #fff;
-            color: #0a0a0a;
+            background: var(--accent-green);
+            color: var(--bg-primary);
             border: none;
-            padding: 0.25rem 0.5rem;
+            padding: 0.35rem 0.75rem;
             cursor: pointer;
-            font-size: 0.7rem;
-            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-normal);
+            letter-spacing: 0.03em;
         }
+
         .upgrade-btn:hover {
-            background: #ddd;
+            background: #16a34a;
+            transform: translateY(-1px);
         }
 
         .portal-link {
-            color: #666;
+            color: var(--text-tertiary);
             text-decoration: none;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            transition: color var(--transition-fast);
+            border-bottom: 1px dashed var(--border-medium);
+            padding-bottom: 1px;
         }
+
         .portal-link:hover {
-            color: #999;
+            color: var(--accent-green);
+            border-bottom-color: var(--accent-green);
         }
 
         .summary-truncate {
@@ -326,83 +534,157 @@
         .detail-row {
             display: none;
         }
+
         .detail-row.open {
             display: table-row;
         }
+
         .detail-row td {
             padding: 0;
-            background: #111;
+            background: var(--bg-secondary);
         }
+
         .detail-content {
-            padding: 1.5rem;
-            border-left: 3px solid #333;
+            padding: 1.5rem 2rem;
+            border-left: 3px solid var(--accent-green);
             margin-left: 1rem;
+            background: var(--bg-secondary);
         }
+
         .detail-section {
             margin-bottom: 1.5rem;
         }
+
         .detail-section:last-child {
             margin-bottom: 0;
         }
+
         .detail-section-title {
-            color: #888;
-            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            font-size: 0.65rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.5rem;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.625rem;
+            font-weight: 500;
         }
+
         .detail-text {
-            color: #ccc;
-            font-size: 0.85rem;
-            line-height: 1.5;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.6;
             white-space: pre-wrap;
         }
+
         .detail-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
         }
+
         .detail-item {
             margin-bottom: 0.5rem;
         }
+
         .detail-label {
-            color: #666;
-            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            font-size: 0.65rem;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
         }
+
         .detail-value {
-            color: #fff;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+        }
+
+        .detail-outbound, .detail-report {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            transition: border-color var(--transition-fast);
+        }
+
+        .detail-outbound:hover, .detail-report:hover {
+            border-color: var(--border-medium);
+        }
+
+        .detail-outbound-subject {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
             font-size: 0.85rem;
         }
-        .detail-outbound, .detail-report {
-            background: #0a0a0a;
-            border: 1px solid #333;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-        }
-        .detail-outbound-subject {
-            color: #fff;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
+
         .detail-outbound-to {
-            color: #888;
-            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
             margin-bottom: 0.5rem;
         }
+
         .detail-outbound-body {
-            color: #aaa;
-            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
             max-height: 100px;
             overflow: hidden;
+            line-height: 1.5;
         }
+
         .no-data {
-            color: #555;
+            color: var(--text-tertiary);
             font-style: italic;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
+
         tr.expanded {
-            background: #1a1a1a;
+            background: var(--bg-tertiary);
+        }
+
+        tr.expanded td {
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 1200px) {
+            .kpi-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+
+            .kpi-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .agents {
+                gap: 0.5rem;
+            }
+
+            .agent-btn {
+                padding: 0.625rem 1rem;
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-bar {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -857,17 +1139,48 @@
                     const summary = (s.context_summary || '').length > 60 ? s.context_summary.substring(0, 60) + '...' : (s.context_summary || '-');
                     const created = s.created_at ? new Date(s.created_at).toLocaleString() : '-';
                     return `
-                        <tr>
+                        <tr class="clickable" onclick="toggleSignalDetail(this, ${s.id})">
                             <td>${s.id}</td>
                             <td class="summary-truncate">${summary}</td>
                             <td>${s.source_type || '-'}</td>
                             <td>${s.geography || '-'}</td>
                             <td>${created}</td>
                         </tr>
+                        <tr class="detail-row" id="signal-detail-row-${s.id}">
+                            <td colspan="5">
+                                <div class="detail-content" id="signal-detail-content-${s.id}">
+                                    <div class="detail-section">
+                                        <div class="detail-section-title">Full Context Summary</div>
+                                        <div class="detail-text">${s.context_summary || 'No context summary available'}</div>
+                                    </div>
+                                    <div class="detail-section">
+                                        <div class="detail-grid">
+                                            <div class="detail-item"><div class="detail-label">Source Type</div><div class="detail-value">${s.source_type || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Geography</div><div class="detail-value">${s.geography || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Signal ID</div><div class="detail-value">${s.id}</div></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     `;
                 }).join('');
             } catch (e) {
                 console.error('Signals refresh error:', e);
+            }
+        }
+
+        function toggleSignalDetail(row, signalId) {
+            const detailRow = document.getElementById('signal-detail-row-' + signalId);
+            if (detailRow.classList.contains('open')) {
+                detailRow.classList.remove('open');
+                row.classList.remove('expanded');
+            } else {
+                document.querySelectorAll('#signals-table .detail-row.open').forEach(r => r.classList.remove('open'));
+                document.querySelectorAll('#signals-table tr.expanded').forEach(r => r.classList.remove('expanded'));
+                detailRow.classList.add('open');
+                row.classList.add('expanded');
             }
         }
 
@@ -884,13 +1197,36 @@
                         const statusClass = (o.status || '').toLowerCase();
                         const created = o.created_at ? new Date(o.created_at).toLocaleString() : '-';
                         const subject = (o.subject || '').length > 40 ? o.subject.substring(0, 40) + '...' : o.subject;
+                        const bodyText = o.body || 'No email body available';
                         return `
-                            <tr>
+                            <tr class="clickable" onclick="toggleOutboundDetail(this, ${o.id})">
                                 <td>${o.lead_event_id || '-'}</td>
                                 <td>${o.to_email || '-'}</td>
                                 <td>${subject}</td>
                                 <td><span class="status-badge ${statusClass}">${o.status || '-'}</span></td>
                                 <td>${created}</td>
+                            </tr>
+                            <tr class="detail-row" id="outbound-detail-row-${o.id}">
+                                <td colspan="5">
+                                    <div class="detail-content">
+                                        <div class="detail-section">
+                                            <div class="detail-section-title">Full Subject</div>
+                                            <div class="detail-text">${o.subject || 'No subject'}</div>
+                                        </div>
+                                        <div class="detail-section">
+                                            <div class="detail-grid">
+                                                <div class="detail-item"><div class="detail-label">To</div><div class="detail-value">${o.to_email || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${o.status || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">Lead Event ID</div><div class="detail-value">${o.lead_event_id || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
+                                            </div>
+                                        </div>
+                                        <div class="detail-section">
+                                            <div class="detail-section-title">Email Body</div>
+                                            <div class="detail-text">${bodyText}</div>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         `;
                     }).join('');
@@ -903,18 +1239,66 @@
                     reportsTbody.innerHTML = data.reports.map(r => {
                         const created = r.created_at ? new Date(r.created_at).toLocaleString() : '-';
                         const title = (r.title || '').length > 50 ? r.title.substring(0, 50) + '...' : r.title;
+                        const contentText = r.content || r.description || 'No report content available';
                         return `
-                            <tr>
+                            <tr class="clickable" onclick="toggleReportDetail(this, ${r.id})">
                                 <td>${title}</td>
                                 <td>${r.lead_event_id || '-'}</td>
                                 <td>${r.report_type || '-'}</td>
                                 <td>${created}</td>
+                            </tr>
+                            <tr class="detail-row" id="report-detail-row-${r.id}">
+                                <td colspan="4">
+                                    <div class="detail-content">
+                                        <div class="detail-section">
+                                            <div class="detail-section-title">Full Title</div>
+                                            <div class="detail-text">${r.title || 'Untitled Report'}</div>
+                                        </div>
+                                        <div class="detail-section">
+                                            <div class="detail-grid">
+                                                <div class="detail-item"><div class="detail-label">Type</div><div class="detail-value">${r.report_type || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">Lead Event ID</div><div class="detail-value">${r.lead_event_id || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
+                                            </div>
+                                        </div>
+                                        <div class="detail-section">
+                                            <div class="detail-section-title">Report Content</div>
+                                            <div class="detail-text">${contentText}</div>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         `;
                     }).join('');
                 }
             } catch (e) {
                 console.error('Output history refresh error:', e);
+            }
+        }
+
+        function toggleOutboundDetail(row, outboundId) {
+            const detailRow = document.getElementById('outbound-detail-row-' + outboundId);
+            if (detailRow.classList.contains('open')) {
+                detailRow.classList.remove('open');
+                row.classList.remove('expanded');
+            } else {
+                document.querySelectorAll('#outbound-table .detail-row.open').forEach(r => r.classList.remove('open'));
+                document.querySelectorAll('#outbound-table tr.expanded').forEach(r => r.classList.remove('expanded'));
+                detailRow.classList.add('open');
+                row.classList.add('expanded');
+            }
+        }
+
+        function toggleReportDetail(row, reportId) {
+            const detailRow = document.getElementById('report-detail-row-' + reportId);
+            if (detailRow.classList.contains('open')) {
+                detailRow.classList.remove('open');
+                row.classList.remove('expanded');
+            } else {
+                document.querySelectorAll('#reports-table .detail-row.open').forEach(r => r.classList.remove('open'));
+                document.querySelectorAll('#reports-table tr.expanded').forEach(r => r.classList.remove('expanded'));
+                detailRow.classList.add('open');
+                row.classList.add('expanded');
             }
         }
 
@@ -957,10 +1341,12 @@
                     const daysLeft = plan.is_paid ? '-' : (plan.days_remaining || 0);
                     
                     const upgradeBtn = !plan.is_paid ? 
-                        `<button class="upgrade-btn" onclick="upgradeCustomer(${c.id})">UPGRADE</button>` : '';
+                        `<button class="upgrade-btn" onclick="event.stopPropagation(); upgradeCustomer(${c.id})">UPGRADE</button>` : '';
+                    
+                    const created = c.created_at ? new Date(c.created_at).toLocaleString() : '-';
                     
                     return `
-                        <tr>
+                        <tr class="clickable" onclick="toggleCustomerDetail(this, ${c.id})">
                             <td>${c.id}</td>
                             <td>${c.company}</td>
                             <td>${planBadge}</td>
@@ -968,13 +1354,55 @@
                             <td>${tasksUsed}</td>
                             <td>${leadsUsed}</td>
                             <td>${daysLeft}</td>
-                            <td><a href="/portal/${c.public_token}" class="portal-link" target="_blank">View</a></td>
+                            <td><a href="/portal/${c.public_token}" class="portal-link" target="_blank" onclick="event.stopPropagation()">View</a></td>
                             <td>${upgradeBtn}</td>
+                        </tr>
+                        <tr class="detail-row" id="customer-detail-row-${c.id}">
+                            <td colspan="9">
+                                <div class="detail-content">
+                                    <div class="detail-section">
+                                        <div class="detail-section-title">Customer Details</div>
+                                        <div class="detail-grid">
+                                            <div class="detail-item"><div class="detail-label">Company</div><div class="detail-value">${c.company || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Contact Name</div><div class="detail-value">${c.contact_name || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">${c.contact_email || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Outreach Mode</div><div class="detail-value">${c.outreach_mode || 'AUTO'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Niche</div><div class="detail-value">${c.niche || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Geography</div><div class="detail-value">${c.geography || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Subscription Status</div><div class="detail-value">${c.subscription_status || 'none'}</div></div>
+                                        </div>
+                                    </div>
+                                    <div class="detail-section">
+                                        <div class="detail-section-title">Plan Information</div>
+                                        <div class="detail-grid">
+                                            <div class="detail-item"><div class="detail-label">Plan</div><div class="detail-value">${c.plan || 'trial'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Can Run Tasks</div><div class="detail-value">${plan.can_run_tasks ? 'Yes' : 'No'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Can Generate Leads</div><div class="detail-value">${plan.can_generate_leads ? 'Yes' : 'No'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Can Use Billing</div><div class="detail-value">${plan.can_use_billing ? 'Yes' : 'No'}</div></div>
+                                        </div>
+                                    </div>
+                                    ${c.notes ? `<div class="detail-section"><div class="detail-section-title">Notes</div><div class="detail-text">${c.notes}</div></div>` : ''}
+                                </div>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             } catch (e) {
                 console.error('Customers refresh error:', e);
+            }
+        }
+
+        function toggleCustomerDetail(row, customerId) {
+            const detailRow = document.getElementById('customer-detail-row-' + customerId);
+            if (detailRow.classList.contains('open')) {
+                detailRow.classList.remove('open');
+                row.classList.remove('expanded');
+            } else {
+                document.querySelectorAll('#customers-table .detail-row.open').forEach(r => r.classList.remove('open'));
+                document.querySelectorAll('#customers-table tr.expanded').forEach(r => r.classList.remove('expanded'));
+                detailRow.classList.add('open');
+                row.classList.add('expanded');
             }
         }
 
@@ -993,8 +1421,10 @@
                     const statusClass = (po.status || '').toLowerCase();
                     const created = po.created_at ? new Date(po.created_at).toLocaleString() : '-';
                     const subject = (po.subject || '').length > 40 ? po.subject.substring(0, 40) + '...' : po.subject;
+                    const bodyText = po.body || 'No email body available';
+                    const contextText = po.context_summary || 'No context available';
                     return `
-                        <tr>
+                        <tr class="clickable" onclick="togglePendingOutreachDetail(this, ${po.id})">
                             <td>${po.id}</td>
                             <td>${po.customer_company || '-'}</td>
                             <td>${po.to_email || '-'}</td>
@@ -1002,10 +1432,49 @@
                             <td><span class="status-badge ${statusClass}">${po.status || '-'}</span></td>
                             <td>${created}</td>
                         </tr>
+                        <tr class="detail-row" id="pending-outreach-detail-row-${po.id}">
+                            <td colspan="6">
+                                <div class="detail-content">
+                                    <div class="detail-section">
+                                        <div class="detail-section-title">Full Subject</div>
+                                        <div class="detail-text">${po.subject || 'No subject'}</div>
+                                    </div>
+                                    <div class="detail-section">
+                                        <div class="detail-grid">
+                                            <div class="detail-item"><div class="detail-label">To</div><div class="detail-value">${po.to_email || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">To Name</div><div class="detail-value">${po.to_name || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${po.status || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
+                                        </div>
+                                    </div>
+                                    <div class="detail-section">
+                                        <div class="detail-section-title">Context</div>
+                                        <div class="detail-text">${contextText}</div>
+                                    </div>
+                                    <div class="detail-section">
+                                        <div class="detail-section-title">Email Body</div>
+                                        <div class="detail-text">${bodyText}</div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     `;
                 }).join('');
             } catch (e) {
                 console.error('Pending outreach refresh error:', e);
+            }
+        }
+
+        function togglePendingOutreachDetail(row, outreachId) {
+            const detailRow = document.getElementById('pending-outreach-detail-row-' + outreachId);
+            if (detailRow.classList.contains('open')) {
+                detailRow.classList.remove('open');
+                row.classList.remove('expanded');
+            } else {
+                document.querySelectorAll('#pending-outreach-table .detail-row.open').forEach(r => r.classList.remove('open'));
+                document.querySelectorAll('#pending-outreach-table tr.expanded').forEach(r => r.classList.remove('expanded'));
+                detailRow.classList.add('open');
+                row.classList.add('expanded');
             }
         }
 

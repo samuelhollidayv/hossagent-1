@@ -1,0 +1,118 @@
+You are updating the landing page and related marketing content for HossAgent, an autonomous AI-powered opportunity detection and research system for SMBs. The current landing page overpromises long-term capabilities (e.g., “AI workers earning money for you”) that do not accurately reflect our MVP. Your task is to rewrite the landing page copy and associated sections to match our real current product, while maintaining the dark, minimal, noir aesthetic and keeping all HTML/CSS layout intact.
+
+🔧 PRODUCT TRUTH (WHAT THE MVP ACTUALLY DOES — USE THIS FOR THE NEW COPY)
+
+HossAgent currently provides:
+	•	An AI-powered Signals Engine that scans public data for real-world business events (reviews, staffing changes, competitive shifts, market signals, etc.)
+	•	A LeadEvent Engine that transforms those signals into actionable “opportunities” with categories and urgency scores
+	•	Automatic outbound email drafting, tailored to the opportunity context
+	•	Automatic research snapshots and competitive insights delivered into the user’s portal
+	•	A clean customer portal with:
+	•	Today’s Opportunities
+	•	Reports / Recent Work
+	•	Subscription status
+	•	Task and Lead usage
+	•	Settings
+	•	Optional automated outreach
+	•	A $99/month subscription model with a free trial
+
+The MVP does NOT yet guaranteed revenue, fully autonomous SDR replacement, or “AI workers” performing end-to-end business operations. We must avoid implying that.
+
+🔧 YOUR TASK: UPDATE LANDING PAGE COPY (KEEP HTML/CSS, CHANGE ONLY TEXT)
+
+Rewrite all copy in the landing page (hero, tagline, how-it-works, pricing bullets) to reflect the MVP accurately.
+
+A) Rewrite the HERO SECTION to focus on real MVP value
+
+Tone: noir, minimal, confident, sharp
+Do NOT claim “AI workers earn you money.”
+Do NOT claim fully autonomous revenue.
+Do NOT promise SDR replacement.
+
+New hero copy should emphasize:
+	•	Opportunity detection
+	•	Market awareness
+	•	Research automation
+	•	Smart outbound
+	•	Clarity + time savings
+
+Example direction (for tone guidance only — create your own final text):
+“HossAgent finds real opportunities in your market, turns signals into clear insights, and drafts outreach automatically.”
+
+Keep CTA as “Start Free Trial.”
+
+B) Rewrite the TAGLINE
+
+Reflect:
+	•	“Smart prospecting”
+	•	“Market snapshots”
+	•	“Fast insights”
+	•	“Opportunities surfaced automatically”
+
+C) Rewrite HOW-IT-WORKS SECTION (4 steps)
+
+Replace current steps with these four — but rewrite them in your own noir, minimalist voice:
+	1.	Signals Ingested:
+HossAgent scans public sources and detects real-world business events worth acting on.
+	2.	Opportunities Identified:
+AI turns raw signals into structured Lead Events with context, category, and urgency.
+	3.	Outreach Drafted:
+HossAgent prepares tailored outreach emails aligned with each opportunity.
+	4.	Insights Delivered:
+Market snapshots and reports are generated automatically and appear in your portal.
+
+Make sure the copy is tight, sophisticated, and reflects the MVP exactly.
+
+D) Rewrite the PRICING SECTION
+
+Replace any misleading bullets about “AI workers earning money” or “autonomous employees.”
+Use bullets consistent with what we offer today:
+	•	Automatic opportunity detection
+	•	Smart outreach drafts
+	•	Market research snapshots
+	•	Customer portal
+	•	Optional outbound automation
+	•	No contracts
+	•	Free trial
+
+Keep the $99/mo price and the noir minimal design.
+
+E) Keep everything else the same structurally
+	•	Keep the Tailwind classes
+	•	Keep the buttons
+	•	Keep the routes (/login, /signup, etc.)
+	•	Do NOT modify images, branding, footer, or HTML hierarchy
+	•	Only replace text content inside existing tags
+
+F) Maintain consistent voice
+
+All rewritten text must match HossAgent’s vibe:
+	•	Noir
+	•	Sharp
+	•	Minimal
+	•	Confident
+	•	Anti-corporate but professional
+	•	High signal, low noise
+	•	No filler adjectives
+	•	No cringe “tech bro AI magic” voice
+
+Think:
+If Waylon Jennings were the creative director of an AI company that David Fincher founded.
+
+⸻
+
+🔧 AFTER THE COPY UPDATE — CHECKLIST (YOU HANDLE THIS INTERNALLY)
+
+After you finish rewriting text:
+	•	Ensure the landing page honestly reflects MVP capability
+	•	Avoid future-phase promises
+	•	Keep the page exciting but rooted in what exists today
+	•	Validate that the portal flow (trial → portal → opportunities) still makes sense with the updated messaging
+
+Do not implement backend changes.
+This is purely a text/content rewrite inside the same layout.
+
+⸻
+
+END OF PROMPT
+(Paste everything above directly into MagicBox)

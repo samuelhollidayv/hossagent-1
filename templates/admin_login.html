@@ -1,25 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - HossAgent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {{
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+            --accent-red: #ef4444;
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'Courier New', monospace;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }}
+        
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
+        
         body {{
-            background: #0a0a0a;
-            color: #fff;
-            font-family: 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }}
+        
         .container {{
-            max-width: 400px;
+            max-width: 420px;
             margin: 0 auto;
             padding: 2rem;
             flex: 1;
@@ -27,99 +55,160 @@
             flex-direction: column;
             justify-content: center;
         }}
+        
         .logo {{
             text-align: center;
             margin-bottom: 3rem;
         }}
+        
         .logo a {{
-            font-size: 1.2rem;
-            font-weight: normal;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--text-primary);
             text-decoration: none;
+            transition: opacity var(--transition-normal);
         }}
+        
+        .logo a:hover {{
+            opacity: 0.8;
+        }}
+        
         .form-card {{
-            border: 1px solid #333;
-            padding: 2rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            transition: border-color var(--transition-normal);
         }}
+        
+        .form-card:hover {{
+            border-color: var(--border-medium);
+        }}
+        
         h1 {{
-            font-size: 1.2rem;
-            font-weight: normal;
+            font-size: 1.1rem;
+            font-weight: 600;
             margin-bottom: 0.5rem;
             text-align: center;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 0.1em;
+            color: var(--accent-green);
         }}
+        
         .subtitle {{
-            color: #666;
+            color: var(--text-tertiary);
             text-align: center;
             margin-bottom: 2rem;
             font-size: 0.8rem;
+            font-weight: 400;
         }}
+        
         .form-group {{
             margin-bottom: 1.5rem;
         }}
+        
         label {{
             display: block;
             margin-bottom: 0.5rem;
-            color: #888;
-            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.08em;
+            font-weight: 500;
         }}
+        
         input {{
             width: 100%;
-            padding: 0.8rem 1rem;
-            background: #111;
-            border: 1px solid #333;
-            color: #fff;
-            font-family: 'Courier New', monospace;
+            padding: 0.9rem 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
             font-size: 0.9rem;
+            transition: all var(--transition-normal);
         }}
+        
+        input:hover {{
+            border-color: var(--text-tertiary);
+        }}
+        
         input:focus {{
             outline: none;
-            border-color: #666;
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 3px var(--accent-green-dim);
         }}
+        
         input::placeholder {{
-            color: #444;
+            color: var(--text-tertiary);
         }}
+        
         .btn-submit {{
             width: 100%;
-            background: #333;
-            color: #fff;
-            padding: 0.8rem;
-            border: 1px solid #444;
-            font-size: 0.9rem;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 0.9rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 600;
             cursor: pointer;
-            font-family: 'Courier New', monospace;
+            font-family: var(--font-mono);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 1rem;
+            letter-spacing: 0.08em;
+            margin-top: 0.5rem;
+            transition: all var(--transition-normal);
         }}
+        
         .btn-submit:hover {{
-            background: #444;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.12);
         }}
+        
+        .btn-submit:active {{
+            transform: translateY(0);
+        }}
+        
         .error-message {{
-            background: #220000;
-            border: 1px solid #440000;
-            color: #f66;
-            padding: 0.8rem;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-red);
+            padding: 0.9rem 1rem;
             margin-bottom: 1.5rem;
             font-size: 0.8rem;
+            border-radius: var(--radius-md);
+            text-align: center;
         }}
+        
         .back-link {{
             text-align: center;
             margin-top: 2rem;
-            color: #555;
+            color: var(--text-tertiary);
             font-size: 0.8rem;
         }}
+        
         .back-link a {{
-            color: #666;
+            color: var(--text-secondary);
             text-decoration: none;
+            transition: color var(--transition-normal);
+            padding-bottom: 1px;
+            border-bottom: 1px dashed var(--border-medium);
         }}
+        
         .back-link a:hover {{
-            color: #fff;
+            color: var(--accent-green);
+            border-bottom-color: var(--accent-green);
+        }}
+        
+        @media (max-width: 480px) {{
+            .container {{
+                padding: 1.5rem;
+            }}
+            
+            .form-card {{
+                padding: 2rem 1.5rem;
+            }}
         }}
     </style>
 </head>
@@ -146,7 +235,7 @@
         </div>
         
         <p class="back-link">
-            <a href="/">Back to home</a>
+            <a href="/">← Back to home</a>
         </p>
     </div>
 </body>

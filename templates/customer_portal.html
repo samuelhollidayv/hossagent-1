@@ -1,821 +1,1119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Your HossAgent Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {{
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+            --accent-blue: #3b82f6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+        }}
+        
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
+        
         body {{
-            background: #0a0a0a;
-            color: #fff;
-            font-family: Georgia, 'Times New Roman', serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
             padding: 2rem;
             min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }}
+        
         .container {{
-            max-width: 900px;
+            max-width: 960px;
             margin: 0 auto;
         }}
+        
         .header-nav {{
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding-bottom: 1.5rem;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-subtle);
             margin-bottom: 2rem;
         }}
+        
         .logo-link {{
-            font-size: 1rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
             text-decoration: none;
+            transition: opacity 0.2s ease;
         }}
+        
+        .logo-link:hover {{
+            opacity: 0.8;
+        }}
+        
         .nav-links {{
             display: flex;
             gap: 1.5rem;
         }}
+        
         .nav-link {{
-            color: #666;
+            color: var(--text-secondary);
             text-decoration: none;
             font-size: 0.9rem;
+            font-weight: 400;
+            transition: color 0.2s ease;
         }}
+        
         .nav-link:hover {{
-            color: #fff;
+            color: var(--text-primary);
         }}
-        .outreach-card {{
-            border: 1px solid #333;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            background: #111;
-        }}
-        .outreach-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.75rem;
-        }}
-        .outreach-to {{
-            font-size: 0.95rem;
-            color: #fff;
-        }}
-        .outreach-date {{
-            font-size: 0.75rem;
-            color: #666;
-        }}
-        .outreach-subject {{
-            font-size: 0.9rem;
-            color: #ddd;
-            margin-bottom: 0.5rem;
-        }}
-        .outreach-context {{
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 1rem;
-            font-style: italic;
-        }}
-        .outreach-actions {{
-            display: flex;
-            gap: 0.75rem;
-        }}
-        .outreach-btn {{
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
-            font-family: Georgia, serif;
-            border: 1px solid #fff;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }}
-        .outreach-btn.approve {{
-            background: #fff;
-            color: #0a0a0a;
-        }}
-        .outreach-btn.approve:hover {{
-            background: #0f0;
-            border-color: #0f0;
-        }}
-        .outreach-btn.edit {{
-            background: transparent;
-            color: #fff;
-        }}
-        .outreach-btn.edit:hover {{
-            background: #f90;
-            border-color: #f90;
-            color: #0a0a0a;
-        }}
-        .outreach-btn.skip {{
-            background: transparent;
-            color: #666;
-            border-color: #666;
-        }}
-        .outreach-btn.skip:hover {{
-            background: #333;
-            color: #fff;
-        }}
-        .outreach-empty {{
-            color: #555;
-            font-style: italic;
-            text-align: center;
-            padding: 1.5rem;
-        }}
+        
         .hero {{
             text-align: center;
-            padding: 2rem 0 3rem;
-            border-bottom: 1px solid #333;
+            padding: 2.5rem 0 3rem;
+            border-bottom: 1px solid var(--border-subtle);
             margin-bottom: 2.5rem;
         }}
+        
         h1 {{
-            font-size: 2rem;
-            font-weight: normal;
-            letter-spacing: 1px;
+            font-size: 2.25rem;
+            font-weight: 500;
+            letter-spacing: -0.02em;
             margin-bottom: 0.75rem;
         }}
+        
         .hero-subtitle {{
-            color: #888;
+            color: var(--text-secondary);
             font-size: 1rem;
+            font-weight: 300;
         }}
+        
         .section {{
-            margin: 2.5rem 0;
-            border: 1px solid #333;
-            padding: 1.5rem;
+            margin: 2rem 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.75rem;
+            transition: border-color 0.2s ease;
         }}
+        
+        .section:hover {{
+            border-color: var(--border-medium);
+        }}
+        
         .section-header {{
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         .section-title {{
-            font-size: 0.9rem;
-            font-weight: normal;
-            letter-spacing: 2px;
-            color: #999;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: var(--accent-green);
             text-transform: uppercase;
         }}
+        
         .plan-card {{
             text-align: center;
             padding: 1.5rem;
         }}
+        
         .plan-name {{
             font-size: 1.5rem;
-            font-weight: bold;
+            font-weight: 600;
             margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
         }}
+        
         .plan-price {{
             font-size: 1.25rem;
-            color: #888;
+            color: var(--text-secondary);
             margin-bottom: 1rem;
+            font-weight: 300;
         }}
+        
         .plan-status {{
             display: inline-block;
             padding: 0.5rem 1.25rem;
-            font-size: 0.85rem;
-            letter-spacing: 1px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
             margin-bottom: 1.5rem;
+            border-radius: 100px;
+            text-transform: uppercase;
         }}
+        
         .plan-status.trial {{
-            background: rgba(255, 153, 0, 0.15);
-            border: 1px solid #f90;
-            color: #f90;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid var(--accent-orange);
+            color: var(--accent-orange);
         }}
+        
         .plan-status.expired {{
-            background: rgba(255, 0, 0, 0.15);
-            border: 1px solid #f00;
-            color: #f00;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
         }}
+        
         .plan-status.active {{
-            background: rgba(0, 255, 0, 0.15);
-            border: 1px solid #0f0;
-            color: #0f0;
+            background: var(--accent-green-dim);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
         }}
+        
         .trial-info {{
-            color: #888;
+            color: var(--text-secondary);
             font-size: 0.9rem;
             margin-bottom: 1.5rem;
         }}
+        
         .usage-display {{
             display: flex;
             justify-content: center;
-            gap: 2rem;
+            gap: 2.5rem;
             margin: 1.5rem 0;
-            padding: 1rem 0;
-            border-top: 1px solid #222;
-            border-bottom: 1px solid #222;
+            padding: 1.25rem 0;
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         .usage-item {{
             text-align: center;
         }}
+        
         .usage-label {{
-            font-size: 0.7rem;
-            color: #666;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-tertiary);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.25rem;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.35rem;
         }}
+        
         .usage-value {{
-            font-size: 1.1rem;
-            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-primary);
         }}
+        
         .usage-value.warning {{
-            color: #f90;
+            color: var(--accent-orange);
         }}
+        
         .usage-value.danger {{
-            color: #f00;
+            color: var(--accent-red);
         }}
+        
         .limit-warning {{
-            background: rgba(255, 153, 0, 0.1);
-            border: 1px solid #664400;
-            padding: 1rem;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 1rem 1.25rem;
             text-align: center;
             margin: 1rem 0;
-            color: #f90;
+            color: var(--accent-orange);
             font-size: 0.9rem;
+            border-radius: 8px;
         }}
+        
         .cta-btn {{
             display: inline-block;
-            background: #fff;
-            color: #0a0a0a;
-            padding: 0.85rem 2.5rem;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 0.85rem 2rem;
             text-decoration: none;
-            font-weight: bold;
-            font-size: 1rem;
-            font-family: Georgia, serif;
-            border: 2px solid #fff;
+            font-weight: 500;
+            font-size: 0.95rem;
+            font-family: var(--font-sans);
+            border: none;
+            border-radius: 8px;
             margin-top: 0.5rem;
-            transition: all 0.2s ease;
-        }}
-        .cta-btn:hover {{
-            background: #0a0a0a;
-            color: #fff;
-        }}
-        .cta-btn.secondary {{
-            background: transparent;
-            color: #fff;
-        }}
-        .cta-btn.secondary:hover {{
-            background: #fff;
-            color: #0a0a0a;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }}
-        table th {{
-            text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid #333;
-            color: #666;
-            font-weight: normal;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 1px;
-        }}
-        table td {{
-            padding: 0.75rem;
-            border-bottom: 1px solid #222;
-        }}
-        table tr:hover {{
-            background: #111;
-        }}
-        .status-badge {{
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            background: #333;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }}
-        .status-badge.pending {{
-            background: #664400;
-            color: #f90;
-        }}
-        .status-badge.running {{
-            background: #004466;
-            color: #0af;
-        }}
-        .status-badge.done {{
-            background: #006600;
-            color: #0f0;
-        }}
-        .status-badge.failed {{
-            background: #660000;
-            color: #f00;
-        }}
-        .status-badge.draft {{
-            background: #444;
-            color: #aaa;
-        }}
-        .status-badge.sent {{
-            background: #004466;
-            color: #0af;
-        }}
-        .status-badge.paid {{
-            background: #006600;
-            color: #0f0;
-        }}
-        .pay-btn {{
-            display: inline-block;
-            background: #fff;
-            color: #0a0a0a;
-            padding: 0.4rem 1rem;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 0.8rem;
-            font-family: Georgia, serif;
-            border: 1px solid #fff;
-            transition: all 0.2s ease;
-        }}
-        .pay-btn:hover {{
-            background: #0a0a0a;
-            color: #fff;
-        }}
-        .payment-unavailable {{
-            color: #555;
-            font-size: 0.8rem;
-            font-style: italic;
-        }}
-        .empty {{
-            color: #555;
-            font-style: italic;
-            text-align: center;
-            padding: 1rem;
-        }}
-        .footer {{
-            margin-top: 3rem;
-            padding-top: 1rem;
-            border-top: 1px solid #222;
-            text-align: center;
-            color: #444;
-            font-size: 0.8rem;
-        }}
-        .payment-success {{
-            background: rgba(0, 255, 0, 0.1);
-            border: 1px solid #006600;
-            padding: 1rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            color: #0f0;
-        }}
-        .payment-cancelled {{
-            background: rgba(255, 153, 0, 0.1);
-            border: 1px solid #664400;
-            padding: 1rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            color: #f90;
-        }}
-        .category-badge {{
-            display: inline-block;
-            padding: 0.2rem 0.5rem;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            background: #333;
-            color: #999;
-        }}
-        .urgency-high {{
-            background: rgba(255, 0, 0, 0.15);
-            border: 1px solid #f00;
-            color: #f00;
-        }}
-        .urgency-medium {{
-            background: rgba(255, 153, 0, 0.15);
-            border: 1px solid #f90;
-            color: #f90;
-        }}
-        .urgency-low {{
-            background: rgba(0, 255, 0, 0.15);
-            border: 1px solid #0f0;
-            color: #0f0;
-        }}
-        .fire-icon {{
-            color: #f90;
-            margin-right: 0.25rem;
-        }}
-        .opportunities-subtitle {{
-            color: #666;
-            font-size: 0.8rem;
-            font-style: italic;
-        }}
-        .report-card {{
-            border: 1px solid #333;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            background: #111;
             cursor: pointer;
             transition: all 0.2s ease;
         }}
-        .report-card:hover {{
-            border-color: #555;
-            background: #151515;
+        
+        .cta-btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.12);
         }}
-        .report-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.5rem;
+        
+        .cta-btn.secondary {{
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-medium);
         }}
-        .report-title {{
-            font-size: 0.95rem;
-            color: #fff;
+        
+        .cta-btn.secondary:hover {{
+            border-color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
         }}
-        .report-date {{
-            font-size: 0.75rem;
-            color: #666;
-        }}
-        .report-type {{
-            display: inline-block;
-            padding: 0.2rem 0.5rem;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            background: #333;
-            color: #999;
-            margin-bottom: 0.5rem;
-        }}
-        .report-description {{
-            font-size: 0.85rem;
-            color: #888;
-            line-height: 1.4;
-        }}
-        .report-content {{
-            display: none;
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid #333;
-            font-size: 0.85rem;
-            color: #ccc;
-            line-height: 1.5;
-        }}
-        .report-card.expanded .report-content {{
-            display: block;
-        }}
-        .report-expand-icon {{
-            font-size: 0.8rem;
-            color: #666;
-            transition: transform 0.2s ease;
-        }}
-        .report-card.expanded .report-expand-icon {{
-            transform: rotate(180deg);
-        }}
-        .cancellation-notice {{
-            background: rgba(255, 153, 0, 0.1);
-            border: 1px solid #664400;
-            padding: 1rem;
-            text-align: center;
-            margin: 1rem 0;
-            color: #f90;
-            font-size: 0.9rem;
-        }}
-        .cancellation-notice p {{
-            margin: 0;
-            line-height: 1.5;
-        }}
+        
         .cta-btn.danger {{
             background: transparent;
-            color: #f00;
-            border-color: #f00;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
         }}
+        
         .cta-btn.danger:hover {{
-            background: #f00;
-            color: #0a0a0a;
+            background: var(--accent-red);
+            color: var(--bg-primary);
         }}
+        
         .cta-btn.success {{
             background: transparent;
-            color: #0f0;
-            border-color: #0f0;
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
         }}
+        
         .cta-btn.success:hover {{
-            background: #0f0;
-            color: #0a0a0a;
+            background: var(--accent-green);
+            color: var(--bg-primary);
         }}
+        
         .btn-group {{
             display: flex;
             gap: 1rem;
             justify-content: center;
             flex-wrap: wrap;
         }}
-        @media (max-width: 768px) {{
-            body {{
-                padding: 1rem;
-            }}
-            .usage-display {{
-                flex-wrap: wrap;
-                gap: 1.5rem;
-            }}
-            .usage-item {{
-                flex: 0 0 40%;
-            }}
-        }}
-        @media (max-width: 480px) {{
-            .usage-item {{
-                flex: 0 0 100%;
-            }}
+        
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
         }}
         
-        /* Opportunity Table Styles */
+        table th {{
+            text-align: left;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-medium);
+            color: var(--text-tertiary);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            font-family: var(--font-mono);
+        }}
+        
+        table td {{
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.2s ease;
+        }}
+        
+        table tbody tr {{
+            transition: background 0.2s ease;
+        }}
+        
+        table tbody tr:hover {{
+            background: var(--bg-tertiary);
+        }}
+        
+        .status-badge {{
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            background: var(--bg-tertiary);
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 100px;
+            font-family: var(--font-mono);
+        }}
+        
+        .status-badge.pending {{
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-orange);
+        }}
+        
+        .status-badge.running {{
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+        }}
+        
+        .status-badge.done {{
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+        }}
+        
+        .status-badge.failed {{
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }}
+        
+        .status-badge.draft {{
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }}
+        
+        .status-badge.sent {{
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+        }}
+        
+        .status-badge.paid {{
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+        }}
+        
+        .pay-btn {{
+            display: inline-block;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 0.5rem 1.25rem;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.8rem;
+            font-family: var(--font-sans);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        
+        .pay-btn:hover {{
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+        }}
+        
+        .payment-unavailable {{
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+            font-style: italic;
+        }}
+        
+        .empty {{
+            color: var(--text-tertiary);
+            font-style: italic;
+            text-align: center;
+            padding: 1.5rem;
+        }}
+        
+        .footer {{
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-subtle);
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+        }}
+        
+        .payment-success {{
+            background: var(--accent-green-dim);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            padding: 1rem 1.25rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--accent-green);
+            border-radius: 8px;
+        }}
+        
+        .payment-cancelled {{
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 1rem 1.25rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--accent-orange);
+            border-radius: 8px;
+        }}
+        
+        .cancellation-notice {{
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 1rem 1.25rem;
+            text-align: center;
+            margin: 1rem 0;
+            color: var(--accent-orange);
+            font-size: 0.9rem;
+            border-radius: 8px;
+        }}
+        
+        .cancellation-notice p {{
+            margin: 0;
+            line-height: 1.5;
+        }}
+        
+        .category-badge {{
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-radius: 100px;
+            font-family: var(--font-mono);
+        }}
+        
+        .urgency-high {{
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+        }}
+        
+        .urgency-medium {{
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid var(--accent-orange);
+            color: var(--accent-orange);
+        }}
+        
+        .urgency-low {{
+            background: var(--accent-green-dim);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+        }}
+        
+        .fire-icon {{
+            color: var(--accent-orange);
+            margin-right: 0.25rem;
+        }}
+        
+        .opportunities-subtitle {{
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+            font-style: italic;
+        }}
+        
+        .outreach-card {{
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-medium);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+            position: relative;
+        }}
+        
+        .outreach-card:hover {{
+            border-color: var(--accent-green);
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.08);
+        }}
+        
+        .outreach-card::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--accent-green);
+            border-radius: 10px 0 0 10px;
+        }}
+        
+        .outreach-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }}
+        
+        .outreach-to {{
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }}
+        
+        .outreach-date {{
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+        }}
+        
+        .outreach-subject {{
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 400;
+        }}
+        
+        .outreach-context {{
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            margin-bottom: 1rem;
+            font-style: italic;
+            line-height: 1.5;
+        }}
+        
+        .outreach-body-preview {{
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+        }}
+        
+        .outreach-body-preview.visible {{
+            display: block;
+        }}
+        
+        .outreach-body-content {{
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            white-space: pre-wrap;
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            max-height: 300px;
+            overflow-y: auto;
+        }}
+        
+        .outreach-actions {{
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+        
+        .outreach-btn {{
+            padding: 0.6rem 1.25rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            font-family: var(--font-sans);
+            border: 1px solid var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        
+        .outreach-btn.approve {{
+            background: var(--text-primary);
+            color: var(--bg-primary);
+        }}
+        
+        .outreach-btn.approve:hover {{
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            transform: translateY(-1px);
+        }}
+        
+        .outreach-btn.edit {{
+            background: transparent;
+            color: var(--text-primary);
+        }}
+        
+        .outreach-btn.edit:hover {{
+            background: var(--accent-orange);
+            border-color: var(--accent-orange);
+            color: var(--bg-primary);
+            transform: translateY(-1px);
+        }}
+        
+        .outreach-btn.skip {{
+            background: transparent;
+            color: var(--text-tertiary);
+            border-color: var(--text-tertiary);
+        }}
+        
+        .outreach-btn.skip:hover {{
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-color: var(--text-secondary);
+        }}
+        
+        .outreach-btn.view-message {{
+            background: transparent;
+            color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }}
+        
+        .outreach-btn.view-message:hover {{
+            background: rgba(59, 130, 246, 0.1);
+        }}
+        
+        .outreach-btn.view-message.active {{
+            background: var(--accent-blue);
+            color: var(--bg-primary);
+        }}
+        
+        .outreach-empty {{
+            color: var(--text-tertiary);
+            font-style: italic;
+            text-align: center;
+            padding: 2rem;
+        }}
+        
+        .report-card {{
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        
+        .report-card:hover {{
+            border-color: var(--border-medium);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }}
+        
+        .report-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }}
+        
+        .report-title {{
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }}
+        
+        .report-date {{
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+        }}
+        
+        .report-type {{
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border-radius: 100px;
+            margin-bottom: 0.5rem;
+            font-family: var(--font-mono);
+        }}
+        
+        .report-description {{
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }}
+        
+        .report-content {{
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }}
+        
+        .report-card.expanded .report-content {{
+            display: block;
+        }}
+        
+        .report-expand-icon {{
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            transition: transform 0.2s ease;
+        }}
+        
+        .report-card.expanded .report-expand-icon {{
+            transform: rotate(180deg);
+        }}
+        
         .opportunities-table .opportunity-row {{
             cursor: pointer;
             transition: all 0.2s ease;
         }}
+        
         .opportunities-table .opportunity-row:hover {{
-            background: #1a1a1a;
+            background: var(--bg-tertiary);
         }}
+        
         .opportunities-table .opportunity-row.active {{
-            background: #151515;
-            border-left: 2px solid #fff;
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-green);
         }}
         
-        /* Opportunity Status Badges */
         .opp-status-new {{
-            background: rgba(0, 170, 255, 0.15);
-            border: 1px solid #0af;
-            color: #0af;
-        }}
-        .opp-status-contacted {{
-            background: rgba(255, 153, 0, 0.15);
-            border: 1px solid #f90;
-            color: #f90;
-        }}
-        .opp-status-responded {{
-            background: rgba(0, 255, 0, 0.15);
-            border: 1px solid #0f0;
-            color: #0f0;
-        }}
-        .opp-status-qualified {{
-            background: rgba(0, 255, 136, 0.15);
-            border: 1px solid #0f8;
-            color: #0f8;
-        }}
-        .opp-status-closed-won {{
-            background: rgba(0, 255, 0, 0.2);
-            border: 1px solid #0f0;
-            color: #0f0;
-        }}
-        .opp-status-closed-lost {{
-            background: rgba(255, 0, 0, 0.15);
-            border: 1px solid #f00;
-            color: #f00;
-        }}
-        .opp-status-on-hold {{
-            background: rgba(136, 136, 136, 0.15);
-            border: 1px solid #888;
-            color: #888;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
         }}
         
-        /* Opportunity Detail Row */
+        .opp-status-contacted {{
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-orange);
+        }}
+        
+        .opp-status-responded {{
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+        }}
+        
+        .opp-status-qualified {{
+            background: rgba(34, 197, 94, 0.2);
+            color: #10b981;
+        }}
+        
+        .opp-status-closed-won {{
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+        }}
+        
+        .opp-status-closed-lost {{
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }}
+        
+        .opp-status-on-hold {{
+            background: rgba(156, 163, 175, 0.15);
+            color: #9ca3af;
+        }}
+        
         .opportunity-detail-row {{
-            background: #0d0d0d;
+            background: var(--bg-primary);
         }}
+        
         .opportunity-detail-row:hover {{
-            background: #0d0d0d !important;
+            background: var(--bg-primary) !important;
         }}
+        
         .opportunity-detail-cell {{
             padding: 0 !important;
-            border-bottom: 1px solid #333;
-        }}
-        .opportunity-detail-content {{
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #0d0d0d 0%, #111 100%);
-            border-top: 1px solid #222;
+            border-bottom: 1px solid var(--border-medium);
         }}
         
-        /* Detail Sections */
-        .detail-section {{
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #222;
+        .opportunity-detail-content {{
+            padding: 1.75rem;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            border-top: 1px solid var(--border-subtle);
         }}
+        
+        .detail-section {{
+            margin-bottom: 1.75rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }}
+        
         .detail-section:last-child {{
             margin-bottom: 0;
             padding-bottom: 0;
             border-bottom: none;
         }}
+        
         .detail-section-title {{
-            font-size: 0.75rem;
-            font-weight: normal;
-            letter-spacing: 1.5px;
-            color: #666;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: var(--text-tertiary);
             text-transform: uppercase;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.85rem;
         }}
+        
         .detail-summary {{
             font-size: 0.95rem;
-            color: #ccc;
-            line-height: 1.5;
+            color: var(--text-secondary);
+            line-height: 1.6;
             margin-bottom: 1rem;
         }}
+        
         .detail-meta {{
             display: flex;
-            gap: 1.5rem;
+            gap: 2rem;
             flex-wrap: wrap;
             margin-bottom: 1rem;
         }}
+        
         .detail-meta-item {{
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 0.3rem;
         }}
+        
         .detail-meta-label {{
-            font-size: 0.65rem;
-            color: #555;
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-tertiary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.1em;
         }}
+        
         .detail-meta-value {{
             font-size: 0.85rem;
-            color: #aaa;
+            color: var(--text-secondary);
         }}
         
-        /* Signal Section */
         .signal-card {{
-            background: #151515;
-            border: 1px solid #292929;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
             padding: 1rem;
             margin-top: 0.5rem;
         }}
+        
         .signal-type {{
             display: inline-block;
-            padding: 0.2rem 0.5rem;
+            padding: 0.25rem 0.6rem;
             font-size: 0.65rem;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            background: #004466;
-            color: #0af;
+            letter-spacing: 0.05em;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            border-radius: 100px;
             margin-bottom: 0.5rem;
-        }}
-        .signal-context {{
-            font-size: 0.85rem;
-            color: #999;
-            line-height: 1.4;
+            font-family: var(--font-mono);
         }}
         
-        /* Outbound Messages Section */
+        .signal-context {{
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }}
+        
         .outbound-card {{
-            background: #151515;
-            border: 1px solid #292929;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
             padding: 1rem;
             margin-top: 0.5rem;
             margin-bottom: 0.5rem;
         }}
+        
         .outbound-meta {{
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.5rem;
         }}
+        
         .outbound-to {{
             font-size: 0.85rem;
-            color: #ddd;
+            color: var(--text-primary);
+            font-weight: 500;
         }}
+        
         .outbound-status {{
             display: inline-block;
-            padding: 0.2rem 0.5rem;
+            padding: 0.25rem 0.6rem;
             font-size: 0.6rem;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
+            border-radius: 100px;
+            font-family: var(--font-mono);
         }}
+        
         .outbound-status.pending {{
-            background: #664400;
-            color: #f90;
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-orange);
         }}
+        
         .outbound-status.sent {{
-            background: #006600;
-            color: #0f0;
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
         }}
+        
         .outbound-status.approved {{
-            background: #004466;
-            color: #0af;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
         }}
+        
         .outbound-status.skipped {{
-            background: #444;
-            color: #888;
+            background: var(--bg-secondary);
+            color: var(--text-tertiary);
         }}
+        
         .outbound-subject {{
             font-size: 0.9rem;
-            color: #ccc;
+            color: var(--text-secondary);
             margin-bottom: 0.5rem;
         }}
+        
         .outbound-body {{
             font-size: 0.8rem;
-            color: #888;
-            line-height: 1.4;
+            color: var(--text-tertiary);
+            line-height: 1.5;
             max-height: 100px;
             overflow-y: auto;
             white-space: pre-wrap;
         }}
         
-        /* Report Cards in Detail */
         .detail-report-card {{
-            background: #151515;
-            border: 1px solid #292929;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
             padding: 1rem;
             margin-top: 0.5rem;
             margin-bottom: 0.5rem;
         }}
+        
         .detail-report-title {{
             font-size: 0.9rem;
-            color: #ddd;
-            margin-bottom: 0.25rem;
-        }}
-        .detail-report-type {{
-            display: inline-block;
-            padding: 0.15rem 0.4rem;
-            font-size: 0.6rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            background: #333;
-            color: #999;
-            margin-bottom: 0.5rem;
-        }}
-        .detail-report-desc {{
-            font-size: 0.8rem;
-            color: #888;
-            line-height: 1.4;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
         }}
         
-        /* Lifecycle Section */
+        .detail-report-type {{
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.6rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border-radius: 100px;
+            margin-bottom: 0.5rem;
+            font-family: var(--font-mono);
+        }}
+        
+        .detail-report-desc {{
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+        }}
+        
         .lifecycle-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 1rem;
             margin-top: 0.5rem;
         }}
+        
         .lifecycle-item {{
-            background: #151515;
-            border: 1px solid #292929;
-            padding: 0.75rem;
-        }}
-        .lifecycle-label {{
-            font-size: 0.65rem;
-            color: #555;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.25rem;
-        }}
-        .lifecycle-value {{
-            font-size: 0.85rem;
-            color: #ccc;
-        }}
-        .lifecycle-value.agent {{
-            color: #0af;
-        }}
-        .lifecycle-value.customer {{
-            color: #f90;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 0.85rem;
         }}
         
-        /* Loading Indicator */
+        .lifecycle-label {{
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }}
+        
+        .lifecycle-value {{
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }}
+        
+        .lifecycle-value.agent {{
+            color: var(--accent-blue);
+        }}
+        
+        .lifecycle-value.customer {{
+            color: var(--accent-orange);
+        }}
+        
         .loading-indicator {{
             text-align: center;
             padding: 2rem;
-            color: #666;
+            color: var(--text-tertiary);
             font-style: italic;
         }}
+        
         .loading-indicator::after {{
             content: '';
             display: inline-block;
             width: 12px;
             height: 12px;
-            border: 2px solid #333;
-            border-top-color: #666;
+            border: 2px solid var(--border-medium);
+            border-top-color: var(--text-tertiary);
             border-radius: 50%;
             margin-left: 0.5rem;
             animation: spin 1s linear infinite;
         }}
+        
         @keyframes spin {{
             to {{ transform: rotate(360deg); }}
         }}
         
-        /* No Data State */
         .no-data {{
-            color: #555;
+            color: var(--text-tertiary);
             font-style: italic;
             font-size: 0.85rem;
         }}
         
-        /* Recommended Action */
         .recommended-action {{
-            background: rgba(0, 170, 255, 0.1);
-            border: 1px solid #004466;
-            padding: 0.75rem 1rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 0.85rem 1rem;
             margin-top: 0.5rem;
             font-size: 0.85rem;
-            color: #0af;
+            color: var(--accent-blue);
+        }}
+        
+        @media (max-width: 768px) {{
+            body {{
+                padding: 1rem;
+            }}
+            
+            .section {{
+                padding: 1.25rem;
+            }}
+            
+            .usage-display {{
+                flex-wrap: wrap;
+                gap: 1.5rem;
+            }}
+            
+            .usage-item {{
+                flex: 0 0 40%;
+            }}
+            
+            .outreach-actions {{
+                flex-direction: column;
+            }}
+            
+            .outreach-btn {{
+                width: 100%;
+                text-align: center;
+            }}
+        }}
+        
+        @media (max-width: 480px) {{
+            .usage-item {{
+                flex: 0 0 100%;
+            }}
+            
+            .header-nav {{
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }}
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header-nav">
-            <a href="/" class="logo-link">HOSSAGENT</a>
+            <a href="/" class="logo-link">HossAgent</a>
             <div class="nav-links">
                 <a href="/portal/settings" class="nav-link">Settings</a>
                 <a href="/logout" class="nav-link">Log out</a>
@@ -831,7 +1129,7 @@
 
         <div class="section">
             <div class="section-header">
-                <div class="section-title">Plan and Billing</div>
+                <div class="section-title">Plan & Billing</div>
             </div>
             {plan_section}
         </div>
@@ -863,6 +1161,19 @@
         <script>
         function toggleReport(element) {{
             element.classList.toggle('expanded');
+        }}
+        
+        function toggleMessageBody(button, messageId) {{
+            const preview = document.getElementById('message-body-' + messageId);
+            if (preview.classList.contains('visible')) {{
+                preview.classList.remove('visible');
+                button.classList.remove('active');
+                button.textContent = 'View Full Message';
+            }} else {{
+                preview.classList.add('visible');
+                button.classList.add('active');
+                button.textContent = 'Hide Message';
+            }}
         }}
         
         const opportunityCache = {{}};
@@ -934,7 +1245,7 @@
                 html += '<div class="signal-card">';
                 html += '<span class="signal-type">' + escapeHtml(data.signal.source_type) + '</span>';
                 if (data.signal.geography) {{
-                    html += ' <span style="color: #666; font-size: 0.75rem;">' + escapeHtml(data.signal.geography) + '</span>';
+                    html += ' <span style="color: var(--text-tertiary); font-size: 0.75rem;">' + escapeHtml(data.signal.geography) + '</span>';
                 }}
                 if (data.signal.context_summary) {{
                     html += '<div class="signal-context">' + escapeHtml(data.signal.context_summary) + '</div>';
@@ -968,7 +1279,7 @@
                     html += '<div class="detail-report-card">';
                     html += '<div class="detail-report-title">' + escapeHtml(report.title) + '</div>';
                     html += '<span class="detail-report-type">' + escapeHtml(report.report_type) + '</span>';
-                    html += ' <span style="color: #555; font-size: 0.7rem;">' + formatDate(report.created_at) + '</span>';
+                    html += ' <span style="color: var(--text-tertiary); font-size: 0.7rem;">' + formatDate(report.created_at) + '</span>';
                     if (report.description) {{
                         html += '<div class="detail-report-desc">' + escapeHtml(report.description) + '</div>';
                     }}
@@ -1020,7 +1331,7 @@
                     html += '<div class="detail-meta-item"><div class="detail-meta-label">Niche</div><div class="detail-meta-value">' + escapeHtml(data.lead.niche) + '</div></div>';
                 }}
                 if (data.lead.website) {{
-                    html += '<div class="detail-meta-item"><div class="detail-meta-label">Website</div><div class="detail-meta-value"><a href="' + escapeHtml(data.lead.website) + '" target="_blank" style="color: #0af;">' + escapeHtml(data.lead.website) + '</a></div></div>';
+                    html += '<div class="detail-meta-item"><div class="detail-meta-label">Website</div><div class="detail-meta-value"><a href="' + escapeHtml(data.lead.website) + '" target="_blank" style="color: var(--accent-blue);">' + escapeHtml(data.lead.website) + '</a></div></div>';
                 }}
                 html += '</div>';
                 html += '</div>';

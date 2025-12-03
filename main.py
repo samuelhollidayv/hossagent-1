@@ -2252,22 +2252,28 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     ).all()
     
     if pending_outreach and customer.outreach_mode == "REVIEW":
+        import html as html_module
         outreach_cards = ""
         for po in pending_outreach:
             timestamp = po.created_at.strftime("%Y-%m-%d %H:%M") if po.created_at else "-"
             context_truncated = (po.context_summary[:100] + "...") if po.context_summary and len(po.context_summary) > 100 else (po.context_summary or "")
+            body_escaped = html_module.escape(po.body or "") if po.body else ""
             outreach_cards += f"""
                 <div class="outreach-card">
                     <div class="outreach-header">
-                        <div class="outreach-to">To: {po.to_email}</div>
+                        <div class="outreach-to">To: {html_module.escape(po.to_email)}</div>
                         <div class="outreach-date">{timestamp}</div>
                     </div>
-                    <div class="outreach-subject"><strong>Subject:</strong> {po.subject}</div>
-                    <div class="outreach-context">{context_truncated}</div>
+                    <div class="outreach-subject"><strong>Subject:</strong> {html_module.escape(po.subject or "")}</div>
+                    <div class="outreach-context">{html_module.escape(context_truncated)}</div>
                     <div class="outreach-actions">
                         <button class="outreach-btn approve" onclick="handleOutreach({po.id}, 'approve')">Approve &amp; Send</button>
                         <button class="outreach-btn edit" onclick="handleOutreach({po.id}, 'edit')">Edit &amp; Send</button>
                         <button class="outreach-btn skip" onclick="handleOutreach({po.id}, 'skip')">Skip</button>
+                        <button class="outreach-btn view-message" onclick="toggleMessageBody(this, {po.id})">View Full Message</button>
+                    </div>
+                    <div class="outreach-body-preview" id="message-body-{po.id}">
+                        <div class="outreach-body-content">{body_escaped}</div>
                     </div>
                 </div>
             """
@@ -2277,7 +2283,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             <div class="section-header">
                 <div class="section-title">Pending Outreach</div>
             </div>
-            <div style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">Review and approve outbound emails before they are sent</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Review and approve outbound emails before they are sent</div>
             {outreach_cards}
         </div>
         <script>

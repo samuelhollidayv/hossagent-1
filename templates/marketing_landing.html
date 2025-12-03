@@ -1,336 +1,590 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HossAgent - Autonomous AI Business Engine</title>
+    <title>HossAgent - Autonomous Opportunity Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+            --accent-blue: #3b82f6;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+        }
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        body {
-            background: #0a0a0a;
-            color: #fff;
-            font-family: Georgia, serif;
-            line-height: 1.6;
+        
+        html {
+            scroll-behavior: smooth;
         }
+        
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
         .container {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 0 2rem;
         }
+        
+        /* Navigation */
         nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2rem 0;
-            border-bottom: 1px solid #222;
+            height: 72px;
         }
+        
         .logo {
-            font-size: 1.5rem;
-            font-weight: normal;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-        }
-        .nav-links a {
-            color: #999;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
             text-decoration: none;
-            margin-left: 2rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
             font-size: 0.9rem;
+            font-weight: 400;
+            transition: color 0.2s ease;
         }
+        
         .nav-links a:hover {
-            color: #fff;
+            color: var(--text-primary);
         }
+        
+        .nav-cta {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-cta:hover {
+            background: var(--text-secondary);
+            color: var(--bg-primary);
+        }
+        
+        /* Hero Section */
         .hero {
+            padding: 10rem 0 6rem;
             text-align: center;
-            padding: 6rem 0;
-            border-bottom: 1px solid #222;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
         .hero h1 {
-            font-size: 3.5rem;
-            font-weight: normal;
+            font-size: clamp(2.5rem, 5vw, 3.75rem);
+            font-weight: 500;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
             margin-bottom: 1.5rem;
-            letter-spacing: 2px;
-            line-height: 1.2;
-        }
-        .hero .tagline {
-            font-size: 1.4rem;
-            color: #888;
-            font-style: italic;
-            margin-bottom: 3rem;
-            max-width: 600px;
+            max-width: 900px;
             margin-left: auto;
             margin-right: auto;
         }
+        
+        .hero .tagline {
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
+            color: var(--text-secondary);
+            max-width: 680px;
+            margin: 0 auto 3rem;
+            line-height: 1.7;
+            font-weight: 300;
+        }
+        
         .cta-buttons {
             display: flex;
-            gap: 1.5rem;
+            gap: 1rem;
             justify-content: center;
             flex-wrap: wrap;
+            margin-bottom: 4rem;
         }
+        
         .btn-primary {
-            background: #fff;
-            color: #0a0a0a;
-            padding: 1rem 2.5rem;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 1rem 2rem;
             text-decoration: none;
             font-size: 1rem;
-            font-weight: bold;
-            border: 2px solid #fff;
-            cursor: pointer;
-            font-family: Georgia, serif;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+        
         .btn-primary:hover {
-            background: transparent;
-            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 255, 255, 0.12);
         }
+        
         .btn-secondary {
             background: transparent;
-            color: #999;
-            padding: 1rem 2.5rem;
+            color: var(--text-secondary);
+            padding: 1rem 2rem;
             text-decoration: none;
             font-size: 1rem;
-            border: 1px solid #444;
-            font-family: Georgia, serif;
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
+        
         .btn-secondary:hover {
-            border-color: #fff;
-            color: #fff;
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
         }
-        .how-it-works {
-            padding: 5rem 0;
-            border-bottom: 1px solid #222;
-        }
-        .how-it-works h2 {
+        
+        /* Value Prop Banner */
+        .value-prop {
             text-align: center;
-            font-size: 1.8rem;
-            font-weight: normal;
-            margin-bottom: 3rem;
-            color: #888;
+            padding: 3rem 0;
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-secondary);
         }
+        
+        .value-prop p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.8;
+            font-weight: 300;
+        }
+        
+        .value-prop p span {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* How It Works */
+        .how-it-works {
+            padding: 6rem 0;
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+        
+        .section-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .section-title {
+            font-size: clamp(1.75rem, 3vw, 2.25rem);
+            font-weight: 500;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+        
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
         .steps {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 2rem;
+            gap: 1.5rem;
         }
-        @media (max-width: 768px) {
+        
+        @media (max-width: 1024px) {
+            .steps {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 640px) {
             .steps {
                 grid-template-columns: 1fr;
             }
         }
+        
         .step {
-            text-align: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
             padding: 2rem;
-            border: 1px solid #222;
-        }
-        .step-number {
-            font-size: 2.5rem;
-            color: #444;
-            margin-bottom: 1rem;
-            font-family: 'Courier New', monospace;
-        }
-        .step h3 {
-            font-size: 1.1rem;
-            font-weight: normal;
-            margin-bottom: 0.5rem;
-        }
-        .step p {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .features {
-            padding: 5rem 0;
-            border-bottom: 1px solid #222;
-        }
-        .features h2 {
-            text-align: center;
-            font-size: 1.8rem;
-            font-weight: normal;
-            margin-bottom: 3rem;
-            color: #888;
-        }
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 2rem;
-        }
-        @media (max-width: 768px) {
-            .feature-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .feature {
-            padding: 2rem;
-            border: 1px solid #222;
-        }
-        .feature h3 {
-            font-size: 1.1rem;
-            font-weight: normal;
-            margin-bottom: 0.5rem;
-        }
-        .feature p {
-            color: #666;
-            font-size: 0.95rem;
-        }
-        .pricing {
-            padding: 5rem 0;
-            text-align: center;
-            border-bottom: 1px solid #222;
-        }
-        .pricing h2 {
-            font-size: 1.8rem;
-            font-weight: normal;
-            margin-bottom: 1rem;
-            color: #888;
-        }
-        .price-card {
-            max-width: 400px;
-            margin: 2rem auto;
-            padding: 3rem;
-            border: 2px solid #333;
-        }
-        .price-name {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        .price-amount {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-        }
-        .price-period {
-            color: #666;
-            margin-bottom: 2rem;
-        }
-        .price-trial {
-            color: #0f0;
-            margin-bottom: 2rem;
-            font-size: 1.1rem;
-        }
-        .price-features {
-            text-align: left;
-            margin-bottom: 2rem;
-        }
-        .price-features li {
-            color: #999;
-            margin-bottom: 0.5rem;
-            list-style: none;
-            padding-left: 1.5rem;
+            transition: all 0.3s ease;
             position: relative;
         }
-        .price-features li:before {
-            content: "+";
-            position: absolute;
-            left: 0;
-            color: #0f0;
+        
+        .step:hover {
+            border-color: var(--border-medium);
+            transform: translateY(-4px);
         }
+        
+        .step-number {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-green);
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .step-number::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-medium);
+        }
+        
+        .step h3 {
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.01em;
+        }
+        
+        .step p {
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        /* Pricing */
+        .pricing {
+            padding: 6rem 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-subtle);
+        }
+        
+        .price-card {
+            max-width: 480px;
+            margin: 0 auto;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-medium);
+            border-radius: 16px;
+            padding: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .price-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+        }
+        
+        .price-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        
+        .price-name {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        
+        .price-amount {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .price-currency {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+        
+        .price-value {
+            font-size: 4rem;
+            font-weight: 600;
+            letter-spacing: -0.04em;
+        }
+        
+        .price-period {
+            color: var(--text-tertiary);
+            font-size: 1rem;
+        }
+        
+        .price-trial {
+            display: inline-block;
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+            padding: 0.5rem 1rem;
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+        
+        .price-features {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+        
+        .price-features li {
+            color: var(--text-secondary);
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+        }
+        
+        .price-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .price-features li::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            background: var(--accent-green-dim);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2322c55e'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+            background-size: 12px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        .price-cta {
+            display: block;
+            width: 100%;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 1rem;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .price-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 255, 255, 0.12);
+        }
+        
+        /* Footer */
         footer {
             padding: 3rem 0;
             text-align: center;
-            color: #444;
-            font-size: 0.85rem;
+            border-top: 1px solid var(--border-subtle);
         }
-        footer a {
-            color: #666;
-            text-decoration: none;
+        
+        footer p {
+            color: var(--text-tertiary);
+            font-size: 0.875rem;
+            font-family: var(--font-mono);
         }
-        footer a:hover {
-            color: #fff;
+        
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            .nav-links a:not(.nav-cta) {
+                display: none;
+            }
+            
+            .hero {
+                padding: 8rem 0 4rem;
+            }
+            
+            .container {
+                padding: 0 1.25rem;
+            }
+            
+            .price-card {
+                padding: 2rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <nav>
-            <div class="logo">HossAgent</div>
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="logo">HossAgent</a>
             <div class="nav-links">
                 <a href="/admin">Operations Console</a>
                 <a href="/login">Login</a>
-                <a href="/signup">Start Trial</a>
+                <a href="/signup" class="nav-cta">Start Trial</a>
             </div>
-        </nav>
-        
+        </div>
+    </nav>
+    
+    <main>
         <section class="hero">
-            <h1>Autonomous AI Workers,<br>Designed to Earn</h1>
-            <p class="tagline">
-                HossAgent finds leads, sends outreach, and runs client work on autopilot.
-                You just check the portal and get paid.
-            </p>
-            <div class="cta-buttons">
-                <a href="/signup" class="btn-primary">Start 7-Day Free Trial</a>
-              
+            <div class="container">
+                <h1>Autonomous Opportunity Detection<br>for Real-World Business</h1>
+                <p class="tagline">
+                    HossAgent scans the market, finds moments worth acting on, turns them into clear opportunities, and drafts outreach automatically — so you never miss a lead again.
+                </p>
+                <div class="cta-buttons">
+                    <a href="/signup" class="btn-primary">Start 7-Day Free Trial</a>
+                </div>
+            </div>
+        </section>
+        
+        <section class="value-prop">
+            <div class="container">
+                <p>
+                    <span>Signals become opportunities.</span>
+                    <span>Opportunities become conversations.</span>
+                    <span>All delivered into your portal automatically.</span>
+                </p>
+            </div>
         </section>
         
         <section class="how-it-works">
-            <h2>How It Works</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">01</div>
-                    <h3>Lead Generation</h3>
-                    <p>AI finds qualified prospects in your target market</p>
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-label">How It Works</span>
+                    <h2 class="section-title">From signal to opportunity in four steps</h2>
                 </div>
-                <div class="step">
-                    <div class="step-number">02</div>
-                    <h3>Smart Outreach</h3>
-                    <p>Personalized emails sent at optimal times</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">03</div>
-                    <h3>Task Execution</h3>
-                    <p>AI completes work and tracks time</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">04</div>
-                    <h3>Auto Billing</h3>
-                    <p>Invoices generated and sent automatically</p>
-                </div>
-            </div>
-        </section>
-        
-        <section class="features">
-            <h2>Built for B2B Agencies</h2>
-            <div class="feature-grid">
-                <div class="feature">
-                    <h3>Autonomous Agents</h3>
-                    <p>Four specialized AI agents work in concert: BizDev, Onboarding, Operations, and Billing. They coordinate to grow your business.</p>
-                </div>
-                <div class="feature">
-                    <h3>Real-Time Profit Tracking</h3>
-                    <p>See revenue, costs, and profit for every task. Know exactly what each client is worth.</p>
-                </div>
-                <div class="feature">
-                    <h3>Stripe Integration</h3>
-                    <p>Payment links generated automatically. Clients pay with one click. Subscriptions handled seamlessly.</p>
-                </div>
-                <div class="feature">
-                    <h3>Full Control Panel</h3>
-                    <p>Toggle agents on/off, monitor email health, adjust lead sources. You stay in command.</p>
+                
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">01</div>
+                        <h3>Signals Ingested</h3>
+                        <p>HossAgent monitors public data — reviews, staffing changes, competitor moves, local shifts — and detects events that matter for your business.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">02</div>
+                        <h3>Opportunities Identified</h3>
+                        <p>Raw signals become structured Lead Events with context, urgency, and category. No noise. Only what's actionable.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">03</div>
+                        <h3>Outreach Drafted</h3>
+                        <p>For each opportunity, HossAgent prepares tailored outreach that reflects the moment and the market — ready to send or schedule.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">04</div>
+                        <h3>Insights Delivered</h3>
+                        <p>Research snapshots, market notes, and recent work appear automatically in your portal. Clear. Fast. Always on.</p>
+                    </div>
                 </div>
             </div>
         </section>
         
         <section class="pricing">
-            <h2>Simple Pricing</h2>
-            <div class="price-card">
-                <div class="price-name">HossAgent Pro</div>
-                <div class="price-amount">$99</div>
-                <div class="price-period">per month</div>
-                <div class="price-trial">7-day free trial included</div>
-                <ul class="price-features">
-                    <li>Unlimited leads</li>
-                    <li>Unlimited tasks</li>
-                    <li>Autonomous outreach</li>
-                    <li>Stripe billing integration</li>
-                    <li>Real-time analytics</li>
-                    <li>Autopilot mode</li>
-                </ul>
-                <a href="/signup" class="btn-primary" style="display: block;">Start Free Trial</a>
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-label">Pricing</span>
+                    <h2 class="section-title">Simple Pricing</h2>
+                </div>
+                
+                <div class="price-card">
+                    <div class="price-header">
+                        <div class="price-name">HossAgent Pro</div>
+                        <div class="price-amount">
+                            <span class="price-currency">$</span>
+                            <span class="price-value">99</span>
+                            <span class="price-period">/mo</span>
+                        </div>
+                        <div class="price-trial">7-day free trial</div>
+                    </div>
+                    
+                    <ul class="price-features">
+                        <li>Automatic opportunity detection</li>
+                        <li>Smart outreach drafts</li>
+                        <li>Market research snapshots &amp; competitive intel</li>
+                        <li>Customer portal with reports and history</li>
+                        <li>Optional outbound automation</li>
+                        <li>No long-term contracts</li>
+                        <li>Cancel anytime</li>
+                    </ul>
+                    
+                    <a href="/signup" class="price-cta">Start Free Trial</a>
+                </div>
             </div>
         </section>
-        
-        <footer>
-            <p>HossAgent &copy; 2024. Built for founders who ship.</p>
-        </footer>
-    </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>HossAgent &copy; 2025 — built for operators who move fast.</p>
+        </div>
+    </footer>
 </body>
 </html>
