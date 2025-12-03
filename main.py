@@ -3080,7 +3080,8 @@ def get_opportunity_detail(
     
     Authenticated via customer session cookie.
     """
-    customer = get_customer_from_session(request, session)
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     
@@ -3297,7 +3298,7 @@ def get_lead_event_detail_admin(
             company_data = {
                 "id": customer.id,
                 "company": customer.company,
-                "email": customer.email
+                "email": customer.contact_email
             }
     
     return {
