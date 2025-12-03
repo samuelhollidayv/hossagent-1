@@ -1,169 +1,286 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>HossAgent - Customer Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HossAgent - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {{
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+        }}
+        
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
+        
         body {{
-            background: #0a0a0a;
-            color: #fff;
-            font-family: Georgia, serif;
-            padding: 3rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            padding: 2rem;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }}
+        
         .container {{
             max-width: 1200px;
             margin: 0 auto;
         }}
+        
         .header {{
             text-align: center;
             margin-bottom: 3rem;
-            border-bottom: 1px solid #333;
             padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         h1 {{
-            font-size: 3rem;
-            font-weight: normal;
+            font-size: 2rem;
+            font-weight: 500;
+            letter-spacing: -0.02em;
             margin-bottom: 0.5rem;
-            letter-spacing: 2px;
         }}
+        
         .tagline {{
-            font-size: 1.2rem;
-            color: #999;
-            font-style: italic;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 300;
         }}
+        
         .nav {{
             text-align: center;
-            margin: 1rem 0;
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
         }}
+        
         .nav a {{
-            color: #999;
+            color: var(--text-secondary);
             text-decoration: none;
-            margin: 0 1.5rem;
             font-size: 0.9rem;
+            transition: color 0.2s ease;
         }}
+        
         .nav a:hover {{
-            color: #fff;
+            color: var(--text-primary);
         }}
+        
         .metrics {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 2rem;
-            margin: 3rem 0;
+            gap: 1.5rem;
+            margin: 2.5rem 0;
         }}
+        
+        @media (max-width: 1024px) {{
+            .metrics {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
+        
+        @media (max-width: 640px) {{
+            .metrics {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+        
         .metric-card {{
-            border: 1px solid #333;
-            padding: 2rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.5rem;
             text-align: center;
+            transition: all 0.2s ease;
         }}
+        
+        .metric-card:hover {{
+            border-color: var(--border-medium);
+            transform: translateY(-2px);
+        }}
+        
         .metric-value {{
-            font-size: 2.5rem;
-            font-weight: normal;
+            font-size: 2.25rem;
+            font-weight: 500;
             margin-bottom: 0.5rem;
-            letter-spacing: 1px;
+            letter-spacing: -0.02em;
         }}
+        
         .metric-label {{
-            font-size: 0.8rem;
-            color: #666;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 0.1em;
         }}
+        
         .section {{
-            margin: 3rem 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
         }}
+        
         .section h2 {{
-            font-size: 1.2rem;
-            font-weight: normal;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 500;
             margin-bottom: 1.5rem;
-            color: #999;
-            border-bottom: 1px solid #333;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
             padding-bottom: 1rem;
-            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         table {{
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }}
+        
         table th {{
             text-align: left;
-            padding: 1rem;
-            border-bottom: 1px solid #333;
-            color: #666;
-            font-weight: normal;
+            padding: 0.75rem 1rem;
+            color: var(--text-tertiary);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         table td {{
-            padding: 1rem;
-            border-bottom: 1px solid #222;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
         }}
+        
         table a {{
-            color: #aaa;
+            color: var(--text-secondary);
             text-decoration: none;
+            transition: color 0.2s ease;
         }}
+        
         table a:hover {{
-            color: #fff;
+            color: var(--text-primary);
         }}
+        
         table tr:hover {{
-            background: #111;
+            background: var(--bg-tertiary);
         }}
+        
         .status-badge {{
             display: inline-block;
-            padding: 0.3rem 0.6rem;
-            background: #333;
-            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 100px;
+            font-size: 0.7rem;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
         }}
+        
         .status-badge.pending {{
-            background: #664400;
+            background: rgba(249, 115, 22, 0.15);
+            color: #f97316;
         }}
+        
         .status-badge.done {{
-            background: #006600;
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
         }}
+        
         .status-badge.active {{
-            background: #004466;
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
         }}
+        
         .status-badge.draft {{
-            background: #663300;
+            background: rgba(249, 115, 22, 0.15);
+            color: #f97316;
         }}
+        
         .status-badge.paid {{
-            background: #006633;
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
         }}
+        
         .money {{
-            font-weight: bold;
-            color: #0f0;
+            font-weight: 500;
+            color: var(--accent-green);
         }}
+        
         .admin-link {{
             position: fixed;
             bottom: 2rem;
             right: 2rem;
-            background: #fff;
-            color: #0a0a0a;
-            padding: 0.8rem 1.5rem;
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 0.75rem 1.5rem;
             text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }}
+        
         .admin-link:hover {{
-            background: #ddd;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 255, 255, 0.12);
         }}
+        
         .empty {{
-            color: #666;
+            color: var(--text-tertiary);
             font-style: italic;
+        }}
+        
+        .footer-note {{
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-subtle);
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }}
+        
+        .footer-note p {{
+            line-height: 1.6;
+        }}
+        
+        .footer-note a {{
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }}
+        
+        .footer-note a:hover {{
+            color: var(--text-primary);
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>HOSSAGENT</h1>
-            <p class="tagline">Autonomous AI workers, designed to earn</p>
+            <h1>HossAgent</h1>
+            <p class="tagline">Autonomous opportunity detection for real-world business</p>
             <div class="nav">
                 <a href="/">Dashboard</a>
                 <a href="/admin">Admin Console</a>
@@ -207,7 +324,7 @@
         </div>
 
         <div class="section">
-            <h2>Invoices & Billing</h2>
+            <h2>Invoices &amp; Billing</h2>
             <table>
                 <thead>
                     <tr>
@@ -241,13 +358,13 @@
             </table>
         </div>
 
-        <div style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #333; color: #666; font-size: 0.85rem;">
-            <p>🔧 System operates autonomously. New leads are generated, converted to customers, tasks executed, and invoices created automatically.</p>
-            <p style="margin-top: 0.5rem;">For operator controls, visit <a href="/admin" style="color: #999;">Admin Console</a>.</p>
+        <div class="footer-note">
+            <p>System operates autonomously. New leads are generated, converted to customers, tasks executed, and invoices created automatically.</p>
+            <p style="margin-top: 0.5rem;">For operator controls, visit <a href="/admin">Admin Console</a>.</p>
         </div>
     </div>
 
-    <a href="/admin" class="admin-link">ADMIN CONSOLE</a>
+    <a href="/admin" class="admin-link">Admin Console</a>
 
     <script>
         // Auto-refresh every 30 seconds
