@@ -3254,14 +3254,11 @@ def get_lead_event_detail_admin(
             "sent_at": o.sent_at.isoformat() if o.sent_at else None
         })
     
-    report_records = session.exec(
-        select(Report).where(
-            (Report.lead_event_id == event.id) |
-            (Report.lead_id == event.lead_id)
-        ).order_by(Report.created_at.desc())
-    ).all() if event.lead_id else session.exec(
-        select(Report).where(Report.lead_event_id == event.id).order_by(Report.created_at.desc())
-    ).all()
+    report_records = []
+    if event.lead_id:
+        report_records = session.exec(
+            select(Report).where(Report.lead_id == event.lead_id).order_by(Report.created_at.desc())
+        ).all()
     
     reports_list = []
     for r in report_records:
