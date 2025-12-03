@@ -2346,20 +2346,22 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 <div class="section-title">Today's Opportunities</div>
             </div>
             <div class="opportunities-subtitle">Automatically identified from public context signals • Click a row to see details</div>
-            <table class="opportunities-table" style="margin-top: 1rem;">
-                <thead>
-                    <tr>
-                        <th>Summary</th>
-                        <th>Category</th>
-                        <th>Urgency</th>
-                        <th>Status</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {opportunities_rows}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table class="opportunities-table" style="margin-top: 1rem;">
+                    <thead>
+                        <tr>
+                            <th>Summary</th>
+                            <th>Category</th>
+                            <th>Urgency</th>
+                            <th>Status</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {opportunities_rows}
+                    </tbody>
+                </table>
+            </div>
         </div>
         """
     else:
@@ -2540,34 +2542,38 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         paid_rows = '<tr><td colspan="4" class="empty">No paid invoices yet.</td></tr>'
     
     invoices_section = f"""
-        <table>
-            <thead>
-                <tr>
-                    <th>Invoice</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {outstanding_rows}
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Invoice</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {outstanding_rows}
+                </tbody>
+            </table>
+        </div>
         <h4 style="font-size: 0.8rem; font-weight: normal; letter-spacing: 1px; color: #666; text-transform: uppercase; margin: 1.5rem 0 1rem;">Payment History</h4>
-        <table>
-            <thead>
-                <tr>
-                    <th>Invoice</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Paid Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {paid_rows}
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Invoice</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Paid Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {paid_rows}
+                </tbody>
+            </table>
+        </div>
     """
     
     payment_banner = ""

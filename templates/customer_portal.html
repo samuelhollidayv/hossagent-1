@@ -301,8 +301,16 @@
             flex-wrap: wrap;
         }}
         
+        .table-wrapper {{
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -1rem;
+            padding: 0 1rem;
+        }}
+        
         table {{
             width: 100%;
+            min-width: 500px;
             border-collapse: collapse;
             font-size: 0.9rem;
         }}
@@ -1144,18 +1152,20 @@
             <div class="section-header">
                 <div class="section-title">Task History</div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Task</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {tasks_rows}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Task</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tasks_rows}
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <script>

@@ -309,8 +309,16 @@
             color: var(--accent-red);
         }
 
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -1rem;
+            padding: 0 1rem;
+        }
+        
         table {
             width: 100%;
+            min-width: 600px;
             border-collapse: collapse;
             font-size: 0.75rem;
         }
@@ -751,23 +759,25 @@
             <div class="panel-toggle">▼</div>
         </div>
         <div class="panel-content open">
-            <table id="lead-events-table">
-                <thead>
-                    <tr>
-                        <th>Summary</th>
-                        <th>Category</th>
-                        <th>Urgency</th>
-                        <th>Status</th>
-                        <th>Outbound</th>
-                        <th>Report</th>
-                        <th>Company</th>
-                        <th>Created</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="8" class="empty-row">Loading...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table id="lead-events-table">
+                    <thead>
+                        <tr>
+                            <th>Summary</th>
+                            <th>Category</th>
+                            <th>Urgency</th>
+                            <th>Status</th>
+                            <th>Outbound</th>
+                            <th>Report</th>
+                            <th>Company</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="8" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -782,35 +792,39 @@
                 <div class="tab" onclick="switchTab(this, 'reports-tab')">Reports</div>
             </div>
             <div id="outbound-tab" class="tab-content active">
-                <table id="outbound-table">
-                    <thead>
-                        <tr>
-                            <th>Lead Event</th>
-                            <th>To Email</th>
-                            <th>Subject</th>
-                            <th>Status</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td colspan="5" class="empty-row">Loading...</td></tr>
-                    </tbody>
-                </table>
+                <div class="table-wrapper">
+                    <table id="outbound-table">
+                        <thead>
+                            <tr>
+                                <th>Lead Event</th>
+                                <th>To Email</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="empty-row">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div id="reports-tab" class="tab-content">
-                <table id="reports-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Lead Event</th>
-                            <th>Type</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td colspan="4" class="empty-row">Loading...</td></tr>
-                    </tbody>
-                </table>
+                <div class="table-wrapper">
+                    <table id="reports-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Lead Event</th>
+                                <th>Type</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" class="empty-row">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -821,20 +835,22 @@
             <div class="panel-toggle">▶</div>
         </div>
         <div class="panel-content">
-            <table id="signals-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Summary</th>
-                        <th>Source Type</th>
-                        <th>Geography</th>
-                        <th>Created</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="5" class="empty-row">Loading...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table id="signals-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Summary</th>
+                            <th>Source Type</th>
+                            <th>Geography</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -844,24 +860,26 @@
             <div class="panel-toggle">▶</div>
         </div>
         <div class="panel-content">
-            <table id="customers-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Company</th>
-                        <th>Plan</th>
-                        <th>Status</th>
-                        <th>Tasks</th>
-                        <th>Leads</th>
-                        <th>Days Left</th>
-                        <th>Portal</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="9" class="empty-row">Loading...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table id="customers-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Company</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Tasks</th>
+                            <th>Leads</th>
+                            <th>Days Left</th>
+                            <th>Portal</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="9" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -871,21 +889,23 @@
             <div class="panel-toggle">▶</div>
         </div>
         <div class="panel-content">
-            <table id="pending-outreach-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Customer</th>
-                        <th>To Email</th>
-                        <th>Subject</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="6" class="empty-row">No pending outreach</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table id="pending-outreach-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Customer</th>
+                            <th>To Email</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="empty-row">No pending outreach</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
