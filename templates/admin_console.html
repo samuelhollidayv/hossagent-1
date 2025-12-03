@@ -482,11 +482,17 @@
             display: block;
         }
 
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
         .back-link {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            margin-bottom: 1.5rem;
             color: var(--text-tertiary);
             text-decoration: none;
             font-size: 0.8rem;
@@ -697,7 +703,10 @@
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">← Customer Dashboard</a>
+    <div class="top-nav">
+        <a href="/" class="back-link">← Customer Dashboard</a>
+        <a href="/how-it-works" class="back-link">How It Works</a>
+    </div>
     
     <div class="header">
         <h1>HOSS CONTROL ROOM</h1>
