@@ -16,7 +16,14 @@ import asyncio
 import secrets
 from datetime import datetime
 from sqlmodel import Session, select
-from models import Lead, Customer, Task, Invoice, LeadEvent, TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT
+from models import (
+    Lead, Customer, Task, Invoice, LeadEvent, 
+    BusinessProfile, PendingOutbound, Report,
+    TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT,
+    OUTREACH_MODE_AUTO, OUTREACH_MODE_REVIEW,
+    LEAD_STATUS_NEW, LEAD_STATUS_CONTACTED,
+    NEXT_STEP_OWNER_AGENT, NEXT_STEP_OWNER_CUSTOMER
+)
 from email_utils import (
     send_email,
     get_email_mode,
@@ -24,6 +31,11 @@ from email_utils import (
     get_email_status,
     EmailMode,
     EmailResult
+)
+from outbound_utils import (
+    get_business_profile,
+    check_do_not_contact,
+    create_pending_outbound
 )
 from bizdev_templates import (
     generate_email,
@@ -36,9 +48,55 @@ from subscription_utils import (
     should_force_email_dry_run,
     should_disable_billing_for_customer,
     increment_task_usage,
-    increment_lead_usage
+    increment_lead_usage,
+    increment_tasks_used,
+    increment_leads_used
 )
 import random
+
+
+def create_report(
+    session: Session,
+    customer_id: int,
+    title: str,
+    description: str = None,
+    content: str = None,
+    report_type: str = "general",
+    lead_id: int = None
+) -> Report:
+    """
+    Create a Report record for a customer.
+    
+    Reports capture visible work output such as research summaries,
+    competitive analyses, and market insights. Displayed in the portal
+    under "Reports / Recent Work".
+    
+    Args:
+        session: Database session
+        customer_id: The customer this report is for
+        title: Report title (e.g., task description)
+        description: Short description or summary
+        content: Full report content or JSON
+        report_type: Type of report (research, competitive, market, opportunity, general)
+        lead_id: Optional related lead ID
+    
+    Returns:
+        The created Report record
+    """
+    report = Report(
+        customer_id=customer_id,
+        lead_id=lead_id,
+        title=title,
+        description=description,
+        content=content,
+        report_type=report_type
+    )
+    session.add(report)
+    
+    increment_tasks_used(session, customer_id)
+    
+    print(f"[REPORT] Created report for customer {customer_id}: {title[:50]}...")
+    return report
 
 
 async def run_bizdev_cycle(session: Session) -> str:
@@ -47,10 +105,12 @@ async def run_bizdev_cycle(session: Session) -> str:
     
     Steps:
     1. Find leads with status='new' that haven't been contacted
-    2. For each NEW lead, generate personalized email from template pack
-    3. If email succeeds, mark lead as 'contacted'
-    4. If email fails, mark as 'email_failed'
-    5. If dry-run, keep as 'new'
+    2. For each NEW lead, check customer outreach_mode if lead has company_id
+    3. Check do_not_contact list before sending
+    4. If AUTO mode: send email, update lead status to CONTACTED
+    5. If REVIEW mode: create PendingOutbound, keep lead as NEW
+    6. If email fails, mark as 'email_failed'
+    7. If dry-run, keep as 'new'
     
     Throttling: Respects MAX_EMAILS_PER_CYCLE and MAX_EMAILS_PER_HOUR.
     Safe to call repeatedly - only emails leads with status='new'.
@@ -75,12 +135,35 @@ async def run_bizdev_cycle(session: Session) -> str:
     emails_failed = 0
     emails_throttled = 0
     emails_attempted = 0
+    emails_queued = 0
+    emails_blocked = 0
     contacted_companies = []
 
     for lead in new_leads:
         if emails_attempted >= max_emails:
             print(f"[BIZDEV] Throttle limit reached ({max_emails} emails per cycle)")
             break
+        
+        customer = None
+        business_profile = None
+        outreach_mode = OUTREACH_MODE_AUTO
+        do_not_contact_list = None
+        
+        customer_id = getattr(lead, 'customer_id', None) or getattr(lead, 'company_id', None)
+        if customer_id:
+            customer = session.exec(
+                select(Customer).where(Customer.id == customer_id)
+            ).first()
+            if customer:
+                outreach_mode = customer.outreach_mode or OUTREACH_MODE_AUTO
+                business_profile = get_business_profile(session, customer.id)
+                if business_profile:
+                    do_not_contact_list = business_profile.do_not_contact_list
+        
+        if check_do_not_contact(lead.email, do_not_contact_list):
+            emails_blocked += 1
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: BLOCKED (do_not_contact)")
+            continue
         
         generated = generate_email(
             first_name=lead.name,
@@ -90,8 +173,26 @@ async def run_bizdev_cycle(session: Session) -> str:
         )
         
         log_template_generation(generated, lead.id, lead.email)
-
         emails_attempted += 1
+
+        if outreach_mode == OUTREACH_MODE_REVIEW and customer:
+            create_pending_outbound(
+                session=session,
+                customer_id=customer.id,
+                lead_id=lead.id,
+                to_email=lead.email,
+                to_name=lead.name,
+                subject=generated.subject,
+                body=generated.body,
+                context_summary=f"Intro email for lead from {lead.company}"
+            )
+            lead.next_step = "Awaiting your review"
+            lead.next_step_owner = NEXT_STEP_OWNER_CUSTOMER
+            emails_queued += 1
+            session.add(lead)
+            print(f"[BIZDEV] Lead {lead.name} at {lead.company}: QUEUED for review (template={generated.template_pack})")
+            continue
+
         email_result: EmailResult = send_email(
             to_email=lead.email,
             subject=generated.subject,
@@ -101,8 +202,10 @@ async def run_bizdev_cycle(session: Session) -> str:
         )
         
         if email_result.actually_sent:
-            lead.status = "contacted"
+            lead.status = LEAD_STATUS_CONTACTED
             lead.last_contacted_at = datetime.utcnow()
+            lead.last_contact_summary = "Intro email sent"
+            lead.next_step_owner = NEXT_STEP_OWNER_AGENT
             emails_sent += 1
             contacted_companies.append(lead.company)
             print(f"[BIZDEV] Lead {lead.name} at {lead.company}: CONTACTED (template={generated.template_pack})")
@@ -122,7 +225,9 @@ async def run_bizdev_cycle(session: Session) -> str:
     
     companies_str = ", ".join(contacted_companies) if contacted_companies else "None"
     throttle_info = f", Throttled: {emails_throttled}" if emails_throttled > 0 else ""
-    msg = f"BizDev: Contacted {emails_sent}/{emails_attempted} leads ({companies_str}). Failed: {emails_failed}{throttle_info}. Mode: {effective_mode}, Template: {template_status['active_pack']}"
+    queued_info = f", Queued: {emails_queued}" if emails_queued > 0 else ""
+    blocked_info = f", Blocked: {emails_blocked}" if emails_blocked > 0 else ""
+    msg = f"BizDev: Contacted {emails_sent}/{emails_attempted} leads ({companies_str}). Failed: {emails_failed}{throttle_info}{queued_info}{blocked_info}. Mode: {effective_mode}, Template: {template_status['active_pack']}"
     print(f"[CYCLE] {msg}")
     return msg
 
@@ -265,10 +370,18 @@ async def run_ops_cycle(session: Session) -> str:
     task.completed_at = datetime.utcnow()
     session.add(task)
     
-    customer.tasks_this_period = (customer.tasks_this_period or 0) + 1
-    session.add(customer)
+    create_report(
+        session=session,
+        customer_id=customer.id,
+        title=task.description,
+        description=f"Research completed for {customer.company}",
+        content=simulated_result,
+        report_type="research"
+    )
     
     session.commit()
+    
+    session.refresh(customer)
 
     plan_info = f" [Plan: {customer.plan}, Tasks: {customer.tasks_this_period}/{plan_status.tasks_limit if plan_status.is_trial else 'unlimited'}]"
     msg = f"Ops: Completed task {task.id} ({customer.company}). Cost: {cost_cents}c, Profit: {profit_cents}c{plan_info}"
@@ -368,8 +481,12 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     
     This is a moment-aware outreach system that:
     1. Selects LeadEvents with status='new' ordered by urgency_score (highest first)
-    2. Generates Miami-style contextual emails based on event.summary and event.recommended_action
-    3. Updates event status to 'contacted' and stores the outbound_message
+    2. Checks customer's outreach_mode and do_not_contact list
+    3. Generates Miami-style contextual emails based on event.summary and event.recommended_action
+    4. If AUTO mode: sends email immediately
+    5. If REVIEW mode: creates PendingOutbound for customer approval
+    6. Gets CC/Reply-To from BusinessProfile.primary_contact_email
+    7. Updates event status to 'contacted' and stores the outbound_message
     
     Miami-Style Template Language:
     - Lead with the observed moment (the signal)
@@ -397,6 +514,8 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     events_processed = 0
     events_contacted = 0
     events_failed = 0
+    events_queued = 0
+    events_blocked = 0
     contacted_summaries = []
 
     for event in new_events:
@@ -406,6 +525,25 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
         contact_name = None
         company_name = None
         niche = "small business"
+        
+        business_profile = None
+        outreach_mode = OUTREACH_MODE_AUTO
+        do_not_contact_list = None
+        cc_email = None
+        reply_to = None
+        
+        if event.company_id:
+            customer = session.exec(
+                select(Customer).where(Customer.id == event.company_id)
+            ).first()
+            if customer:
+                outreach_mode = customer.outreach_mode or OUTREACH_MODE_AUTO
+                business_profile = get_business_profile(session, customer.id)
+                if business_profile:
+                    do_not_contact_list = business_profile.do_not_contact_list
+                    if business_profile.primary_contact_email:
+                        cc_email = business_profile.primary_contact_email
+                        reply_to = business_profile.primary_contact_email
         
         if event.lead_id:
             lead = session.exec(
@@ -418,9 +556,6 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
                 niche = lead.niche or niche
         
         if event.company_id and not lead:
-            customer = session.exec(
-                select(Customer).where(Customer.id == event.company_id)
-            ).first()
             if customer:
                 contact_email = customer.contact_email
                 contact_name = customer.contact_name or customer.company
@@ -429,6 +564,11 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
         
         if not contact_email or not company_name:
             print(f"[EVENT-BIZDEV] Event {event.id}: No contact found, skipping")
+            continue
+        
+        if check_do_not_contact(contact_email, do_not_contact_list):
+            events_blocked += 1
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: BLOCKED (do_not_contact)")
             continue
         
         events_processed += 1
@@ -443,23 +583,48 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
             urgency_score=event.urgency_score
         )
         
+        if outreach_mode == OUTREACH_MODE_REVIEW and customer:
+            create_pending_outbound(
+                session=session,
+                customer_id=customer.id,
+                lead_id=event.lead_id,
+                to_email=contact_email,
+                to_name=contact_name,
+                subject=subject,
+                body=body,
+                context_summary=f"Signal-triggered: {event.category} - {event.summary[:100]}",
+                lead_event_id=event.id
+            )
+            event.outbound_message = body
+            event.next_step = "Awaiting your review"
+            event.next_step_owner = NEXT_STEP_OWNER_CUSTOMER
+            events_queued += 1
+            session.add(event)
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: QUEUED for review (urgency={event.urgency_score})")
+            continue
+        
         email_result = send_email(
             to_email=contact_email,
             subject=subject,
             body=body,
             lead_name=contact_name,
-            company=company_name
+            company=company_name,
+            cc_email=cc_email,
+            reply_to=reply_to
         )
         
         event.outbound_message = body
         
         if email_result.actually_sent:
-            event.status = "contacted"
+            event.status = LEAD_STATUS_CONTACTED
+            event.last_contact_at = datetime.utcnow()
+            event.last_contact_summary = f"Contextual email sent: {event.category}"
+            event.next_step_owner = NEXT_STEP_OWNER_AGENT
             events_contacted += 1
             contacted_summaries.append(f"{company_name} ({event.category})")
             print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: CONTACTED (urgency={event.urgency_score})")
         elif email_result.result in ("dry_run", "fallback"):
-            event.status = "contacted"
+            event.status = LEAD_STATUS_CONTACTED
             print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: DRY_RUN (mode={email_result.mode})")
         else:
             events_failed += 1
@@ -473,7 +638,9 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     if len(contacted_summaries) > 5:
         summaries_str += f" (+{len(contacted_summaries) - 5} more)"
     
-    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}. Mode: {effective_mode}. Companies: {summaries_str}"
+    queued_info = f", Queued: {events_queued}" if events_queued > 0 else ""
+    blocked_info = f", Blocked: {events_blocked}" if events_blocked > 0 else ""
+    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}{queued_info}{blocked_info}. Mode: {effective_mode}. Companies: {summaries_str}"
     print(f"[CYCLE] {msg}")
     return msg
 

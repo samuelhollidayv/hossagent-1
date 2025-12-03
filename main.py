@@ -24,6 +24,7 @@ Subscription Model:
 """
 import asyncio
 import json
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import FastAPI, Depends, Request, HTTPException, Query, Form, Response
@@ -31,7 +32,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity, Signal, LeadEvent
+from models import Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity, Signal, LeadEvent, PasswordResetToken, PendingOutbound, BusinessProfile, Report
 from agents import (
     run_bizdev_cycle,
     run_onboarding_cycle,
@@ -418,6 +419,234 @@ def logout():
 
 
 # ============================================================================
+# FORGOT PASSWORD ROUTES
+# ============================================================================
+
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_get(request: Request):
+    """Render forgot password form."""
+    with open("templates/forgot_password.html", "r") as f:
+        template = f.read()
+    
+    message_html = ""
+    if request.query_params.get("sent") == "true":
+        message_html = '<div class="success-message">If an account with that email exists, a reset link has been sent.</div>'
+    
+    html = template.format(
+        message_html=message_html,
+        email=""
+    )
+    return html
+
+
+@app.post("/forgot-password", response_class=HTMLResponse)
+def forgot_password_post(
+    request: Request,
+    email: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    """Process forgot password form - generate reset token and send email."""
+    customer = session.exec(
+        select(Customer).where(Customer.contact_email == email.lower().strip())
+    ).first()
+    
+    if customer:
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=1)
+        
+        reset_token = PasswordResetToken(
+            customer_id=customer.id,
+            token=token,
+            expires_at=expires_at
+        )
+        session.add(reset_token)
+        session.commit()
+        
+        host = request.headers.get("host", "localhost:5000")
+        scheme = "https" if "https" in request.url.scheme or host.endswith(".repl.co") or host.endswith(".replit.dev") else "http"
+        reset_url = f"{scheme}://{host}/reset-password?token={token}"
+        
+        reset_email_subject = "Reset Your HossAgent Password"
+        reset_email_body = f"""Hello {customer.contact_name or 'there'},
+
+You requested a password reset for your HossAgent account.
+
+Click the link below to reset your password:
+{reset_url}
+
+This link will expire in 1 hour.
+
+If you didn't request this reset, you can safely ignore this email.
+
+Best,
+The HossAgent Team
+"""
+        
+        send_email(
+            to_email=customer.contact_email,
+            subject=reset_email_subject,
+            body=reset_email_body,
+            lead_name=customer.contact_name or "",
+            company=customer.company
+        )
+        
+        print(f"[FORGOT_PASSWORD] Reset token generated for: {customer.contact_email}")
+    else:
+        print(f"[FORGOT_PASSWORD] No account found for: {email}")
+    
+    return RedirectResponse(url="/forgot-password?sent=true", status_code=303)
+
+
+@app.get("/reset-password", response_class=HTMLResponse)
+def reset_password_get(
+    token: str = Query(None),
+    session: Session = Depends(get_session)
+):
+    """Render reset password form."""
+    with open("templates/reset_password.html", "r") as f:
+        template = f.read()
+    
+    if not token:
+        html = template.format(
+            message_html='<div class="error-message">Invalid reset link. Please request a new password reset.</div>',
+            form_html='<p style="text-align: center; color: #888;">No valid reset token provided.</p>'
+        )
+        return html
+    
+    reset_token = session.exec(
+        select(PasswordResetToken).where(PasswordResetToken.token == token)
+    ).first()
+    
+    if not reset_token:
+        html = template.format(
+            message_html='<div class="error-message">Invalid reset link. Please request a new password reset.</div>',
+            form_html='<p style="text-align: center; color: #888;"><a href="/forgot-password" style="color: #999;">Request a new reset link</a></p>'
+        )
+        return html
+    
+    if reset_token.used:
+        html = template.format(
+            message_html='<div class="error-message">This reset link has already been used. Please request a new password reset.</div>',
+            form_html='<p style="text-align: center; color: #888;"><a href="/forgot-password" style="color: #999;">Request a new reset link</a></p>'
+        )
+        return html
+    
+    if datetime.utcnow() > reset_token.expires_at:
+        html = template.format(
+            message_html='<div class="error-message">This reset link has expired. Please request a new password reset.</div>',
+            form_html='<p style="text-align: center; color: #888;"><a href="/forgot-password" style="color: #999;">Request a new reset link</a></p>'
+        )
+        return html
+    
+    form_html = f'''
+            <form method="POST" action="/reset-password">
+                <input type="hidden" name="token" value="{token}">
+                
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" name="password" placeholder="Enter new password" required minlength="8">
+                </div>
+                
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" name="password_confirm" placeholder="Confirm new password" required minlength="8">
+                </div>
+                
+                <button type="submit" class="btn-submit">Reset Password</button>
+            </form>
+    '''
+    
+    html = template.format(
+        message_html="",
+        form_html=form_html
+    )
+    return html
+
+
+@app.post("/reset-password", response_class=HTMLResponse)
+def reset_password_post(
+    token: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    """Process reset password form - validate token and set new password."""
+    with open("templates/reset_password.html", "r") as f:
+        template = f.read()
+    
+    def render_error(error_msg: str, show_form: bool = False) -> str:
+        error_html = f'<div class="error-message">{error_msg}</div>'
+        if show_form:
+            form_html = f'''
+            <form method="POST" action="/reset-password">
+                <input type="hidden" name="token" value="{token}">
+                
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" name="password" placeholder="Enter new password" required minlength="8">
+                </div>
+                
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" name="password_confirm" placeholder="Confirm new password" required minlength="8">
+                </div>
+                
+                <button type="submit" class="btn-submit">Reset Password</button>
+            </form>
+            '''
+        else:
+            form_html = '<p style="text-align: center; color: #888;"><a href="/forgot-password" style="color: #999;">Request a new reset link</a></p>'
+        return template.format(message_html=error_html, form_html=form_html)
+    
+    reset_token = session.exec(
+        select(PasswordResetToken).where(PasswordResetToken.token == token)
+    ).first()
+    
+    if not reset_token:
+        return HTMLResponse(content=render_error("Invalid reset link. Please request a new password reset."))
+    
+    if reset_token.used:
+        return HTMLResponse(content=render_error("This reset link has already been used. Please request a new password reset."))
+    
+    if datetime.utcnow() > reset_token.expires_at:
+        return HTMLResponse(content=render_error("This reset link has expired. Please request a new password reset."))
+    
+    if password != password_confirm:
+        return HTMLResponse(content=render_error("Passwords do not match.", show_form=True))
+    
+    if len(password) < 8:
+        return HTMLResponse(content=render_error("Password must be at least 8 characters.", show_form=True))
+    
+    customer = session.exec(
+        select(Customer).where(Customer.id == reset_token.customer_id)
+    ).first()
+    
+    if not customer:
+        return HTMLResponse(content=render_error("Account not found. Please contact support."))
+    
+    customer.password_hash = hash_password(password)
+    reset_token.used = True
+    session.add(customer)
+    session.add(reset_token)
+    session.commit()
+    
+    print(f"[RESET_PASSWORD] Password reset for: {customer.contact_email}")
+    
+    session_token = create_customer_session(customer.id)
+    response = RedirectResponse(url="/portal", status_code=303)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax"
+    )
+    
+    return response
+
+
+# ============================================================================
 # ADMIN AUTHENTICATION ROUTES
 # ============================================================================
 
@@ -492,6 +721,344 @@ def portal_session_based(request: Request, session: Session = Depends(get_sessio
         return RedirectResponse(url="/login", status_code=303)
     
     return render_customer_portal(customer, request, session)
+
+
+@app.get("/portal/settings", response_class=HTMLResponse)
+def portal_settings_get(request: Request, session: Session = Depends(get_session)):
+    """Display business profile / settings form."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    profile = session.exec(
+        select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
+    ).first()
+    
+    with open("templates/portal_settings.html", "r") as f:
+        template = f.read()
+    
+    def selected(value, check):
+        return 'selected="selected"' if value == check else ''
+    
+    html = template.format(
+        message_html="",
+        short_description=profile.short_description or "" if profile else "",
+        services=profile.services or "" if profile else "",
+        pricing_notes=profile.pricing_notes or "" if profile else "",
+        ideal_customer=profile.ideal_customer or "" if profile else "",
+        excluded_customers=profile.excluded_customers or "" if profile else "",
+        voice_tone_professional=selected(profile.voice_tone if profile else "", "professional"),
+        voice_tone_friendly=selected(profile.voice_tone if profile else "", "friendly"),
+        voice_tone_casual=selected(profile.voice_tone if profile else "", "casual"),
+        voice_tone_formal=selected(profile.voice_tone if profile else "", "formal"),
+        voice_tone_confident=selected(profile.voice_tone if profile else "", "confident"),
+        comm_style_direct=selected(profile.communication_style if profile else "", "direct"),
+        comm_style_conversational=selected(profile.communication_style if profile else "", "conversational"),
+        comm_style_storytelling=selected(profile.communication_style if profile else "", "storytelling"),
+        comm_style_data=selected(profile.communication_style if profile else "", "data-driven"),
+        constraints=profile.constraints or "" if profile else "",
+        primary_contact_name=profile.primary_contact_name or customer.contact_name or "" if profile else customer.contact_name or "",
+        primary_contact_email=profile.primary_contact_email or customer.contact_email or "" if profile else customer.contact_email or "",
+        outreach_mode_auto='selected="selected"' if customer.outreach_mode == "AUTO" else "",
+        outreach_mode_review='selected="selected"' if customer.outreach_mode == "REVIEW" else "",
+        do_not_contact_list=profile.do_not_contact_list or "" if profile else ""
+    )
+    
+    return HTMLResponse(content=html)
+
+
+@app.post("/portal/settings", response_class=HTMLResponse)
+def portal_settings_post(
+    request: Request,
+    short_description: str = Form(""),
+    services: str = Form(""),
+    pricing_notes: str = Form(""),
+    ideal_customer: str = Form(""),
+    excluded_customers: str = Form(""),
+    voice_tone: str = Form(""),
+    communication_style: str = Form(""),
+    constraints: str = Form(""),
+    primary_contact_name: str = Form(""),
+    primary_contact_email: str = Form(""),
+    outreach_mode: str = Form("AUTO"),
+    do_not_contact_list: str = Form(""),
+    session: Session = Depends(get_session)
+):
+    """Save business profile / settings."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    profile = session.exec(
+        select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
+    ).first()
+    
+    if not profile:
+        profile = BusinessProfile(customer_id=customer.id)
+    
+    profile.short_description = short_description.strip() or None
+    profile.services = services.strip() or None
+    profile.pricing_notes = pricing_notes.strip() or None
+    profile.ideal_customer = ideal_customer.strip() or None
+    profile.excluded_customers = excluded_customers.strip() or None
+    profile.voice_tone = voice_tone.strip() or None
+    profile.communication_style = communication_style.strip() or None
+    profile.constraints = constraints.strip() or None
+    profile.primary_contact_name = primary_contact_name.strip() or None
+    profile.primary_contact_email = primary_contact_email.strip() or None
+    profile.do_not_contact_list = do_not_contact_list.strip() or None
+    profile.updated_at = datetime.utcnow()
+    
+    customer.outreach_mode = outreach_mode if outreach_mode in ["AUTO", "REVIEW"] else "AUTO"
+    
+    session.add(profile)
+    session.add(customer)
+    session.commit()
+    
+    print(f"[PORTAL] Settings saved for customer {customer.id}: {customer.company}")
+    
+    with open("templates/portal_settings.html", "r") as f:
+        template = f.read()
+    
+    def selected(value, check):
+        return 'selected="selected"' if value == check else ''
+    
+    html = template.format(
+        message_html='<div class="success-message">Settings saved successfully!</div>',
+        short_description=profile.short_description or "",
+        services=profile.services or "",
+        pricing_notes=profile.pricing_notes or "",
+        ideal_customer=profile.ideal_customer or "",
+        excluded_customers=profile.excluded_customers or "",
+        voice_tone_professional=selected(profile.voice_tone, "professional"),
+        voice_tone_friendly=selected(profile.voice_tone, "friendly"),
+        voice_tone_casual=selected(profile.voice_tone, "casual"),
+        voice_tone_formal=selected(profile.voice_tone, "formal"),
+        voice_tone_confident=selected(profile.voice_tone, "confident"),
+        comm_style_direct=selected(profile.communication_style, "direct"),
+        comm_style_conversational=selected(profile.communication_style, "conversational"),
+        comm_style_storytelling=selected(profile.communication_style, "storytelling"),
+        comm_style_data=selected(profile.communication_style, "data-driven"),
+        constraints=profile.constraints or "",
+        primary_contact_name=profile.primary_contact_name or "",
+        primary_contact_email=profile.primary_contact_email or "",
+        outreach_mode_auto='selected="selected"' if customer.outreach_mode == "AUTO" else "",
+        outreach_mode_review='selected="selected"' if customer.outreach_mode == "REVIEW" else "",
+        do_not_contact_list=profile.do_not_contact_list or ""
+    )
+    
+    return HTMLResponse(content=html)
+
+
+@app.post("/portal/cancel")
+def portal_cancel_subscription(request: Request, session: Session = Depends(get_session)):
+    """
+    Cancel subscription at end of billing period.
+    
+    Only available for paid users with active subscription.
+    Sets cancelled_at_period_end = True but keeps subscription_status as "active"
+    so they can continue using the service until the billing period ends.
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if not plan_status.is_paid:
+        return RedirectResponse(url="/portal?error=not_subscribed", status_code=303)
+    
+    customer.cancelled_at_period_end = True
+    session.add(customer)
+    session.commit()
+    
+    print(f"[PORTAL] Subscription cancellation scheduled for customer {customer.id}: {customer.company}")
+    
+    return RedirectResponse(url="/portal?cancelled=true", status_code=303)
+
+
+@app.post("/portal/reactivate")
+def portal_reactivate_subscription(request: Request, session: Session = Depends(get_session)):
+    """
+    Reactivate a subscription that was scheduled for cancellation.
+    
+    Sets cancelled_at_period_end = False to resume the subscription.
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    plan_status = get_customer_plan_status(customer)
+    
+    if not plan_status.is_paid:
+        return RedirectResponse(url="/portal?error=not_subscribed", status_code=303)
+    
+    customer.cancelled_at_period_end = False
+    customer.cancellation_effective_at = None
+    session.add(customer)
+    session.commit()
+    
+    print(f"[PORTAL] Subscription reactivated for customer {customer.id}: {customer.company}")
+    
+    return RedirectResponse(url="/portal?reactivated=true", status_code=303)
+
+
+@app.post("/api/outreach/{outreach_id}/{action}")
+def handle_outreach_action(
+    outreach_id: int,
+    action: str,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Handle pending outreach actions: approve, edit, or skip.
+    
+    Actions:
+    - approve: Send the email immediately
+    - edit: Mark for editing (redirect to edit page - for now just approve)
+    - skip: Mark as skipped
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+    
+    outreach = session.exec(
+        select(PendingOutbound).where(
+            PendingOutbound.id == outreach_id,
+            PendingOutbound.customer_id == customer.id
+        )
+    ).first()
+    
+    if not outreach:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Outreach not found"})
+    
+    if outreach.status != "PENDING":
+        return JSONResponse(content={"success": False, "error": "Already processed"})
+    
+    if action == "approve" or action == "edit":
+        outreach.status = "APPROVED"
+        outreach.approved_at = datetime.utcnow()
+        
+        email_success = send_email(
+            to_email=outreach.to_email,
+            subject=outreach.subject,
+            body=outreach.body,
+            lead_name=outreach.to_name or "",
+            company=""
+        )
+        
+        if email_success:
+            outreach.status = "SENT"
+            outreach.sent_at = datetime.utcnow()
+            print(f"[OUTREACH] Email sent: {outreach.id} to {outreach.to_email}")
+        else:
+            print(f"[OUTREACH] Email queued (dry-run): {outreach.id}")
+        
+        session.add(outreach)
+        session.commit()
+        return JSONResponse(content={"success": True, "action": "sent" if email_success else "approved"})
+    
+    elif action == "skip":
+        outreach.status = "SKIPPED"
+        outreach.skipped_reason = "Skipped by customer"
+        session.add(outreach)
+        session.commit()
+        print(f"[OUTREACH] Skipped: {outreach.id}")
+        return JSONResponse(content={"success": True, "action": "skipped"})
+    
+    return JSONResponse(status_code=400, content={"success": False, "error": "Invalid action"})
+
+
+@app.post("/api/upgrade")
+def admin_upgrade_customer(
+    customer_id: int = Query(..., description="Customer ID to upgrade"),
+    request: Request = None,
+    session: Session = Depends(get_session)
+):
+    """
+    Admin endpoint to upgrade a customer to paid plan via admin override.
+    
+    Sets:
+    - customer.plan = "paid"
+    - customer.subscription_status = "active"
+    - customer.billing_method = "ADMIN_OVERRIDE"
+    - Clears trial_end_at
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME) if request else None
+    if not verify_admin_session(admin_token):
+        return JSONResponse(status_code=403, content={"success": False, "error": "Admin access required"})
+    
+    customer = session.exec(
+        select(Customer).where(Customer.id == customer_id)
+    ).first()
+    
+    if not customer:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Customer not found"})
+    
+    customer.plan = "paid"
+    customer.subscription_status = "active"
+    customer.billing_method = "ADMIN_OVERRIDE"
+    customer.trial_end_at = None
+    
+    session.add(customer)
+    session.commit()
+    
+    print(f"[ADMIN] Customer {customer.id} ({customer.company}) upgraded to PAID via admin override")
+    
+    return JSONResponse(content={
+        "success": True,
+        "customer_id": customer.id,
+        "company": customer.company,
+        "plan": customer.plan,
+        "subscription_status": customer.subscription_status,
+        "billing_method": customer.billing_method
+    })
+
+
+@app.get("/api/pending-outreach")
+def get_all_pending_outreach(
+    request: Request,
+    limit: int = Query(default=50, le=100),
+    session: Session = Depends(get_session)
+):
+    """
+    Get all pending outreach records across all customers (admin only).
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    outreach_records = session.exec(
+        select(PendingOutbound).order_by(PendingOutbound.created_at.desc()).limit(limit)
+    ).all()
+    
+    result = []
+    for po in outreach_records:
+        customer = session.exec(
+            select(Customer).where(Customer.id == po.customer_id)
+        ).first()
+        
+        result.append({
+            "id": po.id,
+            "customer_id": po.customer_id,
+            "customer_company": customer.company if customer else "Unknown",
+            "to_email": po.to_email,
+            "subject": po.subject,
+            "status": po.status,
+            "created_at": po.created_at.isoformat() if po.created_at else None
+        })
+    
+    return result
 
 
 @app.get("/customers/{customer_id}", response_class=HTMLResponse)
@@ -1677,6 +2244,69 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     
     plan_status = get_customer_plan_status(customer)
     
+    pending_outreach = session.exec(
+        select(PendingOutbound).where(
+            PendingOutbound.customer_id == customer.id,
+            PendingOutbound.status == "PENDING"
+        ).order_by(PendingOutbound.created_at.desc()).limit(20)
+    ).all()
+    
+    if pending_outreach and customer.outreach_mode == "REVIEW":
+        outreach_cards = ""
+        for po in pending_outreach:
+            timestamp = po.created_at.strftime("%Y-%m-%d %H:%M") if po.created_at else "-"
+            context_truncated = (po.context_summary[:100] + "...") if po.context_summary and len(po.context_summary) > 100 else (po.context_summary or "")
+            outreach_cards += f"""
+                <div class="outreach-card">
+                    <div class="outreach-header">
+                        <div class="outreach-to">To: {po.to_email}</div>
+                        <div class="outreach-date">{timestamp}</div>
+                    </div>
+                    <div class="outreach-subject"><strong>Subject:</strong> {po.subject}</div>
+                    <div class="outreach-context">{context_truncated}</div>
+                    <div class="outreach-actions">
+                        <button class="outreach-btn approve" onclick="handleOutreach({po.id}, 'approve')">Approve &amp; Send</button>
+                        <button class="outreach-btn edit" onclick="handleOutreach({po.id}, 'edit')">Edit &amp; Send</button>
+                        <button class="outreach-btn skip" onclick="handleOutreach({po.id}, 'skip')">Skip</button>
+                    </div>
+                </div>
+            """
+        
+        pending_outreach_section = f"""
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">Pending Outreach</div>
+            </div>
+            <div style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">Review and approve outbound emails before they are sent</div>
+            {outreach_cards}
+        </div>
+        <script>
+        async function handleOutreach(id, action) {{
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            try {{
+                const res = await fetch('/api/outreach/' + id + '/' + action, {{ method: 'POST' }});
+                const data = await res.json();
+                if (data.success) {{
+                    btn.closest('.outreach-card').style.opacity = '0.5';
+                    btn.closest('.outreach-card').style.pointerEvents = 'none';
+                    setTimeout(() => location.reload(), 500);
+                }} else {{
+                    alert(data.error || 'Action failed');
+                    btn.disabled = false;
+                    btn.textContent = action === 'approve' ? 'Approve & Send' : action === 'edit' ? 'Edit & Send' : 'Skip';
+                }}
+            }} catch (e) {{
+                alert('Error: ' + e.message);
+                btn.disabled = false;
+            }}
+        }}
+        </script>
+        """
+    else:
+        pending_outreach_section = ""
+    
     opportunities = get_todays_opportunities(session, company_id=customer.id, limit=10)
     
     if opportunities:
@@ -1721,14 +2351,72 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     else:
         opportunities_section = ""
     
+    reports = session.exec(
+        select(Report).where(Report.customer_id == customer.id).order_by(Report.created_at.desc()).limit(10)
+    ).all()
+    
+    if reports:
+        report_cards = ""
+        for report in reports:
+            timestamp = report.created_at.strftime("%Y-%m-%d") if report.created_at else "-"
+            description_text = report.description or ""
+            content_text = report.content or ""
+            report_cards += f"""
+                <div class="report-card" onclick="toggleReport(this)">
+                    <div class="report-header">
+                        <div class="report-title">{report.title[:70]}{'...' if len(report.title) > 70 else ''}</div>
+                        <div class="report-date">{timestamp} <span class="report-expand-icon">▼</span></div>
+                    </div>
+                    <span class="report-type">{report.report_type}</span>
+                    <div class="report-description">{description_text[:150]}{'...' if len(description_text) > 150 else ''}</div>
+                    <div class="report-content">{content_text}</div>
+                </div>
+            """
+        
+        reports_section = f"""
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">Reports / Recent Work</div>
+            </div>
+            {report_cards}
+        </div>
+        """
+    else:
+        reports_section = ""
+    
     if plan_status.is_paid:
+        if customer.cancelled_at_period_end:
+            cancellation_notice = """
+            <div class="cancellation-notice">
+                <p>Your subscription is set to cancel at the end of this billing period.<br>
+                You won't be charged again, but you have full access until then.</p>
+            </div>
+            """
+            buttons = f"""
+            <div class="btn-group">
+                <a href="/portal/reactivate" class="cta-btn success" onclick="event.preventDefault(); document.getElementById('reactivate-form').submit();">Reactivate Subscription</a>
+                <a href="/billing/{customer.public_token}" class="cta-btn secondary">Manage Billing</a>
+            </div>
+            <form id="reactivate-form" action="/portal/reactivate" method="POST" style="display:none;"></form>
+            """
+        else:
+            cancellation_notice = ""
+            buttons = f"""
+            <div class="btn-group">
+                <a href="/billing/{customer.public_token}" class="cta-btn secondary">Manage Billing</a>
+                <a href="/portal/cancel" class="cta-btn danger" onclick="event.preventDefault(); if(confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your billing period.')) document.getElementById('cancel-form').submit();">Cancel Subscription</a>
+            </div>
+            <form id="cancel-form" action="/portal/cancel" method="POST" style="display:none;"></form>
+            """
+        
         plan_section = f"""
         <div class="plan-card">
             <div class="plan-name">HossAgent Pro</div>
             <div class="plan-price">$99/month</div>
             <div class="plan-status active">Active Subscription</div>
             <div class="trial-info">Full access to all HossAgent features</div>
-            <a href="/billing/{customer.public_token}" class="cta-btn secondary">Manage Billing</a>
+            {cancellation_notice}
+            {buttons}
         </div>
         """
     elif plan_status.is_expired:
@@ -1874,13 +2562,19 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         payment_banner = '<div class="payment-success">Payment successful! Your subscription is now active.</div>'
     elif query_params.get("payment") == "cancelled":
         payment_banner = '<div class="payment-cancelled">Payment was cancelled. You can try again when ready.</div>'
+    elif query_params.get("cancelled") == "true":
+        payment_banner = '<div class="payment-cancelled">Your subscription will remain active until the end of this billing period. You won\'t be charged again.</div>'
+    elif query_params.get("reactivated") == "true":
+        payment_banner = '<div class="payment-success">Your subscription has been reactivated. Thank you for staying with us!</div>'
     
     html = template.format(
         tasks_rows=tasks_rows,
         plan_section=plan_section,
         invoices_section=invoices_section,
         payment_message=payment_banner,
-        opportunities_section=opportunities_section
+        opportunities_section=opportunities_section,
+        pending_outreach_section=pending_outreach_section,
+        reports_section=reports_section
     )
     
     return HTMLResponse(content=html)

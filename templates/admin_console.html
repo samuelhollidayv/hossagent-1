@@ -622,6 +622,44 @@
         </table>
     </div>
 
+    <div class="lead-source-panel" id="pending-outreach-panel">
+        <div class="lead-source-header">
+            <h2>PENDING OUTREACH</h2>
+            <div class="lead-source-stats">
+                <div class="lead-source-stat">
+                    <span>Total Pending:</span>
+                    <span class="lead-source-value" id="outreach-pending-count">0</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Approved:</span>
+                    <span class="lead-source-value" id="outreach-approved-count">0</span>
+                </div>
+                <div class="lead-source-stat">
+                    <span>Skipped:</span>
+                    <span class="lead-source-value" id="outreach-skipped-count">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="config-hint">Outreach emails queued for customer review (REVIEW mode customers only)</div>
+        
+        <h3>ALL PENDING OUTREACH</h3>
+        <table id="pending-outreach-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>To Email</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="6" class="empty-row">No pending outreach records</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <div class="data-section">
         <h2>RECENT TASKS</h2>
         <table id="tasks-table">
@@ -1133,12 +1171,12 @@
         
         async function upgradeCustomer(customerId) {
             try {
-                addLog(`Upgrading customer ${customerId}...`);
-                const res = await fetch(`/upgrade?customer_id=${customerId}`, { method: 'POST' });
+                addLog(`Upgrading customer ${customerId} via admin override...`);
+                const res = await fetch(`/api/upgrade?customer_id=${customerId}`, { method: 'POST' });
                 const data = await res.json();
                 
                 if (data.success) {
-                    addLog(`Customer ${customerId} upgraded to paid plan!`, 'success');
+                    addLog(`Customer ${customerId} (${data.company}) upgraded to PAID via admin override!`, 'success');
                     refreshCustomerPlans();
                 } else {
                     addLog(`Upgrade failed: ${data.error || 'Unknown error'}`, 'error');
@@ -1243,6 +1281,51 @@
             }
         }
 
+        async function refreshPendingOutreach() {
+            try {
+                const res = await fetch('/api/pending-outreach?limit=50');
+                const outreach = await res.json();
+                
+                const tbody = document.getElementById('pending-outreach-table').querySelector('tbody');
+                
+                const pending = outreach.filter(o => o.status === 'PENDING');
+                const approved = outreach.filter(o => o.status === 'APPROVED' || o.status === 'SENT');
+                const skipped = outreach.filter(o => o.status === 'SKIPPED');
+                
+                document.getElementById('outreach-pending-count').textContent = pending.length;
+                document.getElementById('outreach-approved-count').textContent = approved.length;
+                document.getElementById('outreach-skipped-count').textContent = skipped.length;
+                
+                if (!outreach || outreach.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No pending outreach records</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = outreach.map(o => {
+                    const created = o.created_at ? new Date(o.created_at).toLocaleString() : '-';
+                    const subjectTrunc = o.subject ? (o.subject.length > 40 ? o.subject.substring(0, 40) + '...' : o.subject) : '-';
+                    
+                    const statusColor = o.status === 'PENDING' ? '#f90' : 
+                                       o.status === 'SENT' ? '#0f0' :
+                                       o.status === 'APPROVED' ? '#0af' :
+                                       o.status === 'SKIPPED' ? '#666' : '#fff';
+                    
+                    return `
+                        <tr>
+                            <td>${o.id}</td>
+                            <td>${o.customer_company || '-'}</td>
+                            <td>${o.to_email || '-'}</td>
+                            <td>${subjectTrunc}</td>
+                            <td><span class="status-badge" style="color:${statusColor};">${o.status}</span></td>
+                            <td>${created}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Pending outreach refresh error:', e);
+            }
+        }
+
         loadSettingsWithHourly();
         refreshData();
         refreshEmailLog();
@@ -1253,6 +1336,7 @@
         refreshCustomerPlans();
         refreshSignals();
         refreshLeadEvents();
+        refreshPendingOutreach();
         setInterval(refreshData, 10000);
         setInterval(refreshEmailLog, 15000);
         setInterval(refreshLeadSource, 15000);
@@ -1262,6 +1346,7 @@
         setInterval(refreshCustomerPlans, 30000);
         setInterval(refreshSignals, 30000);
         setInterval(refreshLeadEvents, 30000);
+        setInterval(refreshPendingOutreach, 30000);
         setInterval(loadSettingsWithHourly, 60000);
     </script>
 </body>

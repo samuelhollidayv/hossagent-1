@@ -23,7 +23,7 @@ from models import Customer
 
 
 SESSION_COOKIE_NAME = "hossagent_session"
-SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days in seconds
+SESSION_MAX_AGE = 60 * 60 * 24 * 14  # 14 days in seconds
 ADMIN_COOKIE_NAME = "hossagent_admin"
 ADMIN_SESSION_MAX_AGE = 60 * 60 * 8  # 8 hours
 

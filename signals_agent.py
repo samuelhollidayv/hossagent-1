@@ -16,6 +16,7 @@ from typing import Optional, Dict, Sequence
 from sqlmodel import Session, select
 
 from models import Signal, LeadEvent, Customer, Lead
+from subscription_utils import increment_leads_used
 
 
 MIAMI_INDUSTRIES = [
@@ -322,6 +323,10 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
             session.add(event)
             session.commit()
             events_created += 1
+            
+            if company["type"] == "customer" and company["id"]:
+                increment_leads_used(session, company["id"])
+                session.commit()
             
             print(f"[SIGNALS][EVENT] Created {category} event (urgency: {urgency}) for {company['name']}")
     

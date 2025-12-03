@@ -36,6 +36,10 @@
             color: #fff;
             text-decoration: none;
         }}
+        .nav-links {{
+            display: flex;
+            gap: 1.5rem;
+        }}
         .nav-link {{
             color: #666;
             text-decoration: none;
@@ -43,6 +47,81 @@
         }}
         .nav-link:hover {{
             color: #fff;
+        }}
+        .outreach-card {{
+            border: 1px solid #333;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #111;
+        }}
+        .outreach-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }}
+        .outreach-to {{
+            font-size: 0.95rem;
+            color: #fff;
+        }}
+        .outreach-date {{
+            font-size: 0.75rem;
+            color: #666;
+        }}
+        .outreach-subject {{
+            font-size: 0.9rem;
+            color: #ddd;
+            margin-bottom: 0.5rem;
+        }}
+        .outreach-context {{
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 1rem;
+            font-style: italic;
+        }}
+        .outreach-actions {{
+            display: flex;
+            gap: 0.75rem;
+        }}
+        .outreach-btn {{
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            font-family: Georgia, serif;
+            border: 1px solid #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        .outreach-btn.approve {{
+            background: #fff;
+            color: #0a0a0a;
+        }}
+        .outreach-btn.approve:hover {{
+            background: #0f0;
+            border-color: #0f0;
+        }}
+        .outreach-btn.edit {{
+            background: transparent;
+            color: #fff;
+        }}
+        .outreach-btn.edit:hover {{
+            background: #f90;
+            border-color: #f90;
+            color: #0a0a0a;
+        }}
+        .outreach-btn.skip {{
+            background: transparent;
+            color: #666;
+            border-color: #666;
+        }}
+        .outreach-btn.skip:hover {{
+            background: #333;
+            color: #fff;
+        }}
+        .outreach-empty {{
+            color: #555;
+            font-style: italic;
+            text-align: center;
+            padding: 1.5rem;
         }}
         .hero {{
             text-align: center;
@@ -326,6 +405,104 @@
             font-size: 0.8rem;
             font-style: italic;
         }}
+        .report-card {{
+            border: 1px solid #333;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #111;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        .report-card:hover {{
+            border-color: #555;
+            background: #151515;
+        }}
+        .report-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }}
+        .report-title {{
+            font-size: 0.95rem;
+            color: #fff;
+        }}
+        .report-date {{
+            font-size: 0.75rem;
+            color: #666;
+        }}
+        .report-type {{
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #333;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }}
+        .report-description {{
+            font-size: 0.85rem;
+            color: #888;
+            line-height: 1.4;
+        }}
+        .report-content {{
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #333;
+            font-size: 0.85rem;
+            color: #ccc;
+            line-height: 1.5;
+        }}
+        .report-card.expanded .report-content {{
+            display: block;
+        }}
+        .report-expand-icon {{
+            font-size: 0.8rem;
+            color: #666;
+            transition: transform 0.2s ease;
+        }}
+        .report-card.expanded .report-expand-icon {{
+            transform: rotate(180deg);
+        }}
+        .cancellation-notice {{
+            background: rgba(255, 153, 0, 0.1);
+            border: 1px solid #664400;
+            padding: 1rem;
+            text-align: center;
+            margin: 1rem 0;
+            color: #f90;
+            font-size: 0.9rem;
+        }}
+        .cancellation-notice p {{
+            margin: 0;
+            line-height: 1.5;
+        }}
+        .cta-btn.danger {{
+            background: transparent;
+            color: #f00;
+            border-color: #f00;
+        }}
+        .cta-btn.danger:hover {{
+            background: #f00;
+            color: #0a0a0a;
+        }}
+        .cta-btn.success {{
+            background: transparent;
+            color: #0f0;
+            border-color: #0f0;
+        }}
+        .cta-btn.success:hover {{
+            background: #0f0;
+            color: #0a0a0a;
+        }}
+        .btn-group {{
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }}
         @media (max-width: 768px) {{
             body {{
                 padding: 1rem;
@@ -349,7 +526,10 @@
     <div class="container">
         <div class="header-nav">
             <a href="/" class="logo-link">HOSSAGENT</a>
-            <a href="/logout" class="nav-link">Log out</a>
+            <div class="nav-links">
+                <a href="/portal/settings" class="nav-link">Settings</a>
+                <a href="/logout" class="nav-link">Log out</a>
+            </div>
         </div>
         
         <div class="hero">
@@ -359,8 +539,6 @@
 
         {payment_message}
 
-        {opportunities_section}
-
         <div class="section">
             <div class="section-header">
                 <div class="section-title">Plan and Billing</div>
@@ -368,9 +546,15 @@
             {plan_section}
         </div>
 
+        {pending_outreach_section}
+
+        {opportunities_section}
+
+        {reports_section}
+
         <div class="section">
             <div class="section-header">
-                <div class="section-title">Recent Work</div>
+                <div class="section-title">Task History</div>
             </div>
             <table>
                 <thead>
@@ -385,6 +569,12 @@
                 </tbody>
             </table>
         </div>
+        
+        <script>
+        function toggleReport(element) {{
+            element.classList.toggle('expanded');
+        }}
+        </script>
 
         <div class="section">
             <div class="section-header">

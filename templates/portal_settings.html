@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Settings - HossAgent Portal</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            background: #0a0a0a;
+            color: #fff;
+            font-family: Georgia, 'Times New Roman', serif;
+            padding: 2rem;
+            min-height: 100vh;
+        }}
+        .container {{
+            max-width: 800px;
+            margin: 0 auto;
+        }}
+        .header-nav {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #222;
+            margin-bottom: 2rem;
+        }}
+        .logo-link {{
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #fff;
+            text-decoration: none;
+        }}
+        .nav-links {{
+            display: flex;
+            gap: 1.5rem;
+        }}
+        .nav-link {{
+            color: #666;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }}
+        .nav-link:hover {{
+            color: #fff;
+        }}
+        .nav-link.active {{
+            color: #fff;
+        }}
+        .hero {{
+            text-align: center;
+            padding: 2rem 0 3rem;
+            border-bottom: 1px solid #333;
+            margin-bottom: 2.5rem;
+        }}
+        h1 {{
+            font-size: 2rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
+        }}
+        .hero-subtitle {{
+            color: #888;
+            font-size: 1rem;
+        }}
+        .section {{
+            margin: 2.5rem 0;
+            border: 1px solid #333;
+            padding: 1.5rem;
+        }}
+        .section-title {{
+            font-size: 0.9rem;
+            font-weight: normal;
+            letter-spacing: 2px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #222;
+        }}
+        .form-group {{
+            margin-bottom: 1.5rem;
+        }}
+        .form-group label {{
+            display: block;
+            font-size: 0.85rem;
+            color: #999;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+        .form-group input,
+        .form-group textarea,
+        .form-group select {{
+            width: 100%;
+            background: #111;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 0.75rem;
+            font-family: Georgia, serif;
+            font-size: 1rem;
+        }}
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {{
+            outline: none;
+            border-color: #fff;
+        }}
+        .form-group textarea {{
+            min-height: 100px;
+            resize: vertical;
+        }}
+        .form-group .hint {{
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }}
+        .form-row {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }}
+        .btn-submit {{
+            display: inline-block;
+            background: #fff;
+            color: #0a0a0a;
+            padding: 0.85rem 2.5rem;
+            border: 2px solid #fff;
+            font-weight: bold;
+            font-size: 1rem;
+            font-family: Georgia, serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        .btn-submit:hover {{
+            background: #0a0a0a;
+            color: #fff;
+        }}
+        .btn-secondary {{
+            display: inline-block;
+            background: transparent;
+            color: #fff;
+            padding: 0.85rem 2.5rem;
+            border: 1px solid #666;
+            font-weight: bold;
+            font-size: 1rem;
+            font-family: Georgia, serif;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 1rem;
+        }}
+        .btn-secondary:hover {{
+            border-color: #fff;
+        }}
+        .form-actions {{
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #333;
+        }}
+        .success-message {{
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #006600;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #0f0;
+        }}
+        .error-message {{
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #660000;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #f00;
+        }}
+        .footer {{
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #222;
+            text-align: center;
+            color: #444;
+            font-size: 0.8rem;
+        }}
+        @media (max-width: 768px) {{
+            body {{
+                padding: 1rem;
+            }}
+            .form-row {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-nav">
+            <a href="/" class="logo-link">HOSSAGENT</a>
+            <div class="nav-links">
+                <a href="/portal" class="nav-link">Portal</a>
+                <a href="/portal/settings" class="nav-link active">Settings</a>
+                <a href="/logout" class="nav-link">Log out</a>
+            </div>
+        </div>
+        
+        <div class="hero">
+            <h1>Business Profile &amp; Settings</h1>
+            <div class="hero-subtitle">Configure how HossAgent represents your business</div>
+        </div>
+
+        {message_html}
+
+        <form method="POST" action="/portal/settings">
+            <div class="section">
+                <div class="section-title">Business Information</div>
+                
+                <div class="form-group">
+                    <label>Short Description</label>
+                    <textarea name="short_description" placeholder="Brief description of your business (1-2 sentences)">{short_description}</textarea>
+                    <div class="hint">This is used to introduce your business in outreach</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Services</label>
+                    <textarea name="services" placeholder="List your main services, one per line">{services}</textarea>
+                    <div class="hint">Comma-separated or one per line</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Pricing Notes</label>
+                    <textarea name="pricing_notes" placeholder="Any pricing information to mention in conversations">{pricing_notes}</textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Target Customer</div>
+                
+                <div class="form-group">
+                    <label>Ideal Customer</label>
+                    <textarea name="ideal_customer" placeholder="Describe your ideal customer profile">{ideal_customer}</textarea>
+                    <div class="hint">Who should HossAgent reach out to?</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Excluded Customers</label>
+                    <textarea name="excluded_customers" placeholder="Describe who to avoid contacting">{excluded_customers}</textarea>
+                    <div class="hint">Industries, company sizes, or types to skip</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Communication Style</div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Voice / Tone</label>
+                        <select name="voice_tone">
+                            <option value="">Select a tone...</option>
+                            <option value="professional" {voice_tone_professional}>Professional</option>
+                            <option value="friendly" {voice_tone_friendly}>Friendly</option>
+                            <option value="casual" {voice_tone_casual}>Casual</option>
+                            <option value="formal" {voice_tone_formal}>Formal</option>
+                            <option value="confident" {voice_tone_confident}>Confident</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Communication Style</label>
+                        <select name="communication_style">
+                            <option value="">Select a style...</option>
+                            <option value="direct" {comm_style_direct}>Direct &amp; Concise</option>
+                            <option value="conversational" {comm_style_conversational}>Conversational</option>
+                            <option value="storytelling" {comm_style_storytelling}>Storytelling</option>
+                            <option value="data-driven" {comm_style_data}>Data-Driven</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Constraints</label>
+                    <textarea name="constraints" placeholder="Any restrictions on messaging (e.g., don't mention competitors, avoid certain claims)">{constraints}</textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Contact Information</div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Primary Contact Name</label>
+                        <input type="text" name="primary_contact_name" placeholder="Your name" value="{primary_contact_name}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Primary Contact Email</label>
+                        <input type="email" name="primary_contact_email" placeholder="your@email.com" value="{primary_contact_email}">
+                        <div class="hint">Used for CC and Reply-To on outbound emails</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Outreach Settings</div>
+                
+                <div class="form-group">
+                    <label>Outreach Mode</label>
+                    <select name="outreach_mode">
+                        <option value="AUTO" {outreach_mode_auto}>Auto - Emails sent automatically</option>
+                        <option value="REVIEW" {outreach_mode_review}>Review - Approve each email before sending</option>
+                    </select>
+                    <div class="hint">REVIEW mode shows pending emails in your portal for approval</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Do Not Contact List</label>
+                    <textarea name="do_not_contact_list" placeholder="Emails or domains to never contact, one per line">{do_not_contact_list}</textarea>
+                    <div class="hint">Enter email addresses or domains (e.g., @competitor.com)</div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">Save Settings</button>
+                <a href="/portal" class="btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div class="footer">
+            Powered by HossAgent
+        </div>
+    </div>
+</body>
+</html>

@@ -274,7 +274,9 @@ def send_email_dry_run(
     body: str,
     lead_name: str = "",
     company: str = "",
-    is_fallback: bool = False
+    is_fallback: bool = False,
+    cc_email: Optional[str] = None,
+    reply_to: Optional[str] = None
 ) -> EmailResult:
     """
     Simulate sending email without actually sending.
@@ -283,7 +285,10 @@ def send_email_dry_run(
     preview = body[:100].replace('\n', ' ')
     result_type = "fallback" if is_fallback else "dry_run"
     tag = "[DRY_RUN_FALLBACK]" if is_fallback else "[DRY_RUN]"
-    print(f"[EMAIL]{tag} to={to_email} subject=\"{subject}\" preview=\"{preview}...\"")
+    
+    cc_info = f" cc={cc_email}" if cc_email else ""
+    reply_to_info = f" reply_to={reply_to}" if reply_to else ""
+    print(f"[EMAIL]{tag} to={to_email}{cc_info}{reply_to_info} subject=\"{subject}\" preview=\"{preview}...\"")
     
     log_email_attempt(EmailAttempt(
         timestamp=datetime.utcnow().isoformat(),
@@ -309,9 +314,11 @@ def send_email_sendgrid(
     subject: str,
     body: str,
     lead_name: str = "",
-    company: str = ""
+    company: str = "",
+    cc_email: Optional[str] = None,
+    reply_to: Optional[str] = None
 ) -> EmailResult:
-    """Send email via SendGrid API."""
+    """Send email via SendGrid API with optional CC and Reply-To."""
     try:
         import requests
         
@@ -322,18 +329,27 @@ def send_email_sendgrid(
         if not api_key or not from_email:
             raise ValueError("SendGrid credentials not configured")
         
+        personalization = {"to": [{"email": to_email}]}
+        if cc_email:
+            personalization["cc"] = [{"email": cc_email}]
+        
+        mail_data = {
+            "personalizations": [personalization],
+            "from": {"email": from_email, "name": from_name},
+            "subject": subject,
+            "content": [{"type": "text/plain", "value": body}]
+        }
+        
+        if reply_to:
+            mail_data["reply_to"] = {"email": reply_to}
+        
         response = requests.post(
             "https://api.sendgrid.com/v3/mail/send",
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             },
-            json={
-                "personalizations": [{"to": [{"email": to_email}]}],
-                "from": {"email": from_email, "name": from_name},
-                "subject": subject,
-                "content": [{"type": "text/plain", "value": body}]
-            },
+            json=mail_data,
             timeout=30
         )
         
@@ -413,9 +429,11 @@ def send_email_smtp(
     subject: str,
     body: str,
     lead_name: str = "",
-    company: str = ""
+    company: str = "",
+    cc_email: Optional[str] = None,
+    reply_to: Optional[str] = None
 ) -> EmailResult:
-    """Send email via SMTP."""
+    """Send email via SMTP with optional CC and Reply-To."""
     try:
         smtp_host = os.getenv("SMTP_HOST", "")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -431,6 +449,10 @@ def send_email_smtp(
         msg['From'] = f"{from_name} <{from_email}>"
         msg['To'] = to_email
         msg['Subject'] = subject
+        if cc_email:
+            msg['Cc'] = cc_email
+        if reply_to:
+            msg['Reply-To'] = reply_to
         msg.attach(MIMEText(body, 'plain'))
         
         with smtplib.SMTP(smtp_host, smtp_port) as server:
@@ -483,7 +505,9 @@ def send_email(
     subject: str,
     body: str,
     lead_name: str = "",
-    company: str = ""
+    company: str = "",
+    cc_email: Optional[str] = None,
+    reply_to: Optional[str] = None
 ) -> EmailResult:
     """
     Unified email sending entrypoint.
@@ -500,6 +524,8 @@ def send_email(
         body: Plain text email body
         lead_name: Name of the lead (for logging)
         company: Company name (for logging)
+        cc_email: Optional CC email address
+        reply_to: Optional Reply-To email address
     
     Returns:
         EmailResult with success status, mode, and error details.
@@ -510,7 +536,7 @@ def send_email(
         is_fallback = not is_valid and effective_mode == EmailMode.DRY_RUN
         
         if effective_mode == EmailMode.DRY_RUN:
-            return send_email_dry_run(to_email, subject, body, lead_name, company, is_fallback=is_fallback)
+            return send_email_dry_run(to_email, subject, body, lead_name, company, is_fallback=is_fallback, cc_email=cc_email, reply_to=reply_to)
         
         can_send, current, max_hour = check_hourly_limit()
         if not can_send:
@@ -538,11 +564,11 @@ def send_email(
         
         result: EmailResult
         if effective_mode == EmailMode.SENDGRID:
-            result = send_email_sendgrid(to_email, subject, body, lead_name, company)
+            result = send_email_sendgrid(to_email, subject, body, lead_name, company, cc_email=cc_email, reply_to=reply_to)
         elif effective_mode == EmailMode.SMTP:
-            result = send_email_smtp(to_email, subject, body, lead_name, company)
+            result = send_email_smtp(to_email, subject, body, lead_name, company, cc_email=cc_email, reply_to=reply_to)
         else:
-            result = send_email_dry_run(to_email, subject, body, lead_name, company, is_fallback=is_fallback)
+            result = send_email_dry_run(to_email, subject, body, lead_name, company, is_fallback=is_fallback, cc_email=cc_email, reply_to=reply_to)
         
         if result.actually_sent:
             increment_hourly_counter()

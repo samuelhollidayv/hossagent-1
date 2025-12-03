@@ -244,8 +244,10 @@ def expire_trial(customer: Customer) -> Customer:
 
 def increment_task_usage(session: Session, customer_id: int) -> bool:
     """
-    Increment task usage for a customer.
+    Increment task usage for a customer (with blocking check).
     Returns True if task can proceed, False if limit reached.
+    
+    Note: Use increment_tasks_used() for soft-cap (display only) incrementing.
     """
     customer = session.exec(
         select(Customer).where(Customer.id == customer_id)
@@ -266,8 +268,10 @@ def increment_task_usage(session: Session, customer_id: int) -> bool:
 
 def increment_lead_usage(session: Session, customer_id: int) -> bool:
     """
-    Increment lead usage for a customer.
+    Increment lead usage for a customer (with blocking check).
     Returns True if lead can proceed, False if limit reached.
+    
+    Note: Use increment_leads_used() for soft-cap (display only) incrementing.
     """
     customer = session.exec(
         select(Customer).where(Customer.id == customer_id)
@@ -283,6 +287,74 @@ def increment_lead_usage(session: Session, customer_id: int) -> bool:
     
     customer.leads_this_period = (customer.leads_this_period or 0) + 1
     session.add(customer)
+    return True
+
+
+def increment_tasks_used(session: Session, customer_id: int) -> bool:
+    """
+    Increment task usage counter for a customer (soft cap - display only).
+    
+    This function ALWAYS increments the counter regardless of limits.
+    Soft caps are enforced at the UI layer for display only.
+    
+    Returns True if increment was successful, False if customer not found.
+    Safe to call multiple times - handles missing customers gracefully.
+    """
+    if not customer_id:
+        return False
+    
+    customer = session.exec(
+        select(Customer).where(Customer.id == customer_id)
+    ).first()
+    
+    if not customer:
+        print(f"[USAGE] Customer {customer_id} not found for task increment")
+        return False
+    
+    old_count = customer.tasks_this_period or 0
+    customer.tasks_this_period = old_count + 1
+    session.add(customer)
+    
+    status = get_customer_plan_status(customer)
+    if status.is_trial and customer.tasks_this_period > status.tasks_limit:
+        print(f"[USAGE][SOFT_CAP] Customer {customer_id} exceeded task limit: {customer.tasks_this_period}/{status.tasks_limit}")
+    else:
+        print(f"[USAGE] Customer {customer_id} tasks: {customer.tasks_this_period}/{status.tasks_limit if status.is_trial else 'unlimited'}")
+    
+    return True
+
+
+def increment_leads_used(session: Session, customer_id: int) -> bool:
+    """
+    Increment lead usage counter for a customer (soft cap - display only).
+    
+    This function ALWAYS increments the counter regardless of limits.
+    Soft caps are enforced at the UI layer for display only.
+    
+    Returns True if increment was successful, False if customer not found.
+    Safe to call multiple times - handles missing customers gracefully.
+    """
+    if not customer_id:
+        return False
+    
+    customer = session.exec(
+        select(Customer).where(Customer.id == customer_id)
+    ).first()
+    
+    if not customer:
+        print(f"[USAGE] Customer {customer_id} not found for lead increment")
+        return False
+    
+    old_count = customer.leads_this_period or 0
+    customer.leads_this_period = old_count + 1
+    session.add(customer)
+    
+    status = get_customer_plan_status(customer)
+    if status.is_trial and customer.leads_this_period > status.leads_limit:
+        print(f"[USAGE][SOFT_CAP] Customer {customer_id} exceeded lead limit: {customer.leads_this_period}/{status.leads_limit}")
+    else:
+        print(f"[USAGE] Customer {customer_id} leads: {customer.leads_this_period}/{status.leads_limit if status.is_trial else 'unlimited'}")
+    
     return True
 
 
