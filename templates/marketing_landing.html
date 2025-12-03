@@ -449,15 +449,101 @@
         
         /* Footer */
         footer {
-            padding: 3rem 0;
+            padding: 4rem 0 3rem;
+            border-top: 1px solid var(--border-subtle);
+            background: var(--bg-secondary);
+        }
+        
+        .footer-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .footer-brand {
+            max-width: 300px;
+        }
+        
+        .footer-brand .logo {
+            font-size: 1.125rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+        
+        .footer-brand p {
+            color: var(--text-tertiary);
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 4rem;
+        }
+        
+        .footer-col h4 {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        
+        .footer-col ul {
+            list-style: none;
+        }
+        
+        .footer-col li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .footer-col a {
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-col a:hover {
+            color: var(--text-primary);
+        }
+        
+        .footer-bottom {
             text-align: center;
+            padding-top: 2rem;
             border-top: 1px solid var(--border-subtle);
         }
         
-        footer p {
+        .footer-bottom p {
             color: var(--text-tertiary);
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             font-family: var(--font-mono);
+        }
+        
+        @media (max-width: 640px) {
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .footer-brand {
+                max-width: 100%;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                gap: 2rem;
+                width: 100%;
+            }
         }
         
         /* Mobile Adjustments */
@@ -583,7 +669,30 @@
     
     <footer>
         <div class="container">
-            <p>HossAgent &copy; 2025 — built for operators who move fast.</p>
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <a href="/" class="logo">HossAgent</a>
+                    <p>Autonomous opportunity detection for real-world business. Built for operators who move fast.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-col">
+                        <h4>Get Started</h4>
+                        <ul>
+                            <li><a href="/signup">Start Free Trial</a></li>
+                            <li><a href="/login">Customer Login</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Operators</h4>
+                        <ul>
+                            <li><a href="/admin">Operator Console</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>HossAgent &copy; 2025</p>
+            </div>
         </div>
     </footer>
 </body>
