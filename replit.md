@@ -9,7 +9,22 @@ Not specified.
 ## System Architecture
 HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persistence with SQLite, ensuring schema auto-creation and migration. The system's core functionality revolves around asynchronous, idempotent agent cycles.
 
-**UI/UX Design:** The system employs a "black-label noir" aesthetic featuring deep black backgrounds (`#0a0a0a`), Georgia serif for the customer UI, Courier monospace for the admin console, and stark white, green, or red accents. Gradients and emojis are explicitly avoided.
+**UI/UX Design (2025 Professional Noir):** The system employs a modern professional noir aesthetic with:
+- **Fonts**: Inter (customer-facing pages) and JetBrains Mono (admin console) via Google Fonts
+- **Color System (CSS Variables)**:
+  - `--bg-primary: #0a0a0a` - Deep black background
+  - `--bg-secondary: #111111` - Elevated surfaces
+  - `--bg-tertiary: #1a1a1a` - Tertiary backgrounds
+  - `--border-subtle: #1f1f1f` - Subtle borders
+  - `--border-medium: #2a2a2a` - Medium borders
+  - `--text-primary: #ffffff` - Primary text
+  - `--text-secondary: #a0a0a0` - Secondary text
+  - `--text-tertiary: #666666` - Muted text
+  - `--accent-green: #22c55e` - Primary accent
+  - `--accent-green-dim: rgba(34, 197, 94, 0.15)` - Subtle green backgrounds
+- **Design Patterns**: Modern rounded corners (6-12px), smooth transitions (0.2s ease), hover effects with translateY transforms, backdrop blur for elevated elements
+- **Status Badges**: Pill-shaped with semi-transparent backgrounds matching accent colors
+- **No Gradients or Emojis**: Maintains clean, professional appearance
 
 **Interfaces:**
 - **Marketing Landing Page (`/`)**: Public homepage with CTAs for trial and demo.
