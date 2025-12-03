@@ -28,6 +28,8 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 
 **Interfaces:**
 - **Marketing Landing Page (`/`)**: Public homepage with CTAs for trial and demo.
+- **About Page (`/about`)**: Product philosophy and vision - explains the "Ethical Briefcase System" concept.
+- **How It Works Page (`/how-it-works`)**: 10-step field manual for operators showing the complete user journey.
 - **Admin Console (`/admin`)**: Consolidated operator dashboard with:
   - **KPI Bar**: Real-time metrics (Signals Today, Lead Events Today, Outbound Sent, Reports Delivered, Errors/Failed)
   - **Lead Events Table (PRIMARY)**: Shows status, has_outbound, has_report flags, urgency, company
