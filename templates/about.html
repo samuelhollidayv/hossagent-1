@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - HossAgent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-green-dim: rgba(34, 197, 94, 0.15);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+        
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .nav-cta {
+            background: var(--text-primary);
+            color: var(--bg-primary) !important;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .nav-cta:hover {
+            opacity: 0.9;
+        }
+        
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 8rem 2rem 6rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 3rem;
+            line-height: 1.2;
+        }
+        
+        .content p {
+            color: var(--text-secondary);
+            margin-bottom: 1.75rem;
+            font-size: 1.1rem;
+        }
+        
+        .content p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .highlight {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .tagline {
+            font-size: 1.25rem;
+            color: var(--accent-green);
+            font-weight: 500;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-top: 3rem;
+            transition: color 0.2s ease;
+        }
+        
+        .back-link:hover {
+            color: var(--text-primary);
+        }
+        
+        @media (max-width: 768px) {
+            .nav-links a:not(.nav-cta) {
+                display: none;
+            }
+            
+            main {
+                padding: 6rem 1.25rem 4rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .content p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="logo">HossAgent</a>
+            <div class="nav-links">
+                <a href="/about">About</a>
+                <a href="/how-it-works">How It Works</a>
+                <a href="/admin">Operations Console</a>
+                <a href="/login">Login</a>
+                <a href="/signup" class="nav-cta">Start Trial</a>
+            </div>
+        </div>
+    </nav>
+    
+    <main>
+        <h1>About HossAgent</h1>
+        
+        <div class="content">
+            <p>Small businesses don't fail because people stop wanting what they sell. They fail because the owners run out of hours. There's always one more lead to chase, one more email to write, one more follow-up they swear they'll send "later." Growth becomes a ghost that's always one step ahead of them. That's the problem HossAgent exists to kill.</p>
+            
+            <p><span class="highlight">HossAgent is an autonomous, context-driven business growth engine.</span> It doesn't wait for you to enter contacts or log calls. It doesn't ask you to "create a pipeline." It goes out into the world, reads what's happening in real time — news, reviews, staffing changes, competitor shifts, neighborhood events — and converts those signals into LeadEvents, which are just fancy words for "this is a moment you can win." Then it does the part everyone hates: outreach, follow-up, and follow-through.</p>
+            
+            <p>The philosophy behind HossAgent is simple: <span class="highlight">relevance, timing, and context are the real sales technologies.</span> Not dashboards. Not spreadsheets. Not "funnels." Moments. The obituary-salesman level instinct — ethically recreated for modern business. It's the Ethical Briefcase System: time-tested sales instincts rebuilt with precision instead of pressure, intelligence instead of intrusion.</p>
+            
+            <p>What makes HossAgent different is that it doesn't treat your business like a database. It treats it like a living organism in a chaotic environment. CRMs help you file paperwork. HossAgent helps you move. Salesforce tracks records. <span class="highlight">HossAgent notices moments.</span> And it acts on them — quietly, relentlessly, without drama — turning chaos into opportunities and opportunities into customers.</p>
+            
+            <p>And this is only the starting line. The long-term vision is an AI COO, a business autopilot that handles the front-office work you never wanted to do in the first place: awareness, outreach, research, intelligence, follow-through. The operational instincts of a seasoned operator, compressed into a system that never sleeps, never forgets, and never stops paying attention.</p>
+            
+            <p class="tagline">HossAgent: Because opportunity doesn't wait. And neither should you.</p>
+        </div>
+        
+        <a href="/" class="back-link">&larr; Back to home</a>
+    </main>
+</body>
+</html>

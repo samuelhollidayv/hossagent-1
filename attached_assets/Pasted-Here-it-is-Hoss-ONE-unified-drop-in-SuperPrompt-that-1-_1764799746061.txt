@@ -1,0 +1,196 @@
+Here it is, Hoss — ONE unified, drop-in SuperPrompt that:
+	1.	Combines the About Page + How-To Page content
+	2.	Installs them into your app with the correct routing, templates, and ingress
+	3.	Tells MagicBox exactly what to build, where, and how
+	4.	Includes tone + constraints so the AI stays on-brand
+	5.	Requires ZERO interpretation — paste and let it cook
+
+This is a turnkey documentation system prompt for your product.
+
+⸻
+
+⭐⭐⭐ THE MAGICBOX SUPERPROMPT: ABOUT + HOW-TO + IMPLEMENTATION ⭐⭐⭐
+
+Copy EVERYTHING below into MagicBox. Do not edit.
+
+⸻
+
+You are updating the documentation layer for HossAgent and must create two fully polished, high-conversion content pages: an About page and a How-To page. You will also implement the frontend routing, templates, and navigation ingress so users can access these pages from the landing site and customer portal.
+
+Your goals:
+	1.	Generate clean, professional, 2025-level UI/UX pages for About and How-To
+	2.	Insert the final copy into the appropriate HTML/React templates
+	3.	Add navigation links (“About” and “How It Works”) to the landing page header
+	4.	Ensure URLs are:
+	•	/about
+	•	/how-it-works
+	5.	Maintain the noir, minimal, HossAgent aesthetic
+	6.	Do NOT break any existing functionality, routing, auth, or assets
+	7.	No buzzwords. No corporate jargon. No ChatGPT references.
+
+⸻
+
+1. ABOUT PAGE — USE THIS EXACT COPY
+
+Create a standalone About page at /about using the following text verbatim:
+
+⸻
+
+About HossAgent
+
+Small businesses don’t fail because people stop wanting what they sell. They fail because the owners run out of hours. There’s always one more lead to chase, one more email to write, one more follow-up they swear they’ll send “later.” Growth becomes a ghost that’s always one step ahead of them. That’s the problem HossAgent exists to kill.
+
+HossAgent is an autonomous, context-driven business growth engine. It doesn’t wait for you to enter contacts or log calls. It doesn’t ask you to “create a pipeline.” It goes out into the world, reads what’s happening in real time — news, reviews, staffing changes, competitor shifts, neighborhood events — and converts those signals into LeadEvents, which are just fancy words for “this is a moment you can win.” Then it does the part everyone hates: outreach, follow-ups, sharpening its aim, and iterating until conversations start happening. All while you’re doing literally anything else.
+
+The philosophy behind HossAgent is simple: relevance, timing, and context are the real sales technologies. Not dashboards. Not spreadsheets. Not “funnels.” Moments. The obituary-salesman level instinct — ethically recreated for modern business. It’s the Ethical Briefcase System: time-tested sales instincts rebuilt with precision instead of pressure, intelligence instead of intrusion.
+
+What makes HossAgent different is that it doesn’t treat your business like a database. It treats it like a living organism in a chaotic environment. CRMs help you file paperwork. HossAgent helps you move. Salesforce tracks records. HossAgent notices moments. And it acts on them — quietly, relentlessly, without drama — turning chaos into opportunities and opportunities into customers.
+
+And this is only the starting line. The long-term vision is an AI COO, a business autopilot that handles the front-office work you never wanted to do in the first place: awareness, outreach, research, intelligence, follow-through. The operational instincts of a seasoned operator, compressed into a system that never sleeps, never forgets, and never stops paying attention.
+
+HossAgent: Because opportunity doesn’t wait. And neither should you.
+
+⸻
+
+2. HOW-TO PAGE — USE THIS EXACT COPY
+
+Create a standalone How-To page at /how-it-works using the following content verbatim:
+
+⸻
+
+How to Use HossAgent
+
+A field manual for operators who want movement, not dashboards.
+
+HossAgent is built to remove the part of business everyone hates: hunting for opportunities, chasing leads, and doing the repetitive work that steals your time. This guide shows you exactly how to use it — simply, quickly, and without babysitting.
+
+1. Set Up Your Business Profile
+
+Train HossAgent on what you do, who you serve, and your tone. This defines your ICP and your voice.
+
+2. Choose Autopilot or Review Mode
+
+Autopilot: Hoss runs end-to-end.
+Review Mode: Hoss drafts; you approve.
+
+3. Understand LeadEvents
+
+LeadEvents are moments — not contacts.
+Each one is a real-world trigger: a bad review, a hiring signal, a shift in demand, a competitive move.
+Hoss turns these into actionable opportunities.
+
+4. Watch Outreach Happen Automatically
+
+Drafted emails based on timing, context, and relevance.
+In Autopilot Mode: sends automatically.
+In Review Mode: waits for your approval.
+
+5. View Reports and Market Snapshots
+
+Hoss generates research and insights, delivered directly into your portal.
+
+6. Track Progress in Your Dashboard
+
+See opportunities, outbound, trial status, usage, and wins.
+
+7. Manage Your Subscription
+
+Upgrade, cancel, reactivate — cleanly and simply.
+
+8. Optional: Connect Real Outbound Sending
+
+Configure SendGrid/SMTP if you want to send real email.
+DRY_RUN mode remains available.
+
+9. Daily Use
+
+You check the portal.
+Hoss handles the chase.
+Your business keeps moving.
+
+10. While You Sleep
+
+The Autopilot Loop continues generating:
+signals → LeadEvents → outreach → insights.
+You wake up to motion.
+
+HossAgent: growth without grind. Motion without extra hours. Opportunities without the chase.
+
+⸻
+
+3. IMPLEMENTATION REQUIREMENTS
+
+You must:
+
+A) Add new routes
+	•	/about → renders About page
+	•	/how-it-works → renders How-To page
+
+B) Modify site navigation
+
+At the top of the landing page, add two links:
+	•	About
+	•	How It Works
+
+Use minimal, tasteful noir styling consistent with the rest of HossAgent.
+
+C) Use existing frameworks/styles
+	•	Keep Tailwind classes or existing CSS
+	•	Match HossAgent’s black/charcoal/white palette
+	•	Use typography consistent with hero text
+
+D) No backend logic changes
+
+These are simple statically served pages.
+No auth, no API, no dynamic components.
+
+E) Ensure mobile responsiveness
+
+F) DO NOT ALTER
+	•	Pricing
+	•	Signup flows
+	•	Portal routing
+	•	Admin console
+	•	Stripe config
+	•	Autopilot functionality
+
+Only documentation + navigation ingress.
+
+⸻
+
+4. DELIVERABLES
+
+When finished, you should return:
+	1.	about.html or about.tsx (matching the project structure)
+	2.	how_it_works.html or how_it_works.tsx
+	3.	Updated header/nav code with two new links
+	4.	Minor polish/cleaning of the landing page (optional)
+	5.	Confirmation that the new pages render correctly in Replit preview mode
+
+⸻
+
+5. TONE & AESTHETIC INSTRUCTIONS
+	•	Noir, minimal, confident
+	•	2025 SaaS aesthetic (clean lines, high contrast, modern typography)
+	•	Absolutely NO corporate jargon
+	•	Absolutely NO sci-fi neon hacker vibes
+	•	Absolutely NO buzzwords
+	•	Write like a smart outlaw operator, not a Silicon Valley intern
+
+⸻
+
+END OF SUPERPROMPT
+(Paste everything above as one block into MagicBox.)
+
+⸻
+
+If you want, I can also generate:
+	•	A polished Help Center
+	•	A Docs home index
+	•	An onboarding email drip
+	•	A welcome tour script
+	•	A homepage hero video script
+
+Just say the word:
+
+“Hoss, build the full documentation suite.”

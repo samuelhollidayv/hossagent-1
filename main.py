@@ -244,6 +244,20 @@ def serve_marketing_landing():
         return f.read()
 
 
+@app.get("/about", response_class=HTMLResponse)
+def serve_about_page():
+    """About Page: Information about HossAgent."""
+    with open("templates/about.html", "r") as f:
+        return f.read()
+
+
+@app.get("/how-it-works", response_class=HTMLResponse)
+def serve_how_it_works_page():
+    """How It Works Page: Guide for using HossAgent."""
+    with open("templates/how_it_works.html", "r") as f:
+        return f.read()
+
+
 # ============================================================================
 # AUTHENTICATION ROUTES
 # ============================================================================
