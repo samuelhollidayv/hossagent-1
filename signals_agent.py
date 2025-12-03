@@ -6,6 +6,26 @@ actionable LeadEvents for moment-aware outreach. It transforms HossAgent
 from generic lead gen into a context-aware intelligence engine.
 
 Miami-tuned heuristics included for South Florida market.
+
+============================================================================
+MIAMI BIAS CONFIGURATION
+============================================================================
+The Signals Engine is configured via two key environment variables:
+
+  LEAD_GEOGRAPHY: Target geographic market (e.g., "Miami, Broward, South Florida")
+  LEAD_NICHE: Target industry verticals (e.g., "HVAC, Roofing, Med Spa")
+
+These values affect:
+  1. Signal Scoring - Signals matching LEAD_GEOGRAPHY get +15 urgency boost
+  2. LeadEvent Creation - Events from target geography are prioritized
+  3. Category Assignment - Miami-specific categories (HURRICANE_SEASON, 
+     MIAMI_PRICE_MOVE, BILINGUAL_OPPORTUNITY) get higher base weights when
+     geography matches South Florida
+
+Default fallbacks if env vars not set:
+  LEAD_GEOGRAPHY -> "Miami, Broward, South Florida"
+  LEAD_NICHE -> "HVAC, Roofing, Med Spa, Immigration Attorney"
+============================================================================
 """
 
 import json
@@ -19,12 +39,31 @@ from models import Signal, LeadEvent, Customer, Lead
 from subscription_utils import increment_leads_used
 
 
+# ============================================================================
+# Miami-first targeting via LEAD_GEOGRAPHY, LEAD_NICHE
+# These env vars control the geographic and industry bias of the signals engine
+# ============================================================================
+LEAD_GEOGRAPHY = os.environ.get("LEAD_GEOGRAPHY", "Miami, Broward, South Florida")
+LEAD_NICHE = os.environ.get("LEAD_NICHE", "HVAC, Roofing, Med Spa, Immigration Attorney")
+
+# Parse LEAD_GEOGRAPHY into searchable list for matching
+LEAD_GEOGRAPHY_LIST = [g.strip().lower() for g in LEAD_GEOGRAPHY.split(",")]
+
+# Parse LEAD_NICHE into searchable list for industry matching
+LEAD_NICHE_LIST = [n.strip().lower() for n in LEAD_NICHE.split(",")]
+
+# Log configuration at module load (startup)
+print(f"[SIGNALS][STARTUP] Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
+
+
+# Miami-specific industry verticals - high-value niches for South Florida market
 MIAMI_INDUSTRIES = [
     "med spa", "hvac", "roofing", "immigration attorney", 
     "realtor", "insurance broker", "marketing agency",
     "dental practice", "auto repair", "landscaping"
 ]
 
+# Miami/South Florida geographic areas for signal generation
 MIAMI_AREAS = [
     "Miami", "Coral Gables", "Brickell", "Wynwood", "Little Havana",
     "Doral", "Hialeah", "Miami Beach", "Fort Lauderdale", "Broward County",
@@ -181,18 +220,71 @@ def generate_local_signal(company: str, niche: str) -> Dict:
     }
 
 
+def matches_lead_geography(geography: Optional[str]) -> bool:
+    """
+    Check if a geography string matches the configured LEAD_GEOGRAPHY.
+    
+    Miami-first targeting: Returns True if the geography contains any of
+    the target areas specified in LEAD_GEOGRAPHY env var.
+    
+    Args:
+        geography: Geographic area string (e.g., "Miami", "Broward County")
+    
+    Returns:
+        True if geography matches LEAD_GEOGRAPHY, False otherwise
+    """
+    if not geography:
+        return False
+    geo_lower = geography.lower()
+    return any(target in geo_lower for target in LEAD_GEOGRAPHY_LIST)
+
+
+def matches_lead_niche(niche: Optional[str]) -> bool:
+    """
+    Check if a niche string matches the configured LEAD_NICHE.
+    
+    Miami-first targeting: Returns True if the niche contains any of
+    the target industries specified in LEAD_NICHE env var.
+    
+    Args:
+        niche: Industry/niche string (e.g., "HVAC", "roofing contractor")
+    
+    Returns:
+        True if niche matches LEAD_NICHE, False otherwise
+    """
+    if not niche:
+        return False
+    niche_lower = niche.lower()
+    return any(target in niche_lower for target in LEAD_NICHE_LIST)
+
+
 def infer_category(signal_type: str, context: str) -> str:
-    """Infer LeadEvent category from signal content."""
+    """
+    Infer LeadEvent category from signal content.
+    
+    Miami-tuned categories:
+    - HURRICANE_SEASON: Storm/hurricane-related signals (high priority in South FL)
+    - MIAMI_PRICE_MOVE: Pricing changes in Miami market
+    - BILINGUAL_OPPORTUNITY: Spanish/bilingual signals (critical in Miami market)
+    - COMPETITOR_SHIFT: Competitor positioning changes
+    - GROWTH_SIGNAL: Hiring/expansion signals
+    - REPUTATION_CHANGE: Review-based signals
+    - OPPORTUNITY: General opportunity signals
+    """
     context_lower = context.lower()
     
+    # Miami-specific high-priority categories
     if "hurricane" in context_lower or "storm" in context_lower:
         return "HURRICANE_SEASON"
+    elif "bilingual" in context_lower or "spanish" in context_lower:
+        return "BILINGUAL_OPPORTUNITY"
+    elif "price" in context_lower and ("miami" in context_lower or "local" in context_lower):
+        return "MIAMI_PRICE_MOVE"
+    # General categories
     elif "competitor" in context_lower or "pricing" in context_lower:
         return "COMPETITOR_SHIFT"
     elif "hiring" in context_lower or "job" in context_lower or "growth" in context_lower:
         return "GROWTH_SIGNAL"
-    elif "bilingual" in context_lower or "spanish" in context_lower:
-        return "BILINGUAL_OPPORTUNITY"
     elif "review" in context_lower:
         return "REPUTATION_CHANGE"
     elif "price" in context_lower or "pricing" in context_lower:
@@ -201,27 +293,75 @@ def infer_category(signal_type: str, context: str) -> str:
         return "OPPORTUNITY"
 
 
-def calculate_urgency(signal_type: str, category: str) -> int:
-    """Calculate urgency score 0-100 based on signal characteristics."""
+def calculate_urgency(signal_type: str, category: str, geography: Optional[str] = None, niche: Optional[str] = None) -> int:
+    """
+    Calculate urgency score 0-100 based on signal characteristics.
+    
+    Miami-first targeting via LEAD_GEOGRAPHY, LEAD_NICHE:
+    - Base scores are set per category (Miami-tuned categories get higher base)
+    - +15 urgency boost if geography matches LEAD_GEOGRAPHY
+    - +10 urgency boost if niche matches LEAD_NICHE
+    
+    Category base weights (Miami-tuned):
+    - HURRICANE_SEASON: 75 (highest - critical for South FL)
+    - REPUTATION_CHANGE: 70
+    - COMPETITOR_SHIFT: 65
+    - GROWTH_SIGNAL: 60
+    - MIAMI_PRICE_MOVE: 60
+    - BILINGUAL_OPPORTUNITY: 55
+    - OPPORTUNITY: 50 (default)
+    
+    Args:
+        signal_type: Type of signal source
+        category: Inferred category from signal content
+        geography: Optional geography for boost calculation
+        niche: Optional niche for boost calculation
+    
+    Returns:
+        Urgency score 0-100 (clamped to 30-95 range)
+    """
+    # Base scores - Miami-tuned categories get higher weights
     base_score = 50
     
     if category == "HURRICANE_SEASON":
-        base_score = 75
+        base_score = 75  # Highest priority - critical for South Florida
+    elif category == "REPUTATION_CHANGE":
+        base_score = 70
     elif category == "COMPETITOR_SHIFT":
         base_score = 65
     elif category == "GROWTH_SIGNAL":
         base_score = 60
+    elif category == "MIAMI_PRICE_MOVE":
+        base_score = 60
     elif category == "BILINGUAL_OPPORTUNITY":
         base_score = 55
-    elif category == "REPUTATION_CHANGE":
-        base_score = 70
     
+    # Miami-first targeting: Boost signals from LEAD_GEOGRAPHY
+    geography_boost = 0
+    if geography and matches_lead_geography(geography):
+        geography_boost = 15
+    
+    # Boost signals matching LEAD_NICHE industries
+    niche_boost = 0
+    if niche and matches_lead_niche(niche):
+        niche_boost = 10
+    
+    # Add random variation for natural distribution
     variation = random.randint(-10, 10)
-    return max(30, min(90, base_score + variation))
+    
+    final_score = base_score + geography_boost + niche_boost + variation
+    
+    return max(30, min(95, final_score))
 
 
 def generate_recommended_action(category: str, signal_summary: str) -> str:
-    """Generate recommended action based on category."""
+    """
+    Generate recommended action based on category.
+    
+    Miami-first targeting: Actions are tuned for South Florida market context.
+    Categories like HURRICANE_SEASON, BILINGUAL_OPPORTUNITY, and MIAMI_PRICE_MOVE
+    have Miami-specific recommended actions.
+    """
     actions = {
         "HURRICANE_SEASON": "Offer hurricane-season discount bundle or preparedness package",
         "COMPETITOR_SHIFT": "Send competitive analysis snapshot highlighting your differentiators",
@@ -242,9 +382,22 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
     noticing engine without hitting real APIs. Each signal generates
     actionable LeadEvents for moment-aware outreach.
     
+    Miami-first targeting via LEAD_GEOGRAPHY, LEAD_NICHE:
+    - Signals are generated with Miami-area geography
+    - Urgency scores are boosted for signals matching LEAD_GEOGRAPHY (+15)
+    - Urgency scores are boosted for signals matching LEAD_NICHE (+10)
+    - Miami-tuned categories (HURRICANE_SEASON, MIAMI_PRICE_MOVE, BILINGUAL_OPPORTUNITY)
+      get higher base urgency weights
+    
+    LeadEvent creation uses:
+    - Category inferred from signal content (Miami-tuned categories prioritized)
+    - Urgency calculated with geography and niche boosts
+    - Recommended actions tailored for South Florida market
+    
     Returns dict with counts of signals and events generated.
     """
     print("[SIGNALS] Starting Signals Agent cycle...")
+    print(f"[SIGNALS] Active config - Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
     
     customers = session.exec(select(Customer).limit(20)).all()
     leads = session.exec(select(Lead).where(Lead.status != "dead").limit(30)).all()
@@ -291,13 +444,16 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
         for generator in chosen_generators:
             signal_data = generator(company["name"], company["niche"])
             
+            # Assign geography from Miami areas for South Florida targeting
+            signal_geography = random.choice(MIAMI_AREAS)
+            
             signal = Signal(
                 company_id=company["id"] if company["type"] == "customer" else None,
                 lead_id=company["id"] if company["type"] == "lead" else None,
                 source_type=signal_data["source_type"],
                 raw_payload=signal_data["raw_payload"],
                 context_summary=signal_data["context_summary"],
-                geography=random.choice(MIAMI_AREAS)
+                geography=signal_geography
             )
             session.add(signal)
             session.commit()
@@ -306,10 +462,20 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
             
             print(f"[SIGNALS][{signal.source_type.upper()}] {company['name']}: {signal.context_summary[:80]}...")
             
+            # Miami-first targeting: Category assignment uses Miami-tuned heuristics
             category = infer_category(signal.source_type, signal.context_summary)
-            urgency = calculate_urgency(signal.source_type, category)
+            
+            # Miami-first targeting: Urgency boosted for matching geography/niche
+            urgency = calculate_urgency(
+                signal.source_type, 
+                category, 
+                geography=signal_geography,
+                niche=company["niche"]
+            )
+            
             recommended_action = generate_recommended_action(category, signal.context_summary)
             
+            # LeadEvent creation with Miami-tuned category and boosted urgency
             event = LeadEvent(
                 company_id=company["id"] if company["type"] == "customer" else None,
                 lead_id=company["id"] if company["type"] == "lead" else None,
@@ -328,7 +494,10 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
                 increment_leads_used(session, company["id"])
                 session.commit()
             
-            print(f"[SIGNALS][EVENT] Created {category} event (urgency: {urgency}) for {company['name']}")
+            # Log with geography match indicator
+            geo_match = "✓ GEO MATCH" if matches_lead_geography(signal_geography) else ""
+            niche_match = "✓ NICHE MATCH" if matches_lead_niche(company["niche"]) else ""
+            print(f"[SIGNALS][EVENT] Created {category} event (urgency: {urgency}) for {company['name']} {geo_match} {niche_match}")
     
     print(f"[SIGNALS] Cycle complete. Created {signals_created} signals, {events_created} events.")
     

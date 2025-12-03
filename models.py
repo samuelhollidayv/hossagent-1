@@ -179,10 +179,13 @@ class Report(SQLModel, table=True):
     
     Reports can be research summaries, competitive analyses, market insights, etc.
     Displayed in the portal under "Reports / Recent Work" section.
+    
+    Can be linked to a LeadEvent via lead_event_id for opportunity-specific reports.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     customer_id: int = Field(foreign_key="customer.id")
     lead_id: Optional[int] = Field(default=None, foreign_key="lead.id")
+    lead_event_id: Optional[int] = Field(default=None, foreign_key="leadevent.id")
     
     title: str
     description: Optional[str] = None

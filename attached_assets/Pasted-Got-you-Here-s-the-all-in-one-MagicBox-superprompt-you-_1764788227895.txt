@@ -1,0 +1,355 @@
+Got you. Here’s the all-in-one MagicBox superprompt you can paste straight into Agent. I’ve folded in:
+	•	Miami env stuff
+	•	Customer portal tweaks (subscription card, reports, usage counters, cancel)
+	•	Login persistence + forgot password
+	•	Stripe assumptions / DRY_RUN
+	•	Admin Console simplification (Signals → LeadEvents → Outputs)
+
+⸻
+
+🔧 HossAgent Superprompt (Admin + Portal Consolidation)
+
+You are working on my HossAgent app in Replit.
+Treat this as a refactor + UX pass, not a rewrite.
+Do not delete working features such as login, signup, trial logic, Stripe wiring, or the Signals/LeadEvent models.
+Instead, consolidate and polish them.
+
+⸻
+
+0. High-level product context
+
+HossAgent is an autonomous AI BizDev system with:
+	•	Landing page (/)
+	•	Customer portal (/portal)
+	•	Login/signup
+	•	Admin “Operator Console” (/admin)
+	•	Signals + LeadEvent engine for opportunities
+	•	Stripe subscription model (single $99/mo plan)
+	•	DRY_RUN email mode (for now)
+
+Environment variables (already present in Secrets):
+	•	OPENAI_API_KEY
+	•	ENABLE_STRIPE
+	•	STRIPE_API_KEY (secret)
+	•	STRIPE_PUBLIC_KEY
+	•	STRIPE_WEBHOOK_SECRET
+	•	SESSION_SECRET
+	•	ADMIN_PASSWORD
+	•	EMAIL_MODE (e.g. DRY_RUN)
+	•	LEAD_NICHE
+	•	LEAD_GEOGRAPHY
+
+We’re currently biased to Miami / Broward and SMB niches via those env vars.
+
+⸻
+
+1. Customer Portal UX ( /portal )
+
+1.1 Subscription card placement
+
+In the portal templates:
+	•	Move the subscription status card (plan name, $/month, trial days remaining, tasks used, leads used, “Start Paid Subscription” button) to the top of the page, directly under the main heading.
+	•	Below that, show operational sections such as:
+	•	Today’s Opportunities / Lead Events
+	•	Reports / Recent Work
+	•	Task history (if we keep it)
+	•	Keep styling consistent with current dark theme.
+
+1.2 Usage counters wired to Signals/LeadEvents
+
+Currently, “Tasks used” and “Leads used” don’t line up with the new Signals/LeadEvent engine.
+
+Implement:
+	•	When we create a LeadEvent for a customer, increment that customer’s leads_used.
+	•	When we execute a meaningful agent task for a customer (e.g. generating a research/report output tied to a LeadEvent, or running a substantial analysis), increment tasks_used.
+
+Ensure:
+	•	These counters show in the portal and in the admin console off the same data.
+	•	For now, treat limits as soft caps:
+	•	Do not hard-block usage.
+	•	Keep limits visible (e.g. “0 / 15 tasks”) but let trials continue to use the system.
+	•	If there’s existing code that blocks based on limits, relax it so trials aren’t blocked.
+
+1.3 Reports / “Recent Work” surface
+
+We need the portal to show actual output, not just stubs.
+	•	Ensure we have a Report (or equivalent) model in the DB for Ops outputs. If missing, create it with fields something like:
+	•	id
+	•	customer_id
+	•	lead_event_id (nullable if general)
+	•	title
+	•	summary
+	•	content (full HTML/markdown or blob)
+	•	created_at
+	•	For every research run / market analysis / report, persist a Report row.
+
+Portal:
+	•	Add a Reports or Recent Work section that lists:
+	•	Date
+	•	Title
+	•	Short summary
+	•	Each report should be viewable:
+	•	Either as a dedicated /portal/report/<id> page, or an expandable panel/modal.
+	•	If we’re already emailing reports, keep that behavior, but treat the portal as source of truth:
+	•	Email = notification only.
+	•	Portal = canonical record.
+
+1.4 Opportunities & Tasks clarity
+
+Right now, customers see multiple similar tables; we need clarity:
+	•	In the portal, show one main table for Lead Events / Opportunities derived from the LeadEvent model:
+	•	columns: summary, category, urgency, status (NEW / CONTACTED / RESPONDED), timestamp.
+	•	Make each row clickable:
+	•	Show a detail view with:
+	•	Supporting signal context
+	•	Any associated outbound messages
+	•	Any associated report(s)
+	•	Task history:
+	•	Either fold task history into the Reports section (if tasks essentially produce reports),
+	•	Or keep a Task History table but ensure each item links to the underlying report/output or LeadEvent so it’s not just a dead stub.
+
+No orphan tables: every row a customer can see should either do something (view detail) or clearly indicate what it represents.
+
+1.5 Cancellation (MVP)
+
+For paid accounts (plan active, not just trial):
+	•	Show a “Cancel subscription” button in the subscription card.
+	•	When clicked:
+	•	Set a flag on the subscription record like cancelled_at_period_end = True (or equivalent).
+	•	Show copy:
+“Your subscription will remain active until the end of the current billing period. You won’t be charged again.”
+	•	For now, do NOT call Stripe APIs to cancel. This is a backend-only state flag we’ll later wire into Stripe.
+
+Admin console should retain full power to:
+	•	Reactivate customers
+	•	Override / comp accounts
+
+⸻
+
+2. Authentication & Sessions
+
+2.1 Session persistence
+
+Improve auth so normal users don’t have to log in constantly:
+	•	Use secure, HTTP-only cookies with a reasonable expiry (e.g. 14 days).
+	•	As long as the session cookie is valid:
+	•	/portal should load without re-login.
+	•	Include a Log out link/button that:
+	•	Clears the session.
+	•	Redirects back to login or landing page.
+
+We don’t need a “remember me” checkbox yet — just set session expiry to something user-friendly.
+
+Ensure this works in both local/preview and published environments.
+
+2.2 Forgot password flow
+
+Implement a basic password reset:
+	•	Add “Forgot your password?” link on the login page.
+	•	Flow:
+	1.	User enters their email.
+	2.	Generate a secure, time-limited token (e.g. random string with expiry).
+	3.	Store it in the DB, associated with that user.
+	4.	Send an email with a reset link like /reset-password?token=....
+	•	In DRY_RUN email mode, log the reset link to console/logs so I can see it.
+	5.	Build /reset-password route:
+	•	Validates token & expiry.
+	•	Lets user set new password (with basic requirements).
+	•	Consumes token (one-time use).
+	•	Logs user in and redirects to /portal.
+
+Handle error states clearly:
+	•	Invalid/expired token
+	•	Email not found (respond generically, don’t leak existence of accounts)
+
+⸻
+
+3. Stripe / Billing Assumptions
+	•	ENABLE_STRIPE and the Stripe keys are already in Secrets.
+	•	For now:
+	•	Use Stripe primarily to:
+	•	Create checkout links
+	•	Handle “real” billing when we flip from DRY_RUN.
+	•	Admin “Upgrade” override should not require Stripe checkout (see section 4).
+
+We are okay if billing portal or advanced Stripe features are stubbed or disabled, as long as:
+	•	Trial creation works.
+	•	Upgrade via admin override works.
+	•	Portal copy behaves correctly based on plan/trial status.
+
+⸻
+
+4. Admin Console (“Hoss Control Room”) Consolidation
+
+Goal: collapse the junk drawer into 1–3 coherent panels that align with the new architecture:
+
+Signals → LeadEvents → Outputs
+
+4.1 Remove / deprecate noisy panels
+
+Remove or hide from UI these legacy sections, unless they are still absolutely required by code:
+	•	Auto-created Leads / seed leads
+	•	Recent Leads (legacy)
+	•	Lead Source test/configuration panel
+	•	Email Health summary panel
+	•	Draft Invoices (no longer relevant with new pricing approach)
+	•	“BizDev Templates” configuration block (move to a Settings/config view later if needed)
+	•	“Recent Generated Emails” panel (fold into Outbound history)
+	•	Standalone “Pending Outreach” panel (fold into Outbound list)
+	•	Any duplicate “Task history” that doesn’t link to real outputs
+
+Important:
+If any of these are tightly coupled in the backend, refactor carefully rather than deleting core logic.
+The goal is to simplify the UI, not to break data flows.
+
+4.2 Core panels we do want
+
+4.2.1 KPI bar at top
+Add a row of simple KPIs at the top of /admin:
+	•	Signals Today
+	•	New Lead Events Today
+	•	Outbound Sent Today
+	•	Reports Delivered Today
+	•	Errors / Failed Outbound (if easy to compute)
+
+Purely read-only; no need for perfect accuracy in v1, just reasonable queries.
+
+4.2.2 Signals Table (raw)
+Keep a collapsible Signals section:
+	•	Columns:
+	•	summary (shortened)
+	•	category
+	•	geography/location (if present)
+	•	created_at
+	•	lead_event_id (if mapped)
+	•	This is for debugging and “what is the system seeing?”
+
+4.2.3 Lead Events Table (primary source of truth)
+The main admin workhorse:
+	•	One table backed purely by the LeadEvent model.
+	•	Columns:
+	•	summary
+	•	category (REPUTATION_CHANGE / COMPETITOR_SHIFT / OPPORTUNITY / etc.)
+	•	urgency score
+	•	status (NEW / CONTACTED / RESPONDED / FAILED)
+	•	has_outbound? (boolean indicator)
+	•	has_report? (boolean indicator)
+	•	created_at
+	•	company/customer
+
+Row click / expand:
+	•	Show:
+	•	Underlying signal(s)
+	•	Outbound messages generated (if any)
+	•	Associated report(s)
+	•	Any errors
+
+This table replaces legacy “Recent Leads”, “Pending Outreach”, etc.
+
+4.2.4 Output History (Outbound + Reports)
+One combined “Outputs” section with filters:
+	•	Outbound messages
+	•	lead_event_id
+	•	to_email
+	•	subject
+	•	status (sent, failed, pending, dry_run)
+	•	timestamp
+	•	Reports / Tasks
+	•	report_title
+	•	linked lead_event_id
+	•	status
+	•	timestamp
+	•	view link to open report
+
+Filtering:
+	•	Allow filter by customer, by date range, and by type (Outbound vs Reports) if feasible.
+
+This becomes the canonical “What has Hoss actually done?” view.
+
+4.3 Admin “Upgrade” button
+
+Fix the Upgrade button behavior in the admin customer plans section:
+	•	When clicked on a trial customer:
+	•	Mark subscription as paid/active with unlimited tasks/leads.
+	•	Update subscription record fields, e.g.:
+	•	status = "ACTIVE"
+	•	plan = "PRO"
+	•	billing_method = "ADMIN_OVERRIDE"
+	•	clear trial_end or trial_days_left
+	•	set tasks_limit / leads_limit to something like None or “unlimited”
+	•	After upgrade:
+	•	Portal should show plan as active, no trial countdown.
+	•	Do not require Stripe checkout for admin upgrades right now.
+
+4.4 Operator Console ingress
+
+Currently, “Operator Console” link is in the footer and easy to miss.
+	•	Keep /admin protected behind ADMIN_PASSWORD as before.
+	•	Ensure there is a clear, consistent link to the admin console:
+	•	Either in footer but visually stronger,
+	•	Or behind some keyboard-only link if you prefer stealth.
+	•	Do not expose it as a big obvious button to customers; this is for me as operator.
+
+⸻
+
+5. Miami Bias (Environment usage)
+
+Confirm that:
+	•	LEAD_GEOGRAPHY and LEAD_NICHE are used in the Signals/LeadEvent engine as default filters/weights.
+	•	We are biasing:
+	•	Geography to Miami/Broward/South Florida
+	•	Niches to things like med spas, HVAC, roofers, etc.
+	•	Do not change the values themselves; just ensure they flow cleanly:
+	•	e.g., Signals agent reads them
+	•	LeadEvent creation uses them for scoring/selection
+
+Add comments in the relevant files to make this behavior obvious (e.g. “Miami-first targeting via LEAD_GEOGRAPHY, LEAD_NICHE”).
+
+⸻
+
+6. QA Checklist (what you must manually verify)
+
+After implementing:
+	1.	Run the app in preview.
+	2.	Create a brand new test customer via signup.
+	3.	Log in to /portal:
+	•	Subscription card is at the top.
+	•	Usage counters visible and non-erroring (even if 0).
+	4.	Trigger some LeadEvents and a sample report:
+	•	leads_used increments when new LeadEvents are created.
+	•	tasks_used increments when a report/major task runs.
+	•	Reports appear in the Reports/Recent Work section and are viewable.
+	5.	Admin console:
+	•	KPI bar visible.
+	•	Signals table populated.
+	•	Lead Events table shows meaningful rows with status and flags.
+	•	Outputs section shows outbound emails + reports.
+	6.	Upgrade test:
+	•	In admin, click Upgrade on the new customer.
+	•	Portal reflects paid plan, no trial countdown; unlimited caps.
+	7.	Auth:
+	•	Log in, browse around, reload browser tab:
+	•	Session persists (no repeated login prompts within a reasonable time).
+	•	Log out link works and clears session.
+	8.	Forgot password:
+	•	Request reset.
+	•	In DRY_RUN mode, confirm reset link appears in logs/console.
+	•	Visit link, reset password, and confirm you can log in with new password.
+	9.	Cancel button:
+	•	For a paid account, click “Cancel subscription”.
+	•	DB shows cancellation flag set.
+	•	Portal copy changes to reflect “will not be charged again”.
+	10.	Miami env:
+
+	•	Confirm in code that Signals/LeadEvent logic reads LEAD_GEOGRAPHY + LEAD_NICHE.
+
+Please add inline comments for any assumptions or TODOs, especially around:
+	•	Where Report data is stored and rendered
+	•	Any remaining limitations in billing/Stripe behavior
+	•	Any parts where legacy tables still exist for backwards compatibility
+
+Do not introduce new external dependencies unless absolutely necessary.
+
+⸻
+
+That’s it.

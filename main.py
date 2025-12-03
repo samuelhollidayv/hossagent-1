@@ -2316,13 +2316,21 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             fire_icon = '<span class="fire-icon">🔥</span>' if opp.urgency_score >= 70 else ''
             timestamp = opp.created_at.strftime("%Y-%m-%d %H:%M") if opp.created_at else "-"
             summary_truncated = opp.summary[:80] + "..." if len(opp.summary) > 80 else opp.summary
+            status_class = opp.status.lower().replace("_", "-")
             opportunities_rows += f"""
-                <tr>
+                <tr class="opportunity-row" data-opportunity-id="{opp.id}" onclick="showOpportunityDetail({opp.id})">
                     <td>{summary_truncated}</td>
                     <td><span class="category-badge">{opp.category}</span></td>
                     <td><span class="{urgency_class}">{fire_icon}{opp.urgency_score}</span></td>
-                    <td><span class="status-badge {opp.status}">{opp.status}</span></td>
+                    <td><span class="status-badge opp-status-{status_class}">{opp.status}</span></td>
                     <td>{timestamp}</td>
+                </tr>
+                <tr class="opportunity-detail-row" id="opp-detail-{opp.id}" style="display: none;">
+                    <td colspan="5" class="opportunity-detail-cell">
+                        <div class="opportunity-detail-content" id="opp-content-{opp.id}">
+                            <div class="loading-indicator">Loading details...</div>
+                        </div>
+                    </td>
                 </tr>
             """
         
@@ -2331,8 +2339,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             <div class="section-header">
                 <div class="section-title">Today's Opportunities</div>
             </div>
-            <div class="opportunities-subtitle">Automatically identified from public context signals</div>
-            <table style="margin-top: 1rem;">
+            <div class="opportunities-subtitle">Automatically identified from public context signals • Click a row to see details</div>
+            <table class="opportunities-table" style="margin-top: 1rem;">
                 <thead>
                     <tr>
                         <th>Summary</th>
@@ -2876,6 +2884,305 @@ def get_bizdev_templates():
     return {
         **status,
         "recent_generations": recent
+    }
+
+
+# ============================================================================
+# KPI DASHBOARD API
+# ============================================================================
+
+
+@app.get("/api/kpis")
+def get_kpis(request: Request, session: Session = Depends(get_session)):
+    """
+    Get KPI counts for today's activity.
+    
+    Returns:
+        - signals_today: Count of signals created today
+        - lead_events_today: Count of lead events created today
+        - outbound_sent_today: Count of outbound with APPROVED/SENT status updated today
+        - reports_delivered_today: Count of reports created today
+        - errors_failed: Count of pending outbound with FAILED or SKIPPED status
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    signals_today = session.exec(
+        select(func.count()).select_from(Signal).where(Signal.created_at >= today_start)
+    ).one()
+    
+    lead_events_today = session.exec(
+        select(func.count()).select_from(LeadEvent).where(LeadEvent.created_at >= today_start)
+    ).one()
+    
+    outbound_sent_today = session.exec(
+        select(func.count()).select_from(PendingOutbound).where(
+            (PendingOutbound.status.in_(["APPROVED", "SENT"])) &
+            (PendingOutbound.created_at >= today_start)
+        )
+    ).one()
+    
+    reports_delivered_today = session.exec(
+        select(func.count()).select_from(Report).where(Report.created_at >= today_start)
+    ).one()
+    
+    errors_failed = session.exec(
+        select(func.count()).select_from(PendingOutbound).where(
+            PendingOutbound.status.in_(["FAILED", "SKIPPED"])
+        )
+    ).one()
+    
+    return {
+        "signals_today": signals_today,
+        "lead_events_today": lead_events_today,
+        "outbound_sent_today": outbound_sent_today,
+        "reports_delivered_today": reports_delivered_today,
+        "errors_failed": errors_failed
+    }
+
+
+@app.get("/api/lead_events_detailed")
+def get_lead_events_detailed(
+    request: Request,
+    limit: int = Query(default=50, le=100),
+    session: Session = Depends(get_session)
+):
+    """
+    Get detailed lead events with related outbound and report info.
+    
+    Returns lead events with has_outbound and has_report flags.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    events = session.exec(
+        select(LeadEvent).order_by(LeadEvent.created_at.desc()).limit(limit)
+    ).all()
+    
+    result = []
+    for e in events:
+        has_outbound = session.exec(
+            select(func.count()).select_from(PendingOutbound).where(
+                PendingOutbound.lead_event_id == e.id
+            )
+        ).one() > 0
+        
+        has_report = session.exec(
+            select(func.count()).select_from(Report).where(
+                Report.lead_id == e.lead_id
+            )
+        ).one() > 0 if e.lead_id else False
+        
+        company = None
+        if e.company_id:
+            customer = session.exec(
+                select(Customer).where(Customer.id == e.company_id)
+            ).first()
+            company = customer.company if customer else None
+        
+        result.append({
+            "id": e.id,
+            "summary": e.summary,
+            "category": e.category,
+            "urgency_score": e.urgency_score,
+            "status": e.status,
+            "has_outbound": has_outbound,
+            "has_report": has_report,
+            "company": company,
+            "signal_id": e.signal_id,
+            "lead_id": e.lead_id,
+            "created_at": e.created_at.isoformat() if e.created_at else None
+        })
+    
+    return result
+
+
+@app.get("/api/output_history")
+def get_output_history(
+    request: Request,
+    limit: int = Query(default=50, le=100),
+    session: Session = Depends(get_session)
+):
+    """
+    Get combined output history: outbound messages and reports.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    outbound = session.exec(
+        select(PendingOutbound).order_by(PendingOutbound.created_at.desc()).limit(limit)
+    ).all()
+    
+    reports = session.exec(
+        select(Report).order_by(Report.created_at.desc()).limit(limit)
+    ).all()
+    
+    outbound_list = []
+    for o in outbound:
+        outbound_list.append({
+            "id": o.id,
+            "lead_event_id": o.lead_event_id,
+            "to_email": o.to_email,
+            "subject": o.subject,
+            "status": o.status,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "sent_at": o.sent_at.isoformat() if o.sent_at else None
+        })
+    
+    reports_list = []
+    for r in reports:
+        lead_event = None
+        if r.lead_id:
+            le = session.exec(
+                select(LeadEvent).where(LeadEvent.lead_id == r.lead_id)
+            ).first()
+            lead_event = le.id if le else None
+        
+        reports_list.append({
+            "id": r.id,
+            "title": r.title,
+            "lead_event_id": lead_event,
+            "report_type": r.report_type,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+    
+    return {
+        "outbound": outbound_list,
+        "reports": reports_list
+    }
+
+
+# ============================================================================
+# OPPORTUNITY DETAIL API - CUSTOMER PORTAL
+# ============================================================================
+
+
+@app.get("/api/opportunity/{opportunity_id}/detail")
+def get_opportunity_detail(
+    opportunity_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get detailed opportunity (LeadEvent) data for customer portal.
+    
+    Returns:
+    - Full LeadEvent data (summary, category, urgency, status, lifecycle info)
+    - Related Signal context (if available)
+    - Related PendingOutbound records
+    - Related Report records
+    - Lead info (if linked)
+    
+    Authenticated via customer session cookie.
+    """
+    customer = get_customer_from_session(request, session)
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    opportunity = session.exec(
+        select(LeadEvent).where(
+            LeadEvent.id == opportunity_id,
+            LeadEvent.company_id == customer.id
+        )
+    ).first()
+    
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    
+    signal_data = None
+    if opportunity.signal_id:
+        signal = session.exec(
+            select(Signal).where(Signal.id == opportunity.signal_id)
+        ).first()
+        if signal:
+            signal_data = {
+                "id": signal.id,
+                "source_type": signal.source_type,
+                "context_summary": signal.context_summary,
+                "geography": signal.geography,
+                "created_at": signal.created_at.isoformat() if signal.created_at else None
+            }
+    
+    outbound_records = session.exec(
+        select(PendingOutbound).where(
+            PendingOutbound.lead_event_id == opportunity.id
+        ).order_by(PendingOutbound.created_at.desc())
+    ).all()
+    
+    outbound_list = []
+    for o in outbound_records:
+        outbound_list.append({
+            "id": o.id,
+            "to_email": o.to_email,
+            "to_name": o.to_name,
+            "subject": o.subject,
+            "body": o.body,
+            "context_summary": o.context_summary,
+            "status": o.status,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "sent_at": o.sent_at.isoformat() if o.sent_at else None,
+            "approved_at": o.approved_at.isoformat() if o.approved_at else None
+        })
+    
+    report_records = session.exec(
+        select(Report).where(
+            (Report.lead_event_id == opportunity.id) |
+            (Report.lead_id == opportunity.lead_id)
+        ).order_by(Report.created_at.desc())
+    ).all() if opportunity.lead_id else session.exec(
+        select(Report).where(Report.lead_event_id == opportunity.id).order_by(Report.created_at.desc())
+    ).all()
+    
+    reports_list = []
+    for r in report_records:
+        reports_list.append({
+            "id": r.id,
+            "title": r.title,
+            "description": r.description,
+            "content": r.content,
+            "report_type": r.report_type,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+    
+    lead_data = None
+    if opportunity.lead_id:
+        lead = session.exec(
+            select(Lead).where(Lead.id == opportunity.lead_id)
+        ).first()
+        if lead:
+            lead_data = {
+                "id": lead.id,
+                "name": lead.name,
+                "email": lead.email,
+                "company": lead.company,
+                "niche": lead.niche,
+                "status": lead.status,
+                "website": lead.website,
+                "source": lead.source
+            }
+    
+    return {
+        "id": opportunity.id,
+        "summary": opportunity.summary,
+        "category": opportunity.category,
+        "urgency_score": opportunity.urgency_score,
+        "status": opportunity.status,
+        "recommended_action": opportunity.recommended_action,
+        "outbound_message": opportunity.outbound_message,
+        "last_contact_at": opportunity.last_contact_at.isoformat() if opportunity.last_contact_at else None,
+        "last_contact_summary": opportunity.last_contact_summary,
+        "next_step": opportunity.next_step,
+        "next_step_owner": opportunity.next_step_owner,
+        "created_at": opportunity.created_at.isoformat() if opportunity.created_at else None,
+        "signal": signal_data,
+        "outbound_messages": outbound_list,
+        "reports": reports_list,
+        "lead": lead_data
     }
 
 

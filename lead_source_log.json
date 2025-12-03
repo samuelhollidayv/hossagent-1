@@ -1430,9 +1430,117 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:20:36.779103",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:25:38.045248",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:30:39.126711",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:35:40.574881",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:40:41.877841",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:45:43.527929",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:50:45.232002",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T18:55:33.559762",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T19:00:35.156663",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T19:02:14.637419",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T19:06:58.808149",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-03T19:10:37.846191",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-03T14:19:51.997578",
+  "last_run": "2025-12-03T19:10:37.846191",
   "last_created_count": 0,
   "recent_leads": [
     {

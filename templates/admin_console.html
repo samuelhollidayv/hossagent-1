@@ -19,7 +19,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             border-bottom: 1px solid #333;
             padding-bottom: 1rem;
         }
@@ -47,6 +47,7 @@
             cursor: pointer;
             font-weight: bold;
             font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
         }
         .toggle-btn:hover {
             background: #ddd;
@@ -64,108 +65,92 @@
         .status.warning {
             color: #f90;
         }
-        .config-hint {
-            font-size: 0.7rem;
-            color: #555;
-            margin-top: 0.25rem;
-        }
-        .metrics {
+
+        .kpi-bar {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin: 2rem 0;
-        }
-        .metric {
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1px;
+            background: #333;
             border: 1px solid #333;
-            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .kpi-item {
+            background: #0a0a0a;
+            padding: 1rem 1.5rem;
             text-align: center;
         }
-        .metric-value {
-            font-size: 2.5rem;
+        .kpi-value {
+            font-size: 2rem;
             font-weight: bold;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
         }
-        .metric-label {
-            font-size: 0.8rem;
-            color: #999;
+        .kpi-label {
+            font-size: 0.7rem;
+            color: #888;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        .agents {
-            margin: 2rem 0;
+        .kpi-item.error .kpi-value {
+            color: #f66;
         }
-        .agents h2, .email-health h2, .lead-source-panel h2 {
-            font-size: 1rem;
-            font-weight: normal;
-            letter-spacing: 1px;
-            margin-bottom: 1rem;
-            color: #999;
-        }
-        .agent-buttons {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        .lead-source-panel {
-            margin: 2rem 0;
+
+        .panel {
             border: 1px solid #333;
-            padding: 1.5rem;
+            margin-bottom: 1.5rem;
         }
-        .lead-source-header {
+        .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            padding: 1rem 1.5rem;
+            background: #111;
+            cursor: pointer;
+            user-select: none;
         }
-        .lead-source-stats {
-            display: flex;
-            gap: 2rem;
-            font-size: 0.85rem;
-            color: #999;
+        .panel-header:hover {
+            background: #1a1a1a;
         }
-        .lead-source-stat {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .lead-source-value {
-            color: #fff;
-        }
-        .lead-source-config {
-            display: flex;
-            gap: 3rem;
-            margin-bottom: 1rem;
-            font-size: 0.85rem;
-        }
-        .config-item {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .config-label {
-            color: #666;
-        }
-        .config-value {
-            color: #fff;
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .lead-source-panel h3 {
-            font-size: 0.85rem;
+        .panel-title {
+            font-size: 0.9rem;
             font-weight: normal;
             letter-spacing: 1px;
-            margin: 1.5rem 0 1rem 0;
+            color: #999;
+        }
+        .panel-toggle {
             color: #666;
+            font-size: 0.8rem;
+        }
+        .panel-content {
+            padding: 1.5rem;
+            display: none;
+        }
+        .panel-content.open {
+            display: block;
+        }
+        .panel.primary .panel-header {
+            background: #1a1a1a;
+        }
+        .panel.primary .panel-title {
+            color: #fff;
+        }
+        .panel.primary .panel-content {
+            display: block;
+        }
+
+        .agents {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
         }
         .agent-btn {
             background: #fff;
             color: #0a0a0a;
             border: none;
-            padding: 1rem;
+            padding: 0.75rem 1rem;
             cursor: pointer;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-family: 'Courier New', monospace;
         }
         .agent-btn:hover {
@@ -176,19 +161,26 @@
             color: #999;
             cursor: not-allowed;
         }
+        .agent-btn.secondary {
+            background: #333;
+            color: #fff;
+        }
+        .agent-btn.secondary:hover {
+            background: #444;
+        }
+
         .log-panel {
-            background: #1a1a1a;
+            background: #111;
             border: 1px solid #333;
-            padding: 1.5rem;
-            margin-top: 2rem;
-            font-size: 0.85rem;
-            max-height: 400px;
+            padding: 1rem;
+            font-size: 0.8rem;
+            max-height: 200px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
+            margin-bottom: 1.5rem;
         }
         .log-entry {
-            margin-bottom: 0.5rem;
-            color: #aaa;
+            margin-bottom: 0.25rem;
+            color: #888;
         }
         .log-entry.success {
             color: #0f0;
@@ -196,42 +188,11 @@
         .log-entry.error {
             color: #f00;
         }
-        .email-health {
-            margin: 2rem 0;
-            border: 1px solid #333;
-            padding: 1.5rem;
-        }
-        .email-health-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .email-stats {
-            display: flex;
-            gap: 2rem;
-            font-size: 0.85rem;
-            color: #999;
-        }
-        .email-stat {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .email-stat-value {
-            color: #fff;
-        }
-        .data-section h2 {
-            font-size: 1rem;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            color: #999;
-            letter-spacing: 1px;
-        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
-            margin-bottom: 2rem;
+            font-size: 0.8rem;
         }
         table th {
             text-align: left;
@@ -239,6 +200,9 @@
             border-bottom: 1px solid #333;
             color: #666;
             font-weight: normal;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
         }
         table td {
             padding: 0.75rem;
@@ -247,48 +211,121 @@
         table tr:hover {
             background: #111;
         }
+        table tr.clickable {
+            cursor: pointer;
+        }
+        table tr.clickable:hover {
+            background: #1a1a1a;
+        }
+
         .status-badge {
             display: inline-block;
-            padding: 0.25rem 0.5rem;
+            padding: 0.2rem 0.5rem;
             background: #333;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
         }
-        .status-badge.pending {
-            background: #664400;
+        .status-badge.new { background: #004466; }
+        .status-badge.contacted { background: #664400; }
+        .status-badge.responded { background: #446600; }
+        .status-badge.qualified { background: #006644; }
+        .status-badge.pending { background: #664400; }
+        .status-badge.approved { background: #004466; }
+        .status-badge.sent { background: #006600; }
+        .status-badge.failed { background: #660000; }
+        .status-badge.skipped { background: #663300; }
+        .status-badge.trial { background: #664400; color: #f90; }
+        .status-badge.paid { background: #006600; color: #0f0; }
+        .status-badge.expired { background: #660000; color: #f00; }
+
+        .bool-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
         }
-        .status-badge.running {
-            background: #004466;
+        .bool-indicator.yes {
+            background: #0f0;
         }
-        .status-badge.done {
-            background: #006600;
-        }
-        .status-badge.success {
-            background: #006600;
-        }
-        .status-badge.failed {
+        .bool-indicator.no {
             background: #660000;
         }
-        .status-badge.dry-run {
-            background: #664400;
-        }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 1rem;
-            color: #999;
-            text-decoration: none;
-            font-size: 0.9rem;
-        }
-        .back-link:hover {
-            color: #fff;
-        }
+
         .empty-row {
             color: #555;
             font-style: italic;
         }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 1rem;
+        }
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 2px solid transparent;
+        }
+        .tab:hover {
+            color: #999;
+        }
+        .tab.active {
+            color: #fff;
+            border-bottom-color: #fff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #666;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .back-link:hover {
+            color: #999;
+        }
+
+        .upgrade-btn {
+            background: #fff;
+            color: #0a0a0a;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-family: 'Courier New', monospace;
+        }
+        .upgrade-btn:hover {
+            background: #ddd;
+        }
+
+        .portal-link {
+            color: #666;
+            text-decoration: none;
+            font-size: 0.75rem;
+        }
+        .portal-link:hover {
+            color: #999;
+        }
+
+        .summary-truncate {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">Customer Dashboard</a>
+    <a href="/" class="back-link">← Customer Dashboard</a>
     
     <div class="header">
         <h1>HOSS CONTROL ROOM</h1>
@@ -302,438 +339,234 @@
                     <span>Outbound:</span>
                     <span class="status" id="email-mode">...</span>
                 </div>
-                <div class="config-hint" id="email-hint">Configure EMAIL_MODE in Secrets</div>
             </div>
             <button class="toggle-btn" id="autopilot-toggle" onclick="toggleAutopilot()">ENABLE</button>
         </div>
     </div>
 
-    <div class="metrics" id="metrics">
-        <div class="metric">
-            <div class="metric-value" id="leads-count">0</div>
-            <div class="metric-label">Total Leads</div>
+    <div class="kpi-bar" id="kpi-bar">
+        <div class="kpi-item">
+            <div class="kpi-value" id="kpi-signals">-</div>
+            <div class="kpi-label">Signals Today</div>
         </div>
-        <div class="metric">
-            <div class="metric-value" id="customers-count">0</div>
-            <div class="metric-label">Total Customers</div>
+        <div class="kpi-item">
+            <div class="kpi-value" id="kpi-events">-</div>
+            <div class="kpi-label">Lead Events Today</div>
         </div>
-        <div class="metric">
-            <div class="metric-value" id="tasks-count">0</div>
-            <div class="metric-label">Pending Tasks</div>
+        <div class="kpi-item">
+            <div class="kpi-value" id="kpi-outbound">-</div>
+            <div class="kpi-label">Outbound Sent</div>
         </div>
-        <div class="metric">
-            <div class="metric-value" id="invoices-count">0</div>
-            <div class="metric-label">Draft Invoices</div>
+        <div class="kpi-item">
+            <div class="kpi-value" id="kpi-reports">-</div>
+            <div class="kpi-label">Reports Delivered</div>
+        </div>
+        <div class="kpi-item error">
+            <div class="kpi-value" id="kpi-errors">-</div>
+            <div class="kpi-label">Errors / Failed</div>
         </div>
     </div>
 
     <div class="agents">
-        <h2>AUTONOMOUS AGENTS</h2>
-        <div class="agent-buttons">
-            <button class="agent-btn" onclick="runAgent('lead-source')">RUN LEAD SOURCE</button>
-            <button class="agent-btn" onclick="runAgent('bizdev')">RUN BIZDEV</button>
-            <button class="agent-btn" onclick="runAgent('onboarding')">RUN ONBOARDING</button>
-            <button class="agent-btn" onclick="runAgent('ops')">RUN OPS</button>
-            <button class="agent-btn" onclick="runAgent('billing')">RUN BILLING</button>
-        </div>
-    </div>
-
-    <div class="lead-source-panel">
-        <div class="lead-source-header">
-            <h2>LEAD SOURCE</h2>
-            <div class="lead-source-stats">
-                <div class="lead-source-stat">
-                    <span>Provider:</span>
-                    <span class="lead-source-value" id="lead-provider">-</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Max/Cycle:</span>
-                    <span class="lead-source-value" id="lead-max-cycle">-</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Last Run:</span>
-                    <span class="lead-source-value" id="lead-last-run">-</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Created:</span>
-                    <span class="lead-source-value" id="lead-last-created">0</span>
-                </div>
-            </div>
-        </div>
-        <div class="lead-source-config">
-            <div class="config-item">
-                <span class="config-label">Niche:</span>
-                <span class="config-value" id="lead-niche">-</span>
-            </div>
-            <div class="config-item">
-                <span class="config-label">Geography:</span>
-                <span class="config-value" id="lead-geography">Not specified</span>
-            </div>
-        </div>
-        <div class="config-hint" id="lead-source-hint">Configure LEAD_NICHE and LEAD_GEOGRAPHY in Secrets</div>
-        <h3>AUTO-CREATED LEADS</h3>
-        <table id="auto-leads-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Company</th>
-                    <th>Email</th>
-                    <th>Source</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="4" class="empty-row">No auto-created leads yet</td></tr>
-            </tbody>
-        </table>
+        <button class="agent-btn" onclick="runAgent('signals')">RUN SIGNALS</button>
+        <button class="agent-btn" onclick="runAgent('event-bizdev')">RUN EVENT BIZDEV</button>
+        <button class="agent-btn secondary" onclick="runAgent('lead-source')">LEAD SOURCE</button>
+        <button class="agent-btn secondary" onclick="runAgent('bizdev')">BIZDEV</button>
+        <button class="agent-btn secondary" onclick="runAgent('onboarding')">ONBOARDING</button>
+        <button class="agent-btn secondary" onclick="runAgent('ops')">OPS</button>
+        <button class="agent-btn secondary" onclick="runAgent('billing')">BILLING</button>
     </div>
 
     <div class="log-panel" id="log-panel">
-        <div class="log-entry">Awaiting agent execution...</div>
+        <div class="log-entry">Ready.</div>
     </div>
 
-    <div class="email-health">
-        <div class="email-health-header">
-            <h2>EMAIL HEALTH</h2>
-            <div class="email-stats">
-                <div class="email-stat">
-                    <span>Mode:</span>
-                    <span class="email-stat-value" id="email-mode-detail">-</span>
-                </div>
-                <div class="email-stat">
-                    <span>Max/Cycle:</span>
-                    <span class="email-stat-value" id="email-max-cycle">10</span>
-                </div>
-                <div class="email-stat">
-                    <span>Hourly:</span>
-                    <span class="email-stat-value" id="email-hourly-count">0/50</span>
-                </div>
-            </div>
+    <div class="panel primary">
+        <div class="panel-header" onclick="togglePanel(this)">
+            <div class="panel-title">LEAD EVENTS</div>
+            <div class="panel-toggle">▼</div>
         </div>
-        <table id="email-log-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Lead</th>
-                    <th>Company</th>
-                    <th>Email</th>
-                    <th>Subject</th>
-                    <th>Mode</th>
-                    <th>Result</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="7" class="empty-row">No email attempts yet</td></tr>
-            </tbody>
-        </table>
+        <div class="panel-content open">
+            <table id="lead-events-table">
+                <thead>
+                    <tr>
+                        <th>Summary</th>
+                        <th>Category</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Outbound</th>
+                        <th>Report</th>
+                        <th>Company</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="8" class="empty-row">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <div class="lead-source-panel" id="stripe-panel">
-        <div class="lead-source-header">
-            <h2>STRIPE BILLING</h2>
-            <div class="lead-source-stats">
-                <div class="lead-source-stat">
-                    <span>Stripe:</span>
-                    <span class="lead-source-value" id="stripe-status">-</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>API Key Loaded:</span>
-                    <span class="lead-source-value" id="stripe-api-key">-</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Webhook Secret Loaded:</span>
-                    <span class="lead-source-value" id="stripe-webhook-secret">-</span>
-                </div>
+    <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+            <div class="panel-title">OUTPUT HISTORY</div>
+            <div class="panel-toggle">▶</div>
+        </div>
+        <div class="panel-content">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab(this, 'outbound-tab')">Outbound Messages</div>
+                <div class="tab" onclick="switchTab(this, 'reports-tab')">Reports</div>
+            </div>
+            <div id="outbound-tab" class="tab-content active">
+                <table id="outbound-table">
+                    <thead>
+                        <tr>
+                            <th>Lead Event</th>
+                            <th>To Email</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="reports-tab" class="tab-content">
+                <table id="reports-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Lead Event</th>
+                            <th>Type</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="4" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-        <div class="lead-source-stats" style="margin-top: 0.5rem;">
-            <div class="lead-source-stat">
-                <span>Currency:</span>
-                <span class="lead-source-value" id="stripe-currency">USD</span>
-            </div>
-            <div class="lead-source-stat">
-                <span>Limits:</span>
-                <span class="lead-source-value" id="stripe-limits">$1-$500</span>
-            </div>
-            <div class="lead-source-stat">
-                <span>With Payment Links:</span>
-                <span class="lead-source-value" id="stripe-with-links">0</span>
-            </div>
-            <div class="lead-source-stat">
-                <span>Missing Links:</span>
-                <span class="lead-source-value" id="stripe-missing-links" style="color: #f90;">0</span>
-            </div>
-        </div>
-        <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
-            <button class="agent-btn" id="regenerate-links-btn" onclick="regeneratePaymentLinks()" style="padding: 0.5rem 1rem; font-size: 0.8rem;">REGENERATE PAYMENT LINKS</button>
-            <span id="regenerate-status" style="font-size: 0.8rem; color: #666;"></span>
-        </div>
-        <div class="config-hint" id="stripe-hint">HossAgent automatically generates Stripe payment links for new and legacy draft invoices when ENABLE_STRIPE=TRUE.</div>
     </div>
 
-    <div class="lead-source-panel" id="subscription-panel">
-        <div class="lead-source-header">
-            <h2>SUBSCRIPTION PLAN</h2>
-            <div class="lead-source-stats">
-                <div class="lead-source-stat">
-                    <span>Price:</span>
-                    <span class="lead-source-value" id="sub-price">$99/month</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Trial Days:</span>
-                    <span class="lead-source-value" id="sub-trial-days">7</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Product Ready:</span>
-                    <span class="lead-source-value" id="sub-product-ready">-</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Price Ready:</span>
-                    <span class="lead-source-value" id="sub-price-ready">-</span>
-                </div>
-            </div>
+    <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+            <div class="panel-title">SIGNALS (RAW)</div>
+            <div class="panel-toggle">▶</div>
         </div>
-        <div class="lead-source-stats" style="margin-top: 0.5rem;">
-            <div class="lead-source-stat">
-                <span>Task Limit (Trial):</span>
-                <span class="lead-source-value" id="sub-task-limit">15</span>
-            </div>
-            <div class="lead-source-stat">
-                <span>Lead Limit (Trial):</span>
-                <span class="lead-source-value" id="sub-lead-limit">20</span>
-            </div>
-            <div class="lead-source-stat">
-                <span>Stripe Product:</span>
-                <span class="lead-source-value" id="sub-product-id">-</span>
-            </div>
-            <div class="lead-source-stat">
-                <span>Stripe Price:</span>
-                <span class="lead-source-value" id="sub-price-id">-</span>
-            </div>
+        <div class="panel-content">
+            <table id="signals-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Summary</th>
+                        <th>Source Type</th>
+                        <th>Geography</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="empty-row">Loading...</td></tr>
+                </tbody>
+            </table>
         </div>
-        <div class="config-hint">Trial users get 7 days, 15 tasks, 20 leads, DRY_RUN email only, no billing. Paid users get unlimited access.</div>
-        
-        <h3>CUSTOMER PLANS</h3>
-        <table id="customer-plans-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Company</th>
-                    <th>Plan</th>
-                    <th>Status</th>
-                    <th>Tasks Used</th>
-                    <th>Leads Used</th>
-                    <th>Days Left</th>
-                    <th>Portal</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="9" class="empty-row">Loading customers...</td></tr>
-            </tbody>
-        </table>
     </div>
 
-    <div class="lead-source-panel" id="bizdev-panel">
-        <div class="lead-source-header">
-            <h2>BIZDEV TEMPLATES</h2>
-            <div class="lead-source-stats">
-                <div class="lead-source-stat">
-                    <span>Pack:</span>
-                    <span class="lead-source-value" id="bizdev-pack">general</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Sender:</span>
-                    <span class="lead-source-value" id="bizdev-sender">HossAgent</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Templates:</span>
-                    <span class="lead-source-value" id="bizdev-template-count">0</span>
-                </div>
-            </div>
+    <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+            <div class="panel-title">CUSTOMERS</div>
+            <div class="panel-toggle">▶</div>
         </div>
-        <div class="config-hint" id="bizdev-hint">Set BIZDEV_NICHE_TEMPLATE (general, agency, saas, consulting, revops)</div>
-        <h3>RECENT GENERATED EMAILS</h3>
-        <table id="bizdev-log-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Lead</th>
-                    <th>Pack</th>
-                    <th>Subject</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="4" class="empty-row">No emails generated yet</td></tr>
-            </tbody>
-        </table>
+        <div class="panel-content">
+            <table id="customers-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Company</th>
+                        <th>Plan</th>
+                        <th>Status</th>
+                        <th>Tasks</th>
+                        <th>Leads</th>
+                        <th>Days Left</th>
+                        <th>Portal</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="9" class="empty-row">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <div class="lead-source-panel" id="signals-panel">
-        <div class="lead-source-header">
-            <h2>SIGNALS ENGINE</h2>
-            <div class="lead-source-stats">
-                <div class="lead-source-stat">
-                    <span>Total Signals:</span>
-                    <span class="lead-source-value" id="signals-count">0</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Total Events:</span>
-                    <span class="lead-source-value" id="events-count">0</span>
-                </div>
-            </div>
+    <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+            <div class="panel-title">PENDING OUTREACH</div>
+            <div class="panel-toggle">▶</div>
         </div>
-        <div style="margin: 1rem 0; display: flex; gap: 1rem;">
-            <button class="agent-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="runSignalsAgent()">RUN SIGNALS AGENT</button>
-            <button class="agent-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="runEventBizdev()">RUN EVENT BIZDEV</button>
+        <div class="panel-content">
+            <table id="pending-outreach-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>To Email</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="6" class="empty-row">No pending outreach</td></tr>
+                </tbody>
+            </table>
         </div>
-        <div class="config-hint">Signals Engine monitors external context signals and generates actionable LeadEvents for moment-aware outreach.</div>
-        
-        <h3>RECENT SIGNALS</h3>
-        <table id="signals-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Source Type</th>
-                    <th>Context Summary</th>
-                    <th>Geography</th>
-                    <th>Created</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="5" class="empty-row">No signals yet</td></tr>
-            </tbody>
-        </table>
-        
-        <h3>LEAD EVENTS</h3>
-        <table id="lead-events-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Summary</th>
-                    <th>Category</th>
-                    <th>Urgency</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="6" class="empty-row">No lead events yet</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="lead-source-panel" id="pending-outreach-panel">
-        <div class="lead-source-header">
-            <h2>PENDING OUTREACH</h2>
-            <div class="lead-source-stats">
-                <div class="lead-source-stat">
-                    <span>Total Pending:</span>
-                    <span class="lead-source-value" id="outreach-pending-count">0</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Approved:</span>
-                    <span class="lead-source-value" id="outreach-approved-count">0</span>
-                </div>
-                <div class="lead-source-stat">
-                    <span>Skipped:</span>
-                    <span class="lead-source-value" id="outreach-skipped-count">0</span>
-                </div>
-            </div>
-        </div>
-        <div class="config-hint">Outreach emails queued for customer review (REVIEW mode customers only)</div>
-        
-        <h3>ALL PENDING OUTREACH</h3>
-        <table id="pending-outreach-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Customer</th>
-                    <th>To Email</th>
-                    <th>Subject</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="6" class="empty-row">No pending outreach records</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="data-section">
-        <h2>RECENT TASKS</h2>
-        <table id="tasks-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Reward</th>
-                    <th>Cost</th>
-                    <th>Profit</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <h2>DRAFT INVOICES</h2>
-        <table id="invoices-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Customer</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Payment</th>
-                    <th>Created</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <h2>RECENT LEADS</h2>
-        <table id="leads-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Company</th>
-                    <th>Niche</th>
-                    <th>Status</th>
-                    <th>Last Contacted</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
     </div>
 
     <script>
         let autopilotEnabled = false;
 
+        function togglePanel(header) {
+            const content = header.nextElementSibling;
+            const toggle = header.querySelector('.panel-toggle');
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                toggle.textContent = '▶';
+            } else {
+                content.classList.add('open');
+                toggle.textContent = '▼';
+            }
+        }
+
+        function switchTab(tab, contentId) {
+            const parent = tab.closest('.panel-content');
+            parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            parent.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(contentId).classList.add('active');
+        }
+
         async function loadSettings() {
-            const res = await fetch('/api/settings');
-            const data = await res.json();
-            autopilotEnabled = data.autopilot_enabled;
-            updateAutopilotUI();
-            
-            const emailModeEl = document.getElementById('email-mode');
-            const emailModeDetailEl = document.getElementById('email-mode-detail');
-            const emailMaxCycleEl = document.getElementById('email-max-cycle');
-            const emailHintEl = document.getElementById('email-hint');
-            
-            if (data.email) {
-                const mode = data.email.mode;
-                emailModeEl.textContent = mode;
-                emailModeDetailEl.textContent = mode;
-                emailMaxCycleEl.textContent = data.email.max_per_cycle || 10;
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                autopilotEnabled = data.autopilot_enabled;
+                updateAutopilotUI();
                 
-                if (mode === 'DRY_RUN') {
-                    emailModeEl.className = 'status warning';
-                    emailHintEl.textContent = 'Set EMAIL_MODE=SENDGRID in Secrets';
-                } else {
-                    emailModeEl.className = 'status enabled';
-                    emailHintEl.textContent = data.email.message || 'Configured';
+                const emailModeEl = document.getElementById('email-mode');
+                if (data.email) {
+                    const mode = data.email.mode;
+                    emailModeEl.textContent = mode;
+                    if (mode === 'DRY_RUN') {
+                        emailModeEl.className = 'status warning';
+                    } else {
+                        emailModeEl.className = 'status enabled';
+                    }
                 }
+            } catch (e) {
+                console.error('Settings load error:', e);
             }
         }
 
@@ -753,8 +586,7 @@
 
         async function toggleAutopilot() {
             const newState = !autopilotEnabled;
-            const res = await fetch(`/admin/autopilot?enabled=${newState}`, {method: 'POST'});
-            const data = await res.json();
+            await fetch(`/admin/autopilot?enabled=${newState}`, {method: 'POST'});
             autopilotEnabled = newState;
             updateAutopilotUI();
             addLog(`Autopilot ${newState ? 'ENABLED' : 'DISABLED'}`, newState ? 'success' : 'error');
@@ -766,8 +598,7 @@
                 const res = await fetch(`/api/run/${agent}`, {method: 'POST'});
                 const data = await res.json();
                 addLog(data.message, 'success');
-                setTimeout(refreshData, 500);
-                setTimeout(refreshEmailLog, 1000);
+                setTimeout(refreshAllData, 500);
             } catch (e) {
                 addLog(`Error: ${e.message}`, 'error');
             }
@@ -780,336 +611,143 @@
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
             panel.appendChild(entry);
             panel.scrollTop = panel.scrollHeight;
+            if (panel.children.length > 50) {
+                panel.removeChild(panel.firstChild);
+            }
         }
 
-        async function refreshEmailLog() {
+        async function refreshKPIs() {
             try {
-                const res = await fetch('/api/email-log?limit=10');
+                const res = await fetch('/api/kpis');
                 const data = await res.json();
-                const tbody = document.getElementById('email-log-table').querySelector('tbody');
+                document.getElementById('kpi-signals').textContent = data.signals_today || 0;
+                document.getElementById('kpi-events').textContent = data.lead_events_today || 0;
+                document.getElementById('kpi-outbound').textContent = data.outbound_sent_today || 0;
+                document.getElementById('kpi-reports').textContent = data.reports_delivered_today || 0;
+                document.getElementById('kpi-errors').textContent = data.errors_failed || 0;
+            } catch (e) {
+                console.error('KPI refresh error:', e);
+            }
+        }
+
+        async function refreshLeadEvents() {
+            try {
+                const res = await fetch('/api/lead_events_detailed?limit=30');
+                const data = await res.json();
+                const tbody = document.getElementById('lead-events-table').querySelector('tbody');
                 
-                if (!data.entries || data.entries.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-row">No email attempts yet</td></tr>';
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No lead events yet</td></tr>';
                     return;
                 }
                 
-                tbody.innerHTML = data.entries.reverse().map(e => {
-                    const time = new Date(e.timestamp).toLocaleTimeString();
-                    const resultClass = e.result === 'success' ? 'success' : 
-                                       e.result === 'failed' ? 'failed' : 'dry-run';
+                tbody.innerHTML = data.map(e => {
+                    const summary = (e.summary || '').length > 50 ? e.summary.substring(0, 50) + '...' : e.summary;
+                    const statusClass = (e.status || '').toLowerCase();
+                    const created = e.created_at ? new Date(e.created_at).toLocaleString() : '-';
                     return `
-                        <tr>
-                            <td>${time}</td>
-                            <td>${e.lead_name || '-'}</td>
+                        <tr class="clickable">
+                            <td class="summary-truncate">${summary}</td>
+                            <td>${e.category || '-'}</td>
+                            <td>${e.urgency_score || 0}</td>
+                            <td><span class="status-badge ${statusClass}">${e.status || '-'}</span></td>
+                            <td><span class="bool-indicator ${e.has_outbound ? 'yes' : 'no'}"></span></td>
+                            <td><span class="bool-indicator ${e.has_report ? 'yes' : 'no'}"></span></td>
                             <td>${e.company || '-'}</td>
-                            <td>${e.to_email}</td>
-                            <td>${(e.subject || '').substring(0, 30)}...</td>
-                            <td>${e.mode}</td>
-                            <td><span class="status-badge ${resultClass}">${e.result}</span></td>
+                            <td>${created}</td>
                         </tr>
                     `;
                 }).join('');
             } catch (e) {
-                console.error('Email log refresh error:', e);
+                console.error('Lead events refresh error:', e);
             }
         }
 
-        async function refreshLeadSource() {
+        async function refreshSignals() {
             try {
-                const res = await fetch('/api/lead-source');
+                const res = await fetch('/api/signals?limit=20');
                 const data = await res.json();
+                const tbody = document.getElementById('signals-table').querySelector('tbody');
                 
-                document.getElementById('lead-provider').textContent = data.provider || 'DummySeed';
-                document.getElementById('lead-max-cycle').textContent = data.max_new_leads_per_cycle || 10;
-                document.getElementById('lead-niche').textContent = data.niche || 'Not configured';
-                document.getElementById('lead-geography').textContent = data.geography || 'Not specified';
-                document.getElementById('lead-last-created').textContent = data.last_created_count || 0;
-                
-                if (data.last_run) {
-                    const lastRunDate = new Date(data.last_run);
-                    document.getElementById('lead-last-run').textContent = lastRunDate.toLocaleTimeString();
-                } else {
-                    document.getElementById('lead-last-run').textContent = 'Never';
-                }
-                
-                const hintEl = document.getElementById('lead-source-hint');
-                if (data.provider_configured) {
-                    hintEl.textContent = 'Connected to external search API';
-                    hintEl.style.color = '#0f0';
-                } else if (data.niche && data.niche !== 'small B2B agencies doing recurring service work') {
-                    hintEl.textContent = 'Using DummySeed provider (set LEAD_SEARCH_API_URL for real leads)';
-                    hintEl.style.color = '#f90';
-                }
-                
-                const tbody = document.getElementById('auto-leads-table').querySelector('tbody');
-                if (!data.recent_leads || data.recent_leads.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No auto-created leads yet</td></tr>';
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No signals yet</td></tr>';
                     return;
                 }
                 
-                tbody.innerHTML = data.recent_leads.reverse().slice(0, 10).map(l => {
-                    const time = new Date(l.created_at).toLocaleTimeString();
+                tbody.innerHTML = data.map(s => {
+                    const summary = (s.context_summary || '').length > 60 ? s.context_summary.substring(0, 60) + '...' : (s.context_summary || '-');
+                    const created = s.created_at ? new Date(s.created_at).toLocaleString() : '-';
                     return `
                         <tr>
-                            <td>${time}</td>
-                            <td>${l.company}</td>
-                            <td>${l.email || '-'}</td>
-                            <td>${l.source || '-'}</td>
+                            <td>${s.id}</td>
+                            <td class="summary-truncate">${summary}</td>
+                            <td>${s.source_type || '-'}</td>
+                            <td>${s.geography || '-'}</td>
+                            <td>${created}</td>
                         </tr>
                     `;
                 }).join('');
             } catch (e) {
-                console.error('Lead source refresh error:', e);
+                console.error('Signals refresh error:', e);
             }
         }
 
-        async function refreshData() {
+        async function refreshOutputHistory() {
             try {
-                const [leads, customers, tasks, invoices] = await Promise.all([
-                    fetch('/api/leads').then(r => r.json()),
-                    fetch('/api/customers').then(r => r.json()),
-                    fetch('/api/tasks').then(r => r.json()),
-                    fetch('/api/invoices').then(r => r.json()),
-                ]);
-
-                document.getElementById('leads-count').textContent = leads.length;
-                document.getElementById('customers-count').textContent = customers.length;
-                document.getElementById('tasks-count').textContent = tasks.filter(t => t.status === 'pending').length;
-                document.getElementById('invoices-count').textContent = invoices.filter(i => i.status === 'draft').length;
-
-                const tasksBody = document.getElementById('tasks-table').querySelector('tbody');
-                tasksBody.innerHTML = tasks.slice(-10).map(t => `
-                    <tr>
-                        <td>${t.id}</td>
-                        <td>${t.description.substring(0, 40)}...</td>
-                        <td><span class="status-badge ${t.status}">${t.status}</span></td>
-                        <td>$${(t.reward_cents/100).toFixed(2)}</td>
-                        <td>$${(t.cost_cents/100).toFixed(2)}</td>
-                        <td>$${(t.profit_cents/100).toFixed(2)}</td>
-                    </tr>
-                `).join('');
-
-                const invoicesBody = document.getElementById('invoices-table').querySelector('tbody');
-                invoicesBody.innerHTML = invoices.slice(-10).map(i => {
-                    const cust = customers.find(c => c.id === i.customer_id);
-                    let paymentBadge = '';
-                    if (i.status === 'paid') {
-                        paymentBadge = '<span class="status-badge" style="background:#006600;color:#0f0;">PAID</span>';
-                    } else if (i.payment_url && i.payment_url.length > 10) {
-                        paymentBadge = '<span class="status-badge" style="background:#004466;">LINK OK</span>';
-                    } else {
-                        paymentBadge = '<span class="status-badge" style="background:#664400;color:#f90;">MISSING LINK</span>';
-                    }
-                    return `
-                        <tr>
-                            <td>${i.id}</td>
-                            <td>${cust ? cust.company : 'Unknown'}</td>
-                            <td>$${(i.amount_cents/100).toFixed(2)}</td>
-                            <td><span class="status-badge">${i.status}</span></td>
-                            <td>${paymentBadge}</td>
-                            <td>${new Date(i.created_at).toLocaleDateString()}</td>
-                        </tr>
-                    `;
-                }).join('');
-
-                const leadsBody = document.getElementById('leads-table').querySelector('tbody');
-                leadsBody.innerHTML = leads.slice(-10).map(l => {
-                    const statusClass = l.status === 'contacted' ? 'running' : 
-                                       l.status === 'responded' ? 'done' : 
-                                       l.status === 'qualified' ? 'done' : '';
-                    const lastContacted = l.last_contacted_at ? 
-                        new Date(l.last_contacted_at).toLocaleDateString() : '-';
-                    return `
-                        <tr>
-                            <td>${l.id}</td>
-                            <td>${l.name || '-'}</td>
-                            <td>${l.company}</td>
-                            <td>${l.niche}</td>
-                            <td><span class="status-badge ${statusClass}">${l.status.toUpperCase()}</span></td>
-                            <td>${lastContacted}</td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch (e) {
-                addLog(`Data refresh error: ${e.message}`, 'error');
-            }
-        }
-
-        async function refreshStripeStatus() {
-            try {
-                const res = await fetch('/api/stripe/status');
+                const res = await fetch('/api/output_history?limit=30');
                 const data = await res.json();
                 
-                const statusEl = document.getElementById('stripe-status');
-                const apiKeyEl = document.getElementById('stripe-api-key');
-                const webhookSecretEl = document.getElementById('stripe-webhook-secret');
-                const hintEl = document.getElementById('stripe-hint');
-                
-                if (data.enabled && data.configured) {
-                    statusEl.textContent = 'ENABLED';
-                    statusEl.style.color = '#0f0';
-                    hintEl.textContent = 'HossAgent automatically generates Stripe payment links for new and legacy draft invoices.';
-                    hintEl.style.color = '#666';
-                } else if (data.enabled) {
-                    statusEl.textContent = 'ERROR';
-                    statusEl.style.color = '#f00';
-                    hintEl.textContent = data.message || 'Check STRIPE_API_KEY';
-                    hintEl.style.color = '#f00';
+                const outboundTbody = document.getElementById('outbound-table').querySelector('tbody');
+                if (!data.outbound || data.outbound.length === 0) {
+                    outboundTbody.innerHTML = '<tr><td colspan="5" class="empty-row">No outbound messages yet</td></tr>';
                 } else {
-                    statusEl.textContent = 'DISABLED';
-                    statusEl.style.color = '#f90';
-                    hintEl.textContent = 'Set ENABLE_STRIPE=TRUE and STRIPE_API_KEY in Secrets';
+                    outboundTbody.innerHTML = data.outbound.map(o => {
+                        const statusClass = (o.status || '').toLowerCase();
+                        const created = o.created_at ? new Date(o.created_at).toLocaleString() : '-';
+                        const subject = (o.subject || '').length > 40 ? o.subject.substring(0, 40) + '...' : o.subject;
+                        return `
+                            <tr>
+                                <td>${o.lead_event_id || '-'}</td>
+                                <td>${o.to_email || '-'}</td>
+                                <td>${subject}</td>
+                                <td><span class="status-badge ${statusClass}">${o.status || '-'}</span></td>
+                                <td>${created}</td>
+                            </tr>
+                        `;
+                    }).join('');
                 }
                 
-                if (apiKeyEl) {
-                    apiKeyEl.textContent = data.api_key_present ? 'YES' : 'NO';
-                    apiKeyEl.style.color = data.api_key_present ? '#0f0' : '#f00';
-                }
-                if (webhookSecretEl) {
-                    webhookSecretEl.textContent = data.webhook_configured ? 'YES' : 'NO';
-                    webhookSecretEl.style.color = data.webhook_configured ? '#0f0' : '#666';
-                }
-                
-                document.getElementById('stripe-currency').textContent = (data.currency || 'usd').toUpperCase();
-                document.getElementById('stripe-limits').textContent = `${data.min_amount || '$1.00'}-${data.max_amount || '$500.00'}`;
-                
-                const withLinksEl = document.getElementById('stripe-with-links');
-                const missingLinksEl = document.getElementById('stripe-missing-links');
-                
-                if (withLinksEl) withLinksEl.textContent = data.with_payment_url || '0';
-                if (missingLinksEl) {
-                    const missing = data.unpaid_without_link || 0;
-                    missingLinksEl.textContent = missing;
-                    missingLinksEl.style.color = missing > 0 ? '#f90' : '#0f0';
-                }
-                
-            } catch (e) {
-                console.error('Stripe status refresh error:', e);
-            }
-        }
-        
-        async function regeneratePaymentLinks() {
-            const btn = document.getElementById('regenerate-links-btn');
-            const statusEl = document.getElementById('regenerate-status');
-            
-            btn.disabled = true;
-            btn.textContent = 'PROCESSING...';
-            statusEl.textContent = '';
-            
-            try {
-                const res = await fetch('/admin/regenerate-payment-links', { method: 'POST' });
-                const data = await res.json();
-                
-                if (data.success) {
-                    statusEl.textContent = `Created: ${data.links_created}, Skipped: ${data.invoices_skipped}, Failed: ${data.links_failed}`;
-                    statusEl.style.color = data.links_failed > 0 ? '#f90' : '#0f0';
-                    addLog(`Payment links regenerated: ${data.links_created} created, ${data.invoices_skipped} skipped`, 'success');
+                const reportsTbody = document.getElementById('reports-table').querySelector('tbody');
+                if (!data.reports || data.reports.length === 0) {
+                    reportsTbody.innerHTML = '<tr><td colspan="4" class="empty-row">No reports yet</td></tr>';
                 } else {
-                    statusEl.textContent = data.error || 'Error regenerating links';
-                    statusEl.style.color = '#f00';
-                    addLog(`Payment link regeneration failed: ${data.error}`, 'error');
+                    reportsTbody.innerHTML = data.reports.map(r => {
+                        const created = r.created_at ? new Date(r.created_at).toLocaleString() : '-';
+                        const title = (r.title || '').length > 50 ? r.title.substring(0, 50) + '...' : r.title;
+                        return `
+                            <tr>
+                                <td>${title}</td>
+                                <td>${r.lead_event_id || '-'}</td>
+                                <td>${r.report_type || '-'}</td>
+                                <td>${created}</td>
+                            </tr>
+                        `;
+                    }).join('');
                 }
-                
-                setTimeout(refreshData, 500);
-                setTimeout(refreshStripeStatus, 1000);
             } catch (e) {
-                statusEl.textContent = 'Error: ' + e.message;
-                statusEl.style.color = '#f00';
-                addLog(`Payment link regeneration error: ${e.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'REGENERATE PAYMENT LINKS';
+                console.error('Output history refresh error:', e);
             }
         }
 
-        async function refreshBizdevTemplates() {
-            try {
-                const res = await fetch('/api/bizdev/templates');
-                const data = await res.json();
-                
-                document.getElementById('bizdev-pack').textContent = data.active_pack || 'general';
-                document.getElementById('bizdev-sender').textContent = data.sender_name || 'HossAgent';
-                document.getElementById('bizdev-template-count').textContent = 
-                    `${data.subject_count || 0} subjects, ${data.body_count || 0} bodies`;
-                
-                const hintEl = document.getElementById('bizdev-hint');
-                if (data.pack_exists) {
-                    hintEl.textContent = `Available packs: ${(data.available_packs || []).join(', ')}`;
-                }
-                
-                const tbody = document.getElementById('bizdev-log-table').querySelector('tbody');
-                if (!data.recent_generations || data.recent_generations.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No emails generated yet</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = data.recent_generations.reverse().slice(0, 10).map(g => {
-                    const time = new Date(g.timestamp).toLocaleTimeString();
-                    return `
-                        <tr>
-                            <td>${time}</td>
-                            <td>${g.lead_email || '-'}</td>
-                            <td>${g.template_pack}</td>
-                            <td>${(g.subject || '').substring(0, 40)}...</td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch (e) {
-                console.error('BizDev templates refresh error:', e);
-            }
-        }
-
-        async function loadSettingsWithHourly() {
-            await loadSettings();
-            
-            try {
-                const res = await fetch('/api/settings');
-                const data = await res.json();
-                if (data.email && data.email.hourly) {
-                    const h = data.email.hourly;
-                    document.getElementById('email-hourly-count').textContent = `${h.count || 0}/${h.max || 50}`;
-                }
-            } catch (e) {
-                console.error('Hourly count refresh error:', e);
-            }
-        }
-
-        async function refreshSubscriptionStatus() {
-            try {
-                const res = await fetch('/api/subscription/status');
-                const data = await res.json();
-                
-                document.getElementById('sub-price').textContent = data.subscription_price || '$99/month';
-                document.getElementById('sub-trial-days').textContent = data.trial_days || '7';
-                document.getElementById('sub-task-limit').textContent = data.trial_task_limit || '15';
-                document.getElementById('sub-lead-limit').textContent = data.trial_lead_limit || '20';
-                
-                const productReadyEl = document.getElementById('sub-product-ready');
-                const priceReadyEl = document.getElementById('sub-price-ready');
-                
-                productReadyEl.textContent = data.product_ready ? 'YES' : 'NO';
-                productReadyEl.style.color = data.product_ready ? '#0f0' : '#f90';
-                
-                priceReadyEl.textContent = data.price_ready ? 'YES' : 'NO';
-                priceReadyEl.style.color = data.price_ready ? '#0f0' : '#f90';
-                
-                document.getElementById('sub-product-id').textContent = data.product_id || 'Not created';
-                document.getElementById('sub-price-id').textContent = data.price_id || 'Not created';
-                
-            } catch (e) {
-                console.error('Subscription status refresh error:', e);
-            }
-        }
-        
-        async function refreshCustomerPlans() {
+        async function refreshCustomers() {
             try {
                 const customersRes = await fetch('/api/customers');
                 const customers = await customersRes.json();
                 
-                const tbody = document.getElementById('customer-plans-table').querySelector('tbody');
+                const tbody = document.getElementById('customers-table').querySelector('tbody');
                 
                 if (!customers || customers.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No customers yet</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-row">No customers yet</td></tr>';
                     return;
                 }
                 
@@ -1122,201 +760,67 @@
                     const plan = plans[idx];
                     if (!plan) return '';
                     
-                    const planBadge = plan.is_paid ? 
-                        '<span class="status-badge" style="background:#006600;color:#0f0;">PAID</span>' :
-                        plan.is_expired ?
-                        '<span class="status-badge" style="background:#660000;color:#f00;">EXPIRED</span>' :
-                        '<span class="status-badge" style="background:#664400;color:#f90;">TRIAL</span>';
-                    
-                    const statusBadge = plan.is_paid ? 'Active' :
-                        plan.is_expired ? 'Locked' :
-                        plan.can_run_tasks ? 'Active' : 'Limit Reached';
+                    let planBadge = '';
+                    if (plan.is_paid) {
+                        planBadge = '<span class="status-badge paid">PAID</span>';
+                    } else if (plan.is_expired) {
+                        planBadge = '<span class="status-badge expired">EXPIRED</span>';
+                    } else {
+                        planBadge = '<span class="status-badge trial">TRIAL</span>';
+                    }
                     
                     const tasksUsed = plan.is_paid ? 
-                        `${plan.tasks_used} (unlimited)` :
+                        `${plan.tasks_used}` :
                         `${plan.tasks_used}/${plan.tasks_limit}`;
-                    
-                    const leadsUsed = plan.is_paid ?
-                        `${plan.leads_used} (unlimited)` :
+                    const leadsUsed = plan.is_paid ? 
+                        `${plan.leads_used}` :
                         `${plan.leads_used}/${plan.leads_limit}`;
+                    const daysLeft = plan.is_paid ? '-' : (plan.days_remaining || 0);
                     
-                    const daysLeft = plan.is_paid ? '-' : plan.days_remaining;
-                    
-                    const portalLink = c.public_token ? 
-                        `<a href="/portal/${c.public_token}" target="_blank" style="color:#0af;text-decoration:none;font-size:0.75rem;">View as customer</a>` :
-                        '<span style="color:#666;font-size:0.7rem;">No token</span>';
-                    
-                    const upgradeBtn = plan.is_paid ? '' :
-                        `<button class="agent-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="upgradeCustomer(${c.id})">UPGRADE</button>`;
+                    const upgradeBtn = !plan.is_paid ? 
+                        `<button class="upgrade-btn" onclick="upgradeCustomer(${c.id})">UPGRADE</button>` : '';
                     
                     return `
                         <tr>
                             <td>${c.id}</td>
                             <td>${c.company}</td>
                             <td>${planBadge}</td>
-                            <td>${statusBadge}</td>
+                            <td>${plan.can_run_tasks ? 'Active' : 'Limited'}</td>
                             <td>${tasksUsed}</td>
                             <td>${leadsUsed}</td>
                             <td>${daysLeft}</td>
-                            <td>${portalLink}</td>
+                            <td><a href="/portal/${c.public_token}" class="portal-link" target="_blank">View</a></td>
                             <td>${upgradeBtn}</td>
                         </tr>
                     `;
                 }).join('');
-                
             } catch (e) {
-                console.error('Customer plans refresh error:', e);
-            }
-        }
-        
-        async function upgradeCustomer(customerId) {
-            try {
-                addLog(`Upgrading customer ${customerId} via admin override...`);
-                const res = await fetch(`/api/upgrade?customer_id=${customerId}`, { method: 'POST' });
-                const data = await res.json();
-                
-                if (data.success) {
-                    addLog(`Customer ${customerId} (${data.company}) upgraded to PAID via admin override!`, 'success');
-                    refreshCustomerPlans();
-                } else {
-                    addLog(`Upgrade failed: ${data.error || 'Unknown error'}`, 'error');
-                }
-            } catch (e) {
-                addLog(`Upgrade error: ${e.message}`, 'error');
-            }
-        }
-
-        async function refreshSignals() {
-            try {
-                const res = await fetch('/api/signals?limit=20');
-                const signals = await res.json();
-                
-                const tbody = document.getElementById('signals-table').querySelector('tbody');
-                document.getElementById('signals-count').textContent = signals.length;
-                
-                if (!signals || signals.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No signals yet</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = signals.map(s => {
-                    const summary = s.context_summary ? 
-                        (s.context_summary.length > 60 ? s.context_summary.substring(0, 60) + '...' : s.context_summary) : 
-                        '-';
-                    const created = s.created_at ? new Date(s.created_at).toLocaleString() : '-';
-                    return `
-                        <tr>
-                            <td>${s.id}</td>
-                            <td><span class="status-badge">${s.source_type}</span></td>
-                            <td>${summary}</td>
-                            <td>${s.geography || '-'}</td>
-                            <td>${created}</td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch (e) {
-                console.error('Signals refresh error:', e);
-            }
-        }
-
-        async function refreshLeadEvents() {
-            try {
-                const res = await fetch('/api/lead_events?limit=20');
-                const events = await res.json();
-                
-                const tbody = document.getElementById('lead-events-table').querySelector('tbody');
-                document.getElementById('events-count').textContent = events.length;
-                
-                if (!events || events.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No lead events yet</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = events.map(e => {
-                    const summary = e.summary ? 
-                        (e.summary.length > 50 ? e.summary.substring(0, 50) + '...' : e.summary) : 
-                        '-';
-                    const created = e.created_at ? new Date(e.created_at).toLocaleString() : '-';
-                    const urgencyColor = e.urgency_score >= 70 ? 'color:#f00;' : 
-                                        e.urgency_score >= 50 ? 'color:#f90;' : 'color:#0f0;';
-                    const fireIcon = e.urgency_score >= 70 ? '🔥 ' : '';
-                    return `
-                        <tr>
-                            <td>${e.id}</td>
-                            <td>${summary}</td>
-                            <td><span class="status-badge">${e.category}</span></td>
-                            <td style="${urgencyColor}font-weight:bold;">${fireIcon}${e.urgency_score}</td>
-                            <td><span class="status-badge ${e.status}">${e.status}</span></td>
-                            <td>${created}</td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch (e) {
-                console.error('Lead events refresh error:', e);
-            }
-        }
-
-        async function runSignalsAgent() {
-            try {
-                addLog('Running Signals Agent...');
-                const res = await fetch('/api/run/signals', { method: 'POST' });
-                const data = await res.json();
-                addLog(`Signals Agent: ${data.message}`, 'success');
-                refreshSignals();
-                refreshLeadEvents();
-            } catch (e) {
-                addLog(`Signals Agent error: ${e.message}`, 'error');
-            }
-        }
-
-        async function runEventBizdev() {
-            try {
-                addLog('Running Event BizDev...');
-                const res = await fetch('/api/run/event-bizdev', { method: 'POST' });
-                const data = await res.json();
-                addLog(`Event BizDev: ${data.message}`, 'success');
-                refreshLeadEvents();
-            } catch (e) {
-                addLog(`Event BizDev error: ${e.message}`, 'error');
+                console.error('Customers refresh error:', e);
             }
         }
 
         async function refreshPendingOutreach() {
             try {
-                const res = await fetch('/api/pending-outreach?limit=50');
-                const outreach = await res.json();
-                
+                const res = await fetch('/api/pending-outreach?limit=30');
+                const data = await res.json();
                 const tbody = document.getElementById('pending-outreach-table').querySelector('tbody');
                 
-                const pending = outreach.filter(o => o.status === 'PENDING');
-                const approved = outreach.filter(o => o.status === 'APPROVED' || o.status === 'SENT');
-                const skipped = outreach.filter(o => o.status === 'SKIPPED');
-                
-                document.getElementById('outreach-pending-count').textContent = pending.length;
-                document.getElementById('outreach-approved-count').textContent = approved.length;
-                document.getElementById('outreach-skipped-count').textContent = skipped.length;
-                
-                if (!outreach || outreach.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No pending outreach records</td></tr>';
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No pending outreach</td></tr>';
                     return;
                 }
                 
-                tbody.innerHTML = outreach.map(o => {
-                    const created = o.created_at ? new Date(o.created_at).toLocaleString() : '-';
-                    const subjectTrunc = o.subject ? (o.subject.length > 40 ? o.subject.substring(0, 40) + '...' : o.subject) : '-';
-                    
-                    const statusColor = o.status === 'PENDING' ? '#f90' : 
-                                       o.status === 'SENT' ? '#0f0' :
-                                       o.status === 'APPROVED' ? '#0af' :
-                                       o.status === 'SKIPPED' ? '#666' : '#fff';
-                    
+                tbody.innerHTML = data.map(po => {
+                    const statusClass = (po.status || '').toLowerCase();
+                    const created = po.created_at ? new Date(po.created_at).toLocaleString() : '-';
+                    const subject = (po.subject || '').length > 40 ? po.subject.substring(0, 40) + '...' : po.subject;
                     return `
                         <tr>
-                            <td>${o.id}</td>
-                            <td>${o.customer_company || '-'}</td>
-                            <td>${o.to_email || '-'}</td>
-                            <td>${subjectTrunc}</td>
-                            <td><span class="status-badge" style="color:${statusColor};">${o.status}</span></td>
+                            <td>${po.id}</td>
+                            <td>${po.customer_company || '-'}</td>
+                            <td>${po.to_email || '-'}</td>
+                            <td>${subject}</td>
+                            <td><span class="status-badge ${statusClass}">${po.status || '-'}</span></td>
                             <td>${created}</td>
                         </tr>
                     `;
@@ -1326,28 +830,39 @@
             }
         }
 
-        loadSettingsWithHourly();
-        refreshData();
-        refreshEmailLog();
-        refreshLeadSource();
-        refreshStripeStatus();
-        refreshBizdevTemplates();
-        refreshSubscriptionStatus();
-        refreshCustomerPlans();
-        refreshSignals();
-        refreshLeadEvents();
-        refreshPendingOutreach();
-        setInterval(refreshData, 10000);
-        setInterval(refreshEmailLog, 15000);
-        setInterval(refreshLeadSource, 15000);
-        setInterval(refreshStripeStatus, 30000);
-        setInterval(refreshBizdevTemplates, 30000);
-        setInterval(refreshSubscriptionStatus, 30000);
-        setInterval(refreshCustomerPlans, 30000);
-        setInterval(refreshSignals, 30000);
-        setInterval(refreshLeadEvents, 30000);
-        setInterval(refreshPendingOutreach, 30000);
-        setInterval(loadSettingsWithHourly, 60000);
+        async function upgradeCustomer(customerId) {
+            if (!confirm('Upgrade this customer to PAID plan via admin override?')) return;
+            
+            try {
+                const res = await fetch(`/api/upgrade?customer_id=${customerId}`, {method: 'POST'});
+                const data = await res.json();
+                if (data.success) {
+                    addLog(`Customer ${customerId} upgraded to PAID`, 'success');
+                    setTimeout(refreshCustomers, 500);
+                } else {
+                    addLog(`Upgrade failed: ${data.error}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Upgrade error: ${e.message}`, 'error');
+            }
+        }
+
+        async function refreshAllData() {
+            await Promise.all([
+                refreshKPIs(),
+                refreshLeadEvents(),
+                refreshSignals(),
+                refreshOutputHistory(),
+                refreshCustomers(),
+                refreshPendingOutreach()
+            ]);
+        }
+
+        loadSettings();
+        refreshAllData();
+        
+        setInterval(refreshKPIs, 30000);
+        setInterval(refreshAllData, 60000);
     </script>
 </body>
 </html>

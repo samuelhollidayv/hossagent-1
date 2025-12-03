@@ -16858,5 +16858,2395 @@
     "mode": "DRY_RUN",
     "result": "dry_run",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.358148",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.410654",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.454472",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.505328",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.562240",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.626408",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.680981",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea for Meridian Solutions Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.726837",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea for Stratton Industries",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.760993",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.794560",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea for Atlas Enterprise Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.814326",
+    "lead_name": "Rachel",
+    "company": "Meridian Solutions Group",
+    "to_email": "rachel@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.832168",
+    "lead_name": "Lead_8650",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.849018",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.865350",
+    "lead_name": "Lead_8650",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.882493",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.900076",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.919667",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.937279",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.956087",
+    "lead_name": "Sarah",
+    "company": "Stratton Industries",
+    "to_email": "sarah@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:20:37.977015",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.440437",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.484570",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.541289",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.618263",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.690792",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.738135",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.783271",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.821484",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.854188",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.891707",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea for Atlas Enterprise Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.913861",
+    "lead_name": "Michael",
+    "company": "Nexus Capital Partners",
+    "to_email": "michael@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.932662",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.951078",
+    "lead_name": "Amanda",
+    "company": "Atlas Enterprise Group",
+    "to_email": "amanda@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.971086",
+    "lead_name": "Amanda",
+    "company": "Atlas Enterprise Group",
+    "to_email": "amanda@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:38.989472",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:39.008496",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:39.027603",
+    "lead_name": "Amanda",
+    "company": "Atlas Enterprise Group",
+    "to_email": "amanda@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:39.045397",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:39.061862",
+    "lead_name": "Rachel",
+    "company": "Meridian Solutions Group",
+    "to_email": "rachel@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:25:39.081223",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.405418",
+    "lead_name": "Quantum Dynamics",
+    "company": "Quantum Dynamics",
+    "to_email": "contact@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.430827",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.470561",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.513709",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.544494",
+    "lead_name": "Sarah",
+    "company": "Stratton Industries",
+    "to_email": "sarah@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.570994",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.598093",
+    "lead_name": "Lead_8650",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.630880",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.664043",
+    "lead_name": "Michael",
+    "company": "Nexus Capital Partners",
+    "to_email": "michael@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:27.690359",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.378156",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.411172",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.467194",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.496632",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.526349",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.570672",
+    "lead_name": "Hoss",
+    "company": "HossInc",
+    "to_email": "noelsdad2@gmail.com",
+    "subject": "HossInc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.612125",
+    "lead_name": "Lead_3801",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.644084",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.666993",
+    "lead_name": "Michael",
+    "company": "Summit Holdings LLC",
+    "to_email": "michael@summitholdingsllc.com",
+    "subject": "Summit Holdings LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:26:39.687843",
+    "lead_name": "Hoss",
+    "company": "HossInc",
+    "to_email": "noelsdad2@gmail.com",
+    "subject": "HossInc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.611044",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea for Stratton Industries",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.675820",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.730922",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.791094",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.860243",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.912798",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:39.965115",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea for Meridian Solutions Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.015067",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.066667",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.134412",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.163564",
+    "lead_name": "Michael",
+    "company": "Summit Holdings LLC",
+    "to_email": "michael@summitholdingsllc.com",
+    "subject": "Summit Holdings LLC - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.203488",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.328524",
+    "lead_name": "James",
+    "company": "Blackstone Analytics",
+    "to_email": "james@blackstoneanalytics.com",
+    "subject": "Blackstone Analytics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.353735",
+    "lead_name": "Hoss",
+    "company": "HossInc",
+    "to_email": "noelsdad2@gmail.com",
+    "subject": "HossInc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.380549",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.409716",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.437978",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.469529",
+    "lead_name": "Michael",
+    "company": "Summit Holdings LLC",
+    "to_email": "michael@summitholdingsllc.com",
+    "subject": "Summit Holdings LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.497795",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:30:40.520196",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.094451",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.149994",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.210526",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.265365",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.316371",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea for Nexus Capital Partners",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.364723",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.410370",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea for Meridian Solutions Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.456949",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea for Stratton Industries",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.507809",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.567287",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.597385",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.627328",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.651330",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.675143",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.697793",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.721883",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.747914",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.777276",
+    "lead_name": "David",
+    "company": "Vector Capital Group",
+    "to_email": "david@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.803514",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:35:41.829947",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.511012",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.562522",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.625827",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.678899",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.732934",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.874028",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:42.992198",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.069453",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea for Stratton Industries",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.123882",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.181686",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.214798",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.245048",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.274846",
+    "lead_name": "Sarah",
+    "company": "Stratton Industries",
+    "to_email": "sarah@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.300487",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.329572",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.358444",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.389201",
+    "lead_name": "Sarah",
+    "company": "Stratton Industries",
+    "to_email": "sarah@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.427542",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.459998",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:40:43.482435",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.062397",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.112629",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.163139",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.208450",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.263225",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.320057",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.372092",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.420084",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.473062",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.539748",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.573295",
+    "lead_name": "Apex Ventures LLC",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.597535",
+    "lead_name": "Sarah",
+    "company": "Stratton Industries",
+    "to_email": "sarah@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.625279",
+    "lead_name": "Sarah",
+    "company": "Stratton Industries",
+    "to_email": "sarah@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.686180",
+    "lead_name": "Quantum Dynamics",
+    "company": "Quantum Dynamics",
+    "to_email": "contact@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:44.940496",
+    "lead_name": "Apex Ventures LLC",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:45.054046",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:45.079470",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:45:45.104820",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:45.757587",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:45.808642",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:45.867476",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:45.931554",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:45.998667",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.061299",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.131658",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea for Meridian Solutions Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.201443",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.264500",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.317888",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea for Atlas Enterprise Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.348532",
+    "lead_name": "Lead_8552",
+    "company": "Quantum Dynamics",
+    "to_email": "contact@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.370748",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.394782",
+    "lead_name": "David",
+    "company": "Vector Capital Group",
+    "to_email": "david@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.418142",
+    "lead_name": "Victoria",
+    "company": "Meridian Solutions Group",
+    "to_email": "victoria@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.438636",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.459471",
+    "lead_name": "David",
+    "company": "Vector Capital Group",
+    "to_email": "david@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.483484",
+    "lead_name": "Amanda",
+    "company": "Atlas Enterprise Group",
+    "to_email": "amanda@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:50:46.509525",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.234331",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.312106",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.365965",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.420913",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.484602",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.566705",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.700442",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.760399",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.818772",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.873060",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea for Atlas Enterprise Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.913823",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.942602",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:34.974709",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:35.012660",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:35.039837",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T18:55:35.069274",
+    "lead_name": "Amanda",
+    "company": "Atlas Enterprise Group",
+    "to_email": "amanda@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.552644",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.616132",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.677813",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.760526",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.818171",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.871731",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:35.931629",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.008930",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.113509",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.199646",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.239803",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.281073",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.339015",
+    "lead_name": "Stratton Industries",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.417741",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.453136",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:00:36.494606",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.299258",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea for Stratton Industries",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.423597",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.499537",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Titan Logistics Inc - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.590588",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.656886",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.740015",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:15.831045",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.029272",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.228320",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.361591",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.472864",
+    "lead_name": "Lead_8552",
+    "company": "Quantum Dynamics",
+    "to_email": "contact@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.529436",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.571806",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.619556",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.676776",
+    "lead_name": "Lead_3801",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.700503",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:02:16.774849",
+    "lead_name": "David",
+    "company": "Vector Capital Group",
+    "to_email": "david@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:00.101458",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:00.220337",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:00.352733",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:00.548043",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:00.757309",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea for Nexus Capital Partners",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:00.818712",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.093329",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.151143",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.208054",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.387357",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.434296",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.477389",
+    "lead_name": "Lead_8552",
+    "company": "Quantum Dynamics",
+    "to_email": "contact@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.535714",
+    "lead_name": "Michael",
+    "company": "Summit Holdings LLC",
+    "to_email": "michael@summitholdingsllc.com",
+    "subject": "Summit Holdings LLC - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.606020",
+    "lead_name": "Michael",
+    "company": "Summit Holdings LLC",
+    "to_email": "michael@summitholdingsllc.com",
+    "subject": "Summit Holdings LLC - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.661826",
+    "lead_name": "Sarah",
+    "company": "Quantum Dynamics",
+    "to_email": "sarah@quantumdynamics.com",
+    "subject": "Quantum Dynamics - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.718279",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:07:01.746604",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:38.736277",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:38.834602",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:38.986314",
+    "lead_name": "Lead_7233",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea for Titan Logistics Inc",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.124440",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.226561",
+    "lead_name": "Lead_2714",
+    "company": "Nexus Capital Partners",
+    "to_email": "contact@nexuscapitalpartners.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.308737",
+    "lead_name": "Lead_2406",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Quick idea for Apex Ventures LLC",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.528379",
+    "lead_name": "Lead_9797",
+    "company": "Meridian Solutions Group",
+    "to_email": "contact@meridiansolutionsgroup.com",
+    "subject": "Quick idea for Meridian Solutions Group",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.635737",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.758391",
+    "lead_name": "Lead_2118",
+    "company": "Titan Logistics Inc",
+    "to_email": "contact@titanlogisticsinc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.843077",
+    "lead_name": "Lead_6822",
+    "company": "Atlas Enterprise Group",
+    "to_email": "contact@atlasenterprisegroup.com",
+    "subject": "Atlas Enterprise Group - one less thing to worry about",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.928231",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:39.996149",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:40.056408",
+    "lead_name": "Amanda",
+    "company": "Stratton Industries",
+    "to_email": "amanda@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:40.100146",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Vector Capital Group - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:40.126570",
+    "lead_name": "Lead_8824",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something [Time-Sensitive]",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:40.158256",
+    "lead_name": "Amanda",
+    "company": "Stratton Industries",
+    "to_email": "amanda@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-03T19:10:40.185526",
+    "lead_name": "Rachel",
+    "company": "Meridian Solutions Group",
+    "to_email": "rachel@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something",
+    "mode": "DRY_RUN",
+    "result": "dry_run",
+    "error": null
   }
 ]
