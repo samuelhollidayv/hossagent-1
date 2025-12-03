@@ -13,7 +13,13 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 
 **Interfaces:**
 - **Marketing Landing Page (`/`)**: Public homepage with CTAs for trial and demo.
-- **Admin Console (`/admin`)**: Internal dashboard for operators, offering full control over agents, system status, subscription management, email health, lead sources, revenue/profit metrics, pending outreach, and data tables. Includes customer impersonation.
+- **Admin Console (`/admin`)**: Consolidated operator dashboard with:
+  - **KPI Bar**: Real-time metrics (Signals Today, Lead Events Today, Outbound Sent, Reports Delivered, Errors/Failed)
+  - **Lead Events Table (PRIMARY)**: Shows status, has_outbound, has_report flags, urgency, company
+  - **Output History**: Combined Outbound messages and Reports with tab navigation
+  - **Signals Table (collapsible)**: Raw signals for debugging
+  - **Customers Table**: With portal links and upgrade buttons
+  - **Pending Outreach**: Cross-customer visibility of queued emails
 - **Customer Portal (`/portal`)**: Session-authenticated portal displaying plan/billing status, opportunities, reports, pending outreach (REVIEW mode), invoices, and subscription management.
 - **Customer Portal - Admin View (`/portal/<token>`)**: Token-based access for admin impersonation.
 - **Customer Settings (`/portal/settings`)**: Business profile configuration, outreach preferences, and do-not-contact list management.
