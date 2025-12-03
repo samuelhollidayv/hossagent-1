@@ -1,0 +1,334 @@
+Below is one single unified, ready-to-paste MagicBox Superprompt that merges:
+	•	The full Ethical Briefcase / Signals Engine / Lead Lifecycle / Onboarding / CC upgrade
+	•	All Miami tuning
+	•	Your entire UAT Round 1 change list
+	•	All required portal/admin fixes
+	•	Clear, explicit implementation instructions
+	•	Safety + DRY_RUN + secrets hygiene
+
+This is the exact text you drop into Replit Agent as the next major build step.
+
+────────────────────────────────────────
+
+🚀 HOSSAGENT MASTER SUPERPROMPT — FULL SYSTEM UPGRADE (Signals + Miami + UAT Fixes + Onboarding + Lifecycle + CC)
+
+────────────────────────────────────────
+
+You are working on my HossAgent app.
+This prompt combines all required upgrades into one build plan.
+Implement everything below without breaking existing functionality.
+Maintain DRY_RUN safety, Secrets hygiene, and all prior features.
+
+⸻
+
+🔥 SECTION A — SYSTEM UPGRADE OVERVIEW
+
+Transform HossAgent into a Contextual Opportunity Engine (“Ethical Briefcase”).
+This includes:
+	1.	Signals Engine upgrades
+	2.	Miami-tuned lead generation
+	3.	Business Onboarding / Profile system
+	4.	Lead lifecycle overhaul
+	5.	Outbound review vs. auto modes
+	6.	CC + Reply-To visibility
+	7.	Report surfacing
+	8.	Admin Subscription Overrides
+	9.	Portal layout + UX fixes
+	10.	Usage counter fixes
+	11.	Session persistence + Forgot Password Flow
+
+Implement all of this cleanly, safely, and in modular steps.
+
+⸻
+
+🔥 SECTION B — MODELS & DATABASE CHANGES
+
+B1 — LeadEvent Lifecycle Fields
+
+Update the Lead / LeadEvent model to include:
+	•	status ENUM/string with values:
+"NEW", "CONTACTED", "RESPONDED", "QUALIFIED", "CLOSED_WON", "CLOSED_LOST", "ON_HOLD"
+	•	last_contact_at (datetime)
+	•	last_contact_summary (text)
+	•	next_step (text)
+	•	next_step_owner ("AGENT" or "CUSTOMER")
+
+Default:
+status="NEW", everything else NULL.
+
+⸻
+
+B2 — Business Profile Model
+
+Create BusinessProfile linked 1:1 to each company/customer.
+
+Fields:
+	•	company_id
+	•	short_description
+	•	services (JSON or text)
+	•	pricing_notes
+	•	ideal_customer
+	•	excluded_customers
+	•	voice_tone
+	•	communication_style
+	•	constraints
+	•	primary_contact_name
+	•	primary_contact_email ← used for CC + Reply-To
+	•	do_not_contact_list (JSON or text of domains/emails)
+
+Apply migrations safely.
+
+⸻
+
+B3 — Outreach Mode Per Customer
+
+Add:
+	•	outreach_mode = "AUTO" or "REVIEW"
+Default "AUTO".
+
+⸻
+
+🔥 SECTION C — SIGNALS ENGINE & MIAMI CONFIG
+
+C1 — Verify and enforce Miami tuning
+
+Use environment variables:
+	•	LEAD_GEOGRAPHY (e.g., "Miami, Broward, South Florida")
+	•	LEAD_NICHE (e.g., "med spa, HVAC, roofing, immigration lawyer, realtor, insurance, marketing agency")
+
+Thread them through Signals agent:
+	•	Filter or score opportunities according to these.
+	•	Do NOT change their values.
+
+C2 — LeadEvent initialization
+
+When creating a LeadEvent:
+
+Set:
+	•	status="NEW"
+	•	next_step_owner = "AGENT" if outreach is AUTO
+	•	next_step_owner = "CUSTOMER" if outreach is REVIEW
+	•	next_step = e.g.
+	•	"Sending intro email" for AUTO
+	•	"Awaiting your review" for REVIEW
+
+Also increment leads_used (see Section E).
+
+⸻
+
+🔥 SECTION D — OUTBOUND EMAIL OVERHAUL
+
+D1 — Respect Outreach Mode
+
+If AUTO:
+	•	Generate email
+	•	Send immediately (or DRY_RUN log)
+	•	Update lead:
+	•	status="CONTACTED"
+	•	last_contact_at=now
+	•	last_contact_summary="Intro email sent"
+	•	next_step_owner="AGENT"
+
+If REVIEW:
+	•	Generate email → mark "PENDING" in outbound table
+	•	Lead remains NEW
+	•	Portal must show all pending outbound for customer approval
+	•	Actions:
+	•	Approve & Send → send, update lifecycle
+	•	Edit & Send → editable textbox → send
+	•	Skip → mark outbound "SKIPPED", optional status="ON_HOLD"
+
+⸻
+
+D2 — CC + Reply-To Visibility
+
+Every outbound email must:
+	•	To = prospect
+	•	CC = BusinessProfile.primary_contact_email
+	•	Reply-To = BusinessProfile.primary_contact_email
+
+If missing profile → warn in logs, but still DRY_RUN safely.
+
+⸻
+
+D3 — Do-Not-Contact Enforcement
+
+If prospect email/domain is in business profile’s do_not_contact_list:
+	•	Skip auto-outreach
+OR
+	•	Create lead but mark status="ON_HOLD" with reason.
+
+⸻
+
+🔥 SECTION E — USAGE COUNTERS
+
+E1 — Leads Used
+
+Increment leads_used every time a LeadEvent is created.
+
+E2 — Tasks Used
+
+Increment tasks_used whenever:
+	•	A research report is generated
+	•	An outbound email is prepared (AUTO or REVIEW)
+	•	A meaningful Ops task completes
+
+E3 — Soft Caps
+
+Do NOT block usage based on trial limits.
+Show limits in UI but treat as soft.
+
+⸻
+
+🔥 SECTION F — REPORT STORAGE & SURFACING
+
+F1 — Report Model
+
+Create or extend a Report model:
+	•	id
+	•	company_id
+	•	lead_id (optional)
+	•	title
+	•	description
+	•	content or JSON blob
+	•	created_at
+
+F2 — Portal “Reports / Recent Work” Section
+
+In /portal:
+	•	Add a “Reports” section listing all reports:
+	•	Date
+	•	Title
+	•	Short description
+	•	Expand or “View Report” detail page
+
+F3 — Email Notifications
+
+Still allowed but portal is source of truth.
+
+⸻
+
+🔥 SECTION G — PORTAL & ADMIN UX FIXES
+
+G1 — Move Subscription Card to Top
+
+In /portal template:
+	•	Place subscription status, trial days left, tasks/leads used, and “Start Paid Subscription” at top.
+
+⸻
+
+G2 — Add Pending Outreach Section for REVIEW Mode
+
+“Pending Outreach” must display:
+	•	Each pending email
+	•	Context summary
+	•	Actions: Approve, Edit, Skip
+
+⸻
+
+G3 — Admin Upgrade Button
+
+Make the “Upgrade” button in /admin functional:
+	•	Set subscription state:
+	•	status="ACTIVE"
+	•	plan="PRO"
+	•	billing_method="ADMIN_OVERRIDE"
+	•	Remove trial end
+	•	Do NOT require Stripe checkout
+	•	Portal should immediately reflect Paid status
+
+⸻
+
+🔥 SECTION H — AUTHENTICATION IMPROVEMENTS
+
+H1 — Session Persistence
+
+Implement:
+	•	Secure HTTP-only cookie
+	•	Expiration ~14 days
+	•	Auto-refresh on activity
+	•	/portal loads without re-login unless cookie expired
+
+H2 — Logout
+
+Clear session + redirect.
+
+⸻
+
+H3 — Forgot Password Flow
+
+Add:
+	•	“Forgot your password?” link
+	•	Token table:
+	•	user_id
+	•	token
+	•	expires_at
+	•	Email reset link (DRY_RUN logs it)
+	•	Reset page:
+	•	Validate token
+	•	Set new password
+	•	Auto-login afterward
+
+⸻
+
+🔥 SECTION I — CUSTOMER CANCELLATION (MVP)
+
+Add “Cancel Subscription” button for paid users:
+	•	Set cancelled_at_period_end=True
+	•	Portal message:
+“Your subscription will remain active until the end of this billing period. You won’t be charged again.”
+	•	Admin can reactivate or override anytime.
+
+No Stripe API call required now.
+
+⸻
+
+🔥 SECTION J — PORTAL NAVIGATION / ACCESS FIXES
+
+J1 — Add Business Profile / Settings Page
+
+Editable fields from Section B2.
+
+J2 — Improve Lead Detail Page
+
+Show:
+	•	full lifecycle
+	•	last contact summary
+	•	next step owner
+	•	outbound history
+
+J3 — Make “View as Customer” still available in admin
+
+⸻
+
+🔥 SECTION K — POST-IMPLEMENTATION TEST PLAN
+
+After implementing everything:
+	1.	Create a new test customer
+	2.	Complete onboarding
+	3.	Generate a few signals → verify leads_used increments
+	4.	Generate reports → verify tasks_used increments
+	5.	Try both AUTO and REVIEW modes
+	6.	Approve outbound + CC visibility
+	7.	Confirm subscription card at top of portal
+	8.	Test Forgot Password (DRY_RUN)
+	9.	Test Cancel Subscription
+	10.	Test Admin Upgrade
+	11.	Test login persistence
+	12.	Verify Miami filtering stays active
+
+⸻
+
+🔥 SECTION L — REQUIREMENTS
+	•	DO NOT hardcode secrets
+	•	Preserve DRY_RUN
+	•	Maintain existing flows
+	•	Summarize all file changes
+	•	Document TODO comments where appropriate
+
+⸻
+
+🚀 END OF SUPERPROMPT
+
+Paste everything above into Replit Agent as the next task.
+This is the complete unified spec for the next major evolution of HossAgent.

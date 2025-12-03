@@ -86,6 +86,86 @@ def _run_migrations():
         except sqlite3.OperationalError:
             pass
     
+    if 'billing_method' not in customer_columns:
+        try:
+            cursor.execute('ALTER TABLE customer ADD COLUMN billing_method TEXT')
+            print("[MIGRATION] Added 'billing_method' column to customer table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'cancelled_at_period_end' not in customer_columns:
+        try:
+            cursor.execute('ALTER TABLE customer ADD COLUMN cancelled_at_period_end INTEGER DEFAULT 0')
+            print("[MIGRATION] Added 'cancelled_at_period_end' column to customer table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'cancellation_effective_at' not in customer_columns:
+        try:
+            cursor.execute('ALTER TABLE customer ADD COLUMN cancellation_effective_at TEXT')
+            print("[MIGRATION] Added 'cancellation_effective_at' column to customer table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'outreach_mode' not in customer_columns:
+        try:
+            cursor.execute("ALTER TABLE customer ADD COLUMN outreach_mode TEXT DEFAULT 'AUTO'")
+            print("[MIGRATION] Added 'outreach_mode' column to customer table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'last_contact_summary' not in lead_columns:
+        try:
+            cursor.execute('ALTER TABLE lead ADD COLUMN last_contact_summary TEXT')
+            print("[MIGRATION] Added 'last_contact_summary' column to lead table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'next_step' not in lead_columns:
+        try:
+            cursor.execute('ALTER TABLE lead ADD COLUMN next_step TEXT')
+            print("[MIGRATION] Added 'next_step' column to lead table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'next_step_owner' not in lead_columns:
+        try:
+            cursor.execute('ALTER TABLE lead ADD COLUMN next_step_owner TEXT')
+            print("[MIGRATION] Added 'next_step_owner' column to lead table")
+        except sqlite3.OperationalError:
+            pass
+    
+    cursor.execute("PRAGMA table_info(leadevent)")
+    leadevent_columns = {row[1] for row in cursor.fetchall()}
+    
+    if 'last_contact_at' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN last_contact_at TEXT')
+            print("[MIGRATION] Added 'last_contact_at' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'last_contact_summary' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN last_contact_summary TEXT')
+            print("[MIGRATION] Added 'last_contact_summary' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'next_step' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN next_step TEXT')
+            print("[MIGRATION] Added 'next_step' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'next_step_owner' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN next_step_owner TEXT')
+            print("[MIGRATION] Added 'next_step_owner' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
     cursor.execute("PRAGMA table_info(invoice)")
     invoice_columns = {row[1] for row in cursor.fetchall()}
     
