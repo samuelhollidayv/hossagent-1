@@ -792,35 +792,6 @@
             flex-wrap: wrap;
         }
 
-        .source-toggle {
-            display: flex;
-            background: var(--bg-primary);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-medium);
-            overflow: hidden;
-        }
-
-        .source-option {
-            padding: 0.5rem 1rem;
-            font-size: 0.75rem;
-            font-family: inherit;
-            background: transparent;
-            color: var(--text-tertiary);
-            border: none;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-
-        .source-option:hover {
-            color: var(--text-secondary);
-        }
-
-        .source-option.active {
-            background: var(--accent-green);
-            color: var(--bg-primary);
-            font-weight: 600;
-        }
-
         .apollo-btn {
             padding: 0.5rem 1rem;
             font-size: 0.75rem;
@@ -980,7 +951,7 @@
             <p>This will permanently delete all test/demo data:</p>
             <ul style="text-align: left; margin: 1rem 0; padding-left: 1.5rem; color: var(--text-secondary);">
                 <li>All signals and lead events</li>
-                <li>Leads from dummy_seed source</li>
+                <li>Leads from test sources</li>
                 <li>Fake company names (Atlas, Stratton, Quantum, etc.)</li>
                 <li>Test emails (@example, @test, etc.)</li>
             </ul>
@@ -1002,19 +973,14 @@
 
     <div class="apollo-panel" id="apollo-panel">
         <div class="apollo-header">
-            <div class="apollo-title">LEAD SOURCE</div>
+            <div class="apollo-title">APOLLO.IO LEAD SOURCE</div>
             <div class="apollo-status">
                 <div class="apollo-dot" id="apollo-dot"></div>
                 <span id="apollo-status-text">Checking...</span>
             </div>
         </div>
         <div class="apollo-controls">
-            <div class="source-toggle">
-                <button class="source-option" id="src-dummy" onclick="setLeadSource('dummy')">DummySeed</button>
-                <button class="source-option active" id="src-auto" onclick="setLeadSource('auto')">Auto</button>
-                <button class="source-option" id="src-apollo" onclick="setLeadSource('apollo')">Apollo.io</button>
-            </div>
-            <button class="apollo-btn" id="apollo-connect-btn" onclick="toggleApolloConnect()">Connect Apollo</button>
+            <button class="apollo-btn primary" id="apollo-connect-btn" onclick="toggleApolloConnect()">Connect Apollo</button>
             <button class="apollo-btn" id="apollo-test-btn" onclick="testApollo()" style="display: none;">Test Connection</button>
             <button class="apollo-btn" id="apollo-disconnect-btn" onclick="disconnectApollo()" style="display: none;">Disconnect</button>
         </div>
@@ -1897,27 +1863,28 @@
                 
                 if (status.connected) {
                     dot.classList.add('connected');
-                    statusText.textContent = 'Connected';
-                    statusText.style.color = 'var(--accent-green)';
+                    if (status.rate_limit_ok === false) {
+                        statusText.textContent = 'Quota Exceeded';
+                        statusText.style.color = 'var(--accent-orange)';
+                    } else {
+                        statusText.textContent = 'Connected';
+                        statusText.style.color = 'var(--accent-green)';
+                    }
                     connectBtn.style.display = 'none';
                     testBtn.style.display = 'inline-block';
                     disconnectBtn.style.display = 'inline-block';
                 } else {
                     dot.classList.remove('connected');
-                    statusText.textContent = status.error || 'Not connected';
-                    statusText.style.color = 'var(--text-tertiary)';
+                    statusText.textContent = 'Not Connected - Lead Gen Paused';
+                    statusText.style.color = 'var(--accent-red)';
                     connectBtn.style.display = 'inline-block';
                     testBtn.style.display = 'none';
                     disconnectBtn.style.display = 'none';
                 }
                 
-                provider.textContent = leadSource.provider || '-';
+                provider.textContent = 'Apollo.io';
                 calls.textContent = `${status.calls_today || 0}/100`;
                 total.textContent = status.total_leads_fetched || '-';
-                
-                const preference = leadSource.preference || 'auto';
-                document.querySelectorAll('.source-option').forEach(btn => btn.classList.remove('active'));
-                document.getElementById(`src-${preference}`).classList.add('active');
                 
             } catch (e) {
                 console.error('Apollo status error:', e);
@@ -1996,24 +1963,6 @@
                 refreshApolloStatus();
             } catch (e) {
                 addLog(`Test error: ${e.message}`, 'error');
-            }
-        }
-
-        async function setLeadSource(source) {
-            addLog(`Setting lead source to: ${source}...`, '');
-            
-            try {
-                const res = await fetch(`/api/lead-source/preference?source=${source}`, {method: 'POST'});
-                const data = await res.json();
-                
-                if (data.success) {
-                    addLog(`Lead source set to: ${data.preference}`, 'success');
-                    refreshApolloStatus();
-                } else {
-                    addLog(`Failed: ${data.error}`, 'error');
-                }
-            } catch (e) {
-                addLog(`Error: ${e.message}`, 'error');
             }
         }
 

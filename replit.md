@@ -74,22 +74,21 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 
 ## Production Configuration
 
-**RELEASE_MODE System:** Controls sandbox vs production behavior.
-- `RELEASE_MODE=SANDBOX` (default): Uses DummySeed lead provider, safe for testing
-- `RELEASE_MODE=PRODUCTION`: Enables real lead sources (if configured), production behavior
+**RELEASE_MODE System:** Controls production behavior.
+- `RELEASE_MODE=PRODUCTION`: Production mode (required for real leads)
 
 **EMAIL_MODE System:** Controls email sending behavior.
-- `EMAIL_MODE=DRY_RUN` (default): Logs emails without sending
 - `EMAIL_MODE=SMTP`: Requires SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL
 - `EMAIL_MODE=SENDGRID`: Requires SENDGRID_API_KEY
-- **Fallback Behavior:** If credentials are missing, system falls back to DRY_RUN with warning
+- `EMAIL_MODE=DRY_RUN`: Logs emails without sending (testing only)
 
-**Lead Source System:** Priority order in PRODUCTION mode:
-1. `APOLLO_API_KEY` - Apollo.io integration (recommended, targets Miami/South Florida)
-2. `LEAD_SEARCH_API_URL` + `LEAD_SEARCH_API_KEY` - Generic lead API
-3. Falls back to DummySeed with warning if neither configured
+**Lead Source System:** Apollo.io is the ONLY lead source. No fallbacks.
+- If Apollo is not connected, lead generation PAUSES (does not fall back)
+- If daily quota (100 calls) is exceeded, lead generation PAUSES until midnight UTC
+- Connect via admin console "Connect Apollo" button or set `APOLLO_API_KEY`
 
 **Required Secrets for Production:**
+- `APOLLO_API_KEY`: Apollo.io API key (REQUIRED - get from apollo.io/settings/api-keys)
 - `STRIPE_API_KEY`: Stripe secret API key for payment processing
 - `STRIPE_WEBHOOK_SECRET`: Webhook signing secret
 - `SMTP_HOST`: SMTP server hostname (e.g., smtp.gmail.com)
@@ -97,9 +96,8 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - `SMTP_PASSWORD`: SMTP password or app password
 - `SMTP_FROM_EMAIL`: From email address
 - `ADMIN_PASSWORD`: Admin console password
-- `APOLLO_API_KEY`: Apollo.io API key for real lead sourcing (get from apollo.io/settings/api-keys)
 
-**Production Cleanup:** Admin console has "PURGE TEST DATA" button to remove sandbox data before going live.
+**Production Cleanup:** Admin console has "PURGE TEST DATA" button to remove old test data.
 
 ## External Dependencies
 - **FastAPI**: Primary web framework for the backend.

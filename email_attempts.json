@@ -36388,5 +36388,135 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:13.575122",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:19.155835",
+    "lead_name": "Rachel Thompson",
+    "company": "Horizon Brand Studio",
+    "to_email": "rachel@horizonbrand.co",
+    "subject": "Horizon Brand Studio - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:24.908537",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:42.204898",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:48.275310",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:54.267079",
+    "lead_name": "Rachel Thompson",
+    "company": "Horizon Brand Studio",
+    "to_email": "rachel@horizonbrand.co",
+    "subject": "Horizon Brand Studio - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:33:58.829775",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "Vanguard Consulting Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:34:05.117167",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:34:09.159434",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:34:11.603752",
+    "lead_name": "David Kim",
+    "company": "Forge Strategic Partners",
+    "to_email": "david@forgestrategic.com",
+    "subject": "Forge Strategic Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:34:16.599095",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:34:22.310637",
+    "lead_name": "Laura White",
+    "company": "Precision Demand Gen",
+    "to_email": "laura@precisiondemand.io",
+    "subject": "Precision Demand Gen - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:34:26.850070",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

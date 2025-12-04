@@ -401,7 +401,7 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "", purge
     for lead in leads:
         is_fake_lead = False
         
-        if hasattr(lead, 'source') and lead.source == "dummy_seed":
+        if hasattr(lead, 'source') and lead.source in ("dummy_seed", "test", "demo"):
             is_fake_lead = True
         
         if lead.email:
@@ -1664,7 +1664,7 @@ def get_lead_source_endpoint():
     Returns:
         - niche: Target ICP description
         - geography: Geographic constraint (if any)
-        - provider: Current provider (DummySeed or SearchApi)
+        - provider: Current provider (Apollo)
         - max_new_leads_per_cycle: Lead generation cap
         - last_run: Timestamp of last lead generation run
         - last_created_count: Number of leads created in last run
@@ -1768,26 +1768,6 @@ def get_apollo_log_endpoint(request: Request, limit: int = Query(default=20, le=
         return {"entries": get_fetch_log(limit)}
     except ImportError:
         return {"entries": [], "error": "Apollo module not available"}
-
-
-@app.post("/api/lead-source/preference")
-def set_lead_source_preference_endpoint(request: Request, source: str = Query(...)):
-    """
-    Set lead source preference.
-    
-    Args:
-        source: "apollo", "dummy", or "auto"
-    """
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    from lead_sources import set_lead_source_preference, get_lead_source_preference
-    
-    if set_lead_source_preference(source):
-        return {"success": True, "preference": get_lead_source_preference()}
-    else:
-        return {"success": False, "error": f"Invalid source: {source}. Must be 'apollo', 'dummy', or 'auto'"}
 
 
 # ============================================================================

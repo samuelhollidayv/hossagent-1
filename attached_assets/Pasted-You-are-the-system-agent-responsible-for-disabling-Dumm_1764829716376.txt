@@ -1,0 +1,50 @@
+You are the system agent responsible for disabling DummySeed lead generation permanently for HossAgent.
+
+Effective immediately:
+
+1. **Delete all DummySeed code paths.**
+   - Remove `DummySeedLeadSource` class or module from `lead_sources.py` and any other location.
+   - Remove references to dummy data generators, mock contact builders, placeholder signals, etc.
+   - Delete any seeding scripts that produce fake companies, names, or emails for testing.
+
+2. **Purge dummy data from the database:**
+   - Delete all `LeadEvent` entries with `source = 'dummy'` or tagged as dummy/test
+   - Remove associated outbound drafts, logs, and signal records
+   - Clear any cached results from dummy runs
+
+3. **Update Settings and Admin UI:**
+   - Remove DummySeed from the “Lead Source” dropdown
+   - If no real source is configured, require user to set up Apollo or another real source before Autopilot can run
+
+4. **Fail loudly if any component attempts to call DummySeed:**
+   - Raise a `LegacySeedError` exception or equivalent with the message:  
+     > “DummySeed is deprecated. All leads must come from real sources.”
+
+5. **Confirm Apollo.io or other production lead source is active:**
+   - If not, disable Autopilot and show a banner in the portal:  
+     > “Real lead source not configured. Please connect Apollo or other provider to continue.”
+
+6. **Optional fallback:**  
+   - Keep `DummySeed` *in a dead folder* for testing/dev environments only — but make it inaccessible in production builds
+   - If environment != `dev`, block all dummy calls
+
+This marks the end of fake data in production.
+
+From this point forward:
+- **Every signal is real.**
+- **Every lead is a live wire.**
+- **Every opportunity is a moment with money on the other end.**
+
+This is HossAgent, not some high school science fair project.
+
+Pull the plug.
+Clean the logs.
+Never look back.
+
+System must confirm:
+✅ DummySeed code removed  
+✅ DummySeed data purged  
+✅ No paths call dummy logic  
+✅ Autopilot now only uses verified live lead sources
+
+Confirm once complete.

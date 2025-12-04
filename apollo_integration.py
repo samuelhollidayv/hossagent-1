@@ -6,9 +6,9 @@ Provides seamless Apollo.io integration with:
 - Automatic token refresh
 - Rate limiting (100 calls/day)
 - Detailed fetch logging
-- Automatic fallback to DummySeed when quota hit
 
-No manual key copying - just click, authorize, and hunt.
+Apollo is the ONLY lead source. No fallbacks.
+If not connected or quota exceeded, lead generation pauses.
 """
 
 import os
@@ -230,9 +230,9 @@ def fetch_leads_from_apollo(
     if not api_key and not state.access_token:
         return {
             "success": False,
-            "error": "Apollo not connected",
+            "error": "Apollo not connected - lead generation PAUSED",
             "leads": [],
-            "fallback_to_dummy": True
+            "paused": True
         }
     
     allowed, rate_msg = _check_rate_limit(state)
@@ -241,8 +241,8 @@ def fetch_leads_from_apollo(
             "success": False,
             "error": rate_msg,
             "leads": [],
-            "fallback_to_dummy": True,
-            "quota_exceeded": True
+            "quota_exceeded": True,
+            "paused": True
         }
     
     MIAMI_LOCATIONS = [
@@ -316,17 +316,17 @@ def fetch_leads_from_apollo(
             if response.status_code == 429:
                 return {
                     "success": False,
-                    "error": "Rate limit exceeded by Apollo",
+                    "error": "Rate limit exceeded by Apollo API",
                     "leads": [],
-                    "fallback_to_dummy": True,
-                    "quota_exceeded": True
+                    "quota_exceeded": True,
+                    "paused": True
                 }
             
             return {
                 "success": False,
                 "error": error_msg,
                 "leads": [],
-                "fallback_to_dummy": True
+                "paused": True
             }
         
         data = response.json()
@@ -381,9 +381,9 @@ def fetch_leads_from_apollo(
         _log_fetch(query, 0, False, "timeout")
         return {
             "success": False,
-            "error": "Request timeout",
+            "error": "Request timeout - Apollo API not responding",
             "leads": [],
-            "fallback_to_dummy": True
+            "paused": True
         }
     except Exception as e:
         state.last_error = str(e)
@@ -393,7 +393,7 @@ def fetch_leads_from_apollo(
             "success": False,
             "error": str(e),
             "leads": [],
-            "fallback_to_dummy": True
+            "paused": True
         }
 
 
@@ -416,8 +416,8 @@ def get_fetch_log(limit: int = 50) -> List[Dict]:
 
 def test_apollo_connection() -> Dict[str, Any]:
     """
-    Test Apollo connection by fetching a single lead.
-    Used for validation without counting against quota.
+    Test Apollo connection by fetching sample leads.
+    This DOES count against quota (1 API call).
     """
     result = fetch_leads_from_apollo(
         location="Miami",
@@ -430,11 +430,18 @@ def test_apollo_connection() -> Dict[str, Any]:
     if result.get("success") and result.get("leads"):
         return {
             "success": True,
-            "message": f"Connection verified - found {len(result['leads'])} test leads",
-            "sample_lead": result["leads"][0] if result["leads"] else None
+            "message": f"Connection verified - found {len(result['leads'])} real leads",
+            "leads": result["leads"],
+            "calls_remaining": result.get("calls_remaining")
+        }
+    elif result.get("paused"):
+        return {
+            "success": False,
+            "error": result.get("error", "Lead generation paused"),
+            "paused": True
         }
     else:
         return {
             "success": False,
-            "error": result.get("error", "No leads found")
+            "error": result.get("error", "No leads found - check your Apollo search criteria")
         }

@@ -12,22 +12,21 @@ Environment Variables:
     
 PRODUCTION mode:
     - Startup banner: [RELEASE_MODE][PRODUCTION]
-    - Uses real lead sources (SearchApi if configured)
+    - Uses Apollo.io for lead generation (ONLY source - no fallbacks)
     - Sends real emails (if EMAIL_MODE=SMTP or SENDGRID)
     - Strict validation of all credentials
-    - Warnings for high-volume email settings
-    - Enforces DRY_RUN fallback for missing credentials
+    - Lead generation pauses if Apollo not connected
 
 SANDBOX mode (default):
     - Startup banner: [RELEASE_MODE][SANDBOX]
-    - Always uses DummySeed lead provider
+    - Lead generation paused (requires Apollo connection)
     - Safe for testing - must explicitly opt into production
     - Lenient configuration (DRY_RUN acceptable)
-    - No high-volume warnings
 
 To change modes, update env vars in Replit Secrets:
     RELEASE_MODE=PRODUCTION  # Enable real lead sources + full pipeline
     EMAIL_MODE=SMTP          # Enable real email sending
+    APOLLO_API_KEY=xxx       # Required for lead generation
 """
 import os
 from enum import Enum
@@ -127,8 +126,8 @@ def get_release_mode_status() -> Dict[str, Any]:
         if not enable_stripe:
             warnings.append("PRODUCTION mode but ENABLE_STRIPE=FALSE - no payment links")
         
-        if not lead_api_configured:
-            warnings.append("PRODUCTION mode but no LEAD_SEARCH_API_KEY - using DummySeed")
+        if not os.getenv("APOLLO_API_KEY"):
+            warnings.append("PRODUCTION mode but no APOLLO_API_KEY - lead generation PAUSED")
         
         if email_mode == "SENDGRID" and not os.getenv("SENDGRID_API_KEY"):
             errors.append("SENDGRID mode configured but SENDGRID_API_KEY not set - will fallback to DRY_RUN")
@@ -208,14 +207,12 @@ def print_startup_banners() -> None:
         else:
             print("[EMAIL][STARTUP] SMTP configured and ready")
     
-    lead_api = os.getenv("LEAD_SEARCH_API_KEY")
-    if mode == ReleaseMode.PRODUCTION:
-        if lead_api:
-            print("[LEADS][STARTUP] SearchApi configured (production mode)")
-        else:
-            print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no LEAD_SEARCH_API_KEY - using DummySeed fallback")
+    apollo_key = os.getenv("APOLLO_API_KEY")
+    if apollo_key:
+        print("[LEADS][STARTUP] Apollo.io configured - lead generation ACTIVE")
     else:
-        print("[LEADS][STARTUP] Using DummySeed provider (sandbox mode)")
+        print("[LEADS][STARTUP] Apollo.io NOT configured - lead generation PAUSED")
+        print("[LEADS][STARTUP] Connect Apollo via admin console or set APOLLO_API_KEY")
 
 
 def get_throttle_defaults() -> Dict[str, int]:
