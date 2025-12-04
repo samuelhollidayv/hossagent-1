@@ -758,11 +758,15 @@
         <div class="autopilot-control">
             <div class="status-panel">
                 <div class="status-row">
+                    <span>Mode:</span>
+                    <span class="status" id="release-mode">...</span>
+                </div>
+                <div class="status-row">
                     <span>Autopilot:</span>
                     <span class="status" id="autopilot-status">Loading...</span>
                 </div>
                 <div class="status-row">
-                    <span>Outbound:</span>
+                    <span>Email:</span>
                     <span class="status" id="email-mode">...</span>
                 </div>
             </div>
@@ -1016,8 +1020,27 @@
                 autopilotEnabled = data.autopilot_enabled;
                 updateAutopilotUI();
                 
+                const releaseModeEl = document.getElementById('release-mode');
+                if (data.release_mode) {
+                    const mode = data.release_mode.release_mode;
+                    releaseModeEl.textContent = mode;
+                    if (mode === 'PRODUCTION') {
+                        releaseModeEl.className = 'status enabled';
+                    } else {
+                        releaseModeEl.className = 'status warning';
+                    }
+                }
+                
                 const emailModeEl = document.getElementById('email-mode');
-                if (data.email) {
+                if (data.release_mode) {
+                    const mode = data.release_mode.effective_email_mode || data.release_mode.email_mode;
+                    emailModeEl.textContent = mode;
+                    if (mode === 'DRY_RUN' || mode.includes('fallback')) {
+                        emailModeEl.className = 'status warning';
+                    } else {
+                        emailModeEl.className = 'status enabled';
+                    }
+                } else if (data.email) {
                     const mode = data.email.mode;
                     emailModeEl.textContent = mode;
                     if (mode === 'DRY_RUN') {

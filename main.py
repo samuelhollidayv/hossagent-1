@@ -1634,18 +1634,20 @@ async def toggle_autopilot(enabled: bool, session: Session = Depends(get_session
 
 @app.get("/api/settings")
 def get_settings(session: Session = Depends(get_session)):
-    """Get current system settings including email configuration."""
+    """Get current system settings including email and release mode configuration."""
     settings = session.exec(
         select(SystemSettings).where(SystemSettings.id == 1)
     ).first()
     email_status = get_email_status()
+    release_status = get_release_mode_status()
     
     if settings:
         return {
             "autopilot_enabled": settings.autopilot_enabled,
-            "email": email_status
+            "email": email_status,
+            "release_mode": release_status
         }
-    return {"error": "Settings not found", "email": email_status}
+    return {"error": "Settings not found", "email": email_status, "release_mode": release_status}
 
 
 @app.get("/api/email-log")

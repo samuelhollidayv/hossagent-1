@@ -223,6 +223,7 @@ def get_throttle_defaults() -> Dict[str, int]:
     Get default throttle values based on release mode.
     
     Returns sensible defaults that can be overridden by env vars.
+    SANDBOX and PRODUCTION both use the same defaults for simplicity.
     """
     mode = get_release_mode()
     
@@ -231,12 +232,6 @@ def get_throttle_defaults() -> Dict[str, int]:
             "max_emails_per_cycle": 10,
             "max_emails_per_hour": 50,
             "max_new_leads_per_cycle": 10
-        }
-    elif mode == ReleaseMode.STAGING:
-        return {
-            "max_emails_per_cycle": 5,
-            "max_emails_per_hour": 20,
-            "max_new_leads_per_cycle": 5
         }
     else:
         return {
