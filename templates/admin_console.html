@@ -1190,6 +1190,123 @@
             color: var(--text-tertiary);
             font-size: 0.75rem;
         }
+
+        .signal-actions {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: nowrap;
+        }
+
+        .signal-action-btn {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.55rem;
+            font-family: inherit;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+
+        .signal-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .signal-action-btn.promote {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        .signal-action-btn.promote:hover:not(:disabled) {
+            background: #16a34a;
+        }
+
+        .signal-action-btn.discard {
+            background: var(--bg-tertiary);
+            color: var(--text-tertiary);
+            border: 1px solid var(--border-medium);
+        }
+
+        .signal-action-btn.discard:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .signal-action-btn.flag-noisy {
+            background: rgba(249, 115, 22, 0.15);
+            color: var(--accent-orange);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        .signal-action-btn.flag-noisy:hover:not(:disabled) {
+            background: rgba(249, 115, 22, 0.3);
+            border-color: var(--accent-orange);
+        }
+
+        .signal-row-discarded {
+            opacity: 0.4;
+            text-decoration: line-through;
+        }
+
+        .signal-row-promoted td {
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .signal-row-noisy {
+            border-left: 2px solid var(--accent-orange);
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            animation: slideIn 0.3s ease;
+            max-width: 320px;
+        }
+
+        .toast.success {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .toast.error {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .toast.warning {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1287,20 +1404,8 @@
                 <span id="apollo-status-text">Checking...</span>
             </div>
         </div>
-        <div class="apollo-controls">
-            <button class="apollo-btn primary" id="apollo-connect-btn" onclick="toggleApolloConnect()">Connect Apollo</button>
-            <button class="apollo-btn" id="apollo-test-btn" onclick="testApollo()" style="display: none;">Test Connection</button>
-            <button class="apollo-btn" id="apollo-disconnect-btn" onclick="disconnectApollo()" style="display: none;">Disconnect</button>
-        </div>
-        <div class="apollo-connect-form" id="apollo-connect-form">
-            <div class="apollo-hint">
-                Get your API key from <a href="https://app.apollo.io/settings/integrations/api-keys" target="_blank">apollo.io/settings/api-keys</a>
-            </div>
-            <input type="password" class="apollo-input" id="apollo-key-input" placeholder="Paste your Apollo.io API key...">
-            <div style="display: flex; gap: 0.5rem;">
-                <button class="apollo-btn primary" onclick="connectApollo()">Connect</button>
-                <button class="apollo-btn" onclick="toggleApolloConnect()">Cancel</button>
-            </div>
+        <div id="apollo-message" style="margin-bottom: 1rem; font-size: 0.75rem; color: var(--text-secondary); padding: 0.75rem; background: var(--bg-primary); border-radius: var(--radius-sm); border-left: 3px solid var(--border-medium);">
+            Checking connection status...
         </div>
         <div class="apollo-stats">
             <div class="apollo-stat">
@@ -1370,10 +1475,11 @@
                                 <th>Company</th>
                                 <th>Context</th>
                                 <th>LeadEvent</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="7" class="empty-row">Loading signals...</td></tr>
+                            <tr><td colspan="8" class="empty-row">Loading signals...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2225,9 +2331,7 @@
                 
                 const dot = document.getElementById('apollo-dot');
                 const statusText = document.getElementById('apollo-status-text');
-                const connectBtn = document.getElementById('apollo-connect-btn');
-                const testBtn = document.getElementById('apollo-test-btn');
-                const disconnectBtn = document.getElementById('apollo-disconnect-btn');
+                const messageBox = document.getElementById('apollo-message');
                 const provider = document.getElementById('apollo-provider');
                 const calls = document.getElementById('apollo-calls');
                 const total = document.getElementById('apollo-total');
@@ -2237,20 +2341,24 @@
                     if (status.rate_limit_ok === false) {
                         statusText.textContent = 'Quota Exceeded';
                         statusText.style.color = 'var(--accent-orange)';
+                        messageBox.style.borderLeftColor = 'var(--accent-orange)';
+                        messageBox.innerHTML = 'Daily API quota exceeded. Resets at midnight UTC.';
                     } else {
                         statusText.textContent = 'Connected';
                         statusText.style.color = 'var(--accent-green)';
+                        messageBox.style.borderLeftColor = 'var(--accent-green)';
+                        if (status.connection_source === 'environment_secret') {
+                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Connected via environment secret</span> — Lead generation active.';
+                        } else {
+                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Connected</span> — Lead generation active.';
+                        }
                     }
-                    connectBtn.style.display = 'none';
-                    testBtn.style.display = 'inline-block';
-                    disconnectBtn.style.display = 'inline-block';
                 } else {
                     dot.classList.remove('connected');
-                    statusText.textContent = 'Not Connected - Lead Gen Paused';
+                    statusText.textContent = 'Not Connected';
                     statusText.style.color = 'var(--accent-red)';
-                    connectBtn.style.display = 'inline-block';
-                    testBtn.style.display = 'none';
-                    disconnectBtn.style.display = 'none';
+                    messageBox.style.borderLeftColor = 'var(--accent-red)';
+                    messageBox.innerHTML = '<span style="color: var(--accent-orange);">Lead generation paused.</span> Set <code style="background: var(--bg-tertiary); padding: 0.15rem 0.4rem; border-radius: 3px;">APOLLO_API_KEY</code> in Secrets tab to enable.';
                 }
                 
                 provider.textContent = 'Apollo.io';
@@ -2259,81 +2367,6 @@
                 
             } catch (e) {
                 console.error('Apollo status error:', e);
-            }
-        }
-
-        function toggleApolloConnect() {
-            const form = document.getElementById('apollo-connect-form');
-            form.classList.toggle('visible');
-        }
-
-        async function connectApollo() {
-            const keyInput = document.getElementById('apollo-key-input');
-            const apiKey = keyInput.value.trim();
-            
-            if (!apiKey) {
-                addLog('Please enter an Apollo API key', 'error');
-                return;
-            }
-            
-            addLog('Connecting to Apollo.io...', '');
-            
-            try {
-                const res = await fetch(`/api/apollo/connect?api_key=${encodeURIComponent(apiKey)}`, {method: 'POST'});
-                const data = await res.json();
-                
-                if (data.success) {
-                    addLog('Apollo.io connected successfully!', 'success');
-                    keyInput.value = '';
-                    toggleApolloConnect();
-                    refreshApolloStatus();
-                } else {
-                    addLog(`Connection failed: ${data.error}`, 'error');
-                }
-            } catch (e) {
-                addLog(`Connection error: ${e.message}`, 'error');
-            }
-        }
-
-        async function disconnectApollo() {
-            if (!confirm('Disconnect Apollo.io? You can reconnect later.')) return;
-            
-            addLog('Disconnecting Apollo.io...', '');
-            
-            try {
-                const res = await fetch('/api/apollo/disconnect', {method: 'POST'});
-                const data = await res.json();
-                
-                if (data.success) {
-                    addLog('Apollo.io disconnected', 'success');
-                    refreshApolloStatus();
-                } else {
-                    addLog(`Disconnect failed: ${data.error}`, 'error');
-                }
-            } catch (e) {
-                addLog(`Disconnect error: ${e.message}`, 'error');
-            }
-        }
-
-        async function testApollo() {
-            addLog('Testing Apollo.io connection...', '');
-            
-            try {
-                const res = await fetch('/api/apollo/test', {method: 'POST'});
-                const data = await res.json();
-                
-                if (data.success) {
-                    addLog(`Apollo test successful! Found ${data.leads?.length || 0} sample leads`, 'success');
-                    if (data.leads && data.leads.length > 0) {
-                        const first = data.leads[0];
-                        addLog(`Example: ${first.name || first.company} <${first.email}>`, '');
-                    }
-                } else {
-                    addLog(`Test failed: ${data.error}`, 'error');
-                }
-                refreshApolloStatus();
-            } catch (e) {
-                addLog(`Test error: ${e.message}`, 'error');
             }
         }
 
@@ -2441,7 +2474,7 @@
             const tbody = document.getElementById('signal-stream-table').querySelector('tbody');
             
             if (!signals || signals.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-row">No signals yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No signals yet</td></tr>';
                 return;
             }
             
@@ -2465,8 +2498,38 @@
                     `<span class="signal-leadevent-badge yes">✓ LE #${sig.lead_event_id}</span>` :
                     `<span class="signal-leadevent-badge no">—</span>`;
                 
+                const isDiscarded = sig.status === 'DISCARDED';
+                const isPromoted = sig.status === 'PROMOTED';
+                const isNoisy = sig.noisy_pattern === true;
+                
+                let rowClass = '';
+                if (isDiscarded) rowClass = 'signal-row-discarded';
+                else if (isPromoted) rowClass = 'signal-row-promoted';
+                if (isNoisy) rowClass += ' signal-row-noisy';
+                
+                const promoteDisabled = hasEvent || isDiscarded || isPromoted;
+                const discardDisabled = isDiscarded;
+                const noisyDisabled = isNoisy;
+                
+                const actionButtons = `
+                    <div class="signal-actions">
+                        <button class="signal-action-btn promote" 
+                            onclick="promoteSignal(${sig.id})" 
+                            ${promoteDisabled ? 'disabled' : ''}
+                            title="Promote to LeadEvent">PROMOTE</button>
+                        <button class="signal-action-btn discard" 
+                            onclick="discardSignal(${sig.id})" 
+                            ${discardDisabled ? 'disabled' : ''}
+                            title="Discard signal">DISCARD</button>
+                        <button class="signal-action-btn flag-noisy" 
+                            onclick="flagNoisy(${sig.id})" 
+                            ${noisyDisabled ? 'disabled' : ''}
+                            title="Flag as noisy pattern">NOISY</button>
+                    </div>
+                `;
+                
                 return `
-                    <tr>
+                    <tr class="${rowClass}">
                         <td>${timestamp}</td>
                         <td>${sig.source_type || '-'}</td>
                         <td><span class="signal-category-badge">${category}</span></td>
@@ -2474,6 +2537,7 @@
                         <td>${companyName}</td>
                         <td class="signal-context-preview" title="${sig.context_summary || ''}">${context}</td>
                         <td>${eventBadge}</td>
+                        <td>${actionButtons}</td>
                     </tr>
                 `;
             }).join('');
@@ -2580,6 +2644,86 @@
             }
         }
 
+        function showToast(message, type = 'info') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        async function promoteSignal(signalId) {
+            try {
+                const res = await fetch(`/api/admin/signalnet/signal/${signalId}/promote`, {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    addLog(`Promoted signal ${signalId} to LeadEvent #${data.lead_event_id}`, 'success');
+                    refreshSignalNetStatus();
+                    refreshLeadEvents();
+                    refreshKPIs();
+                } else {
+                    showToast(data.error || 'Promotion failed', 'error');
+                    addLog(`Promotion failed: ${data.error}`, 'error');
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+                addLog(`Promote error: ${e.message}`, 'error');
+            }
+        }
+
+        async function discardSignal(signalId) {
+            try {
+                const res = await fetch(`/api/admin/signalnet/signal/${signalId}/discard`, {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    addLog(`Discarded signal ${signalId}`, 'success');
+                    refreshSignalNetStatus();
+                } else {
+                    showToast(data.detail || 'Discard failed', 'error');
+                    addLog(`Discard failed: ${data.detail}`, 'error');
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+                addLog(`Discard error: ${e.message}`, 'error');
+            }
+        }
+
+        async function flagNoisy(signalId) {
+            try {
+                const res = await fetch(`/api/admin/signalnet/signal/${signalId}/flag-noisy`, {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'warning');
+                    addLog(`Flagged signal ${signalId} as noisy (${data.source_type})`, 'success');
+                    refreshSignalNetStatus();
+                } else {
+                    showToast(data.detail || 'Flag failed', 'error');
+                    addLog(`Flag noisy failed: ${data.detail}`, 'error');
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+                addLog(`Flag noisy error: ${e.message}`, 'error');
+            }
+        }
+
         loadSettings();
         refreshAllData();
         refreshSignalNetStatus();
@@ -2588,5 +2732,6 @@
         setInterval(refreshAllData, 60000);
         setInterval(refreshSignalNetStatus, 60000);
     </script>
+    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>

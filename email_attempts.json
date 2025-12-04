@@ -37448,5 +37448,415 @@
     "mode": "SMTP",
     "result": "throttled",
     "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:36.426160",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:36.612265",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:36.796451",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:37.107965",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:37.344451",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "Vanguard Consulting Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:37.536554",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:37.722426",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:37.852273",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:38.074560",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:48:38.228843",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:34.621037",
+    "lead_name": "Laura White",
+    "company": "Precision Demand Gen",
+    "to_email": "laura@precisiondemand.io",
+    "subject": "Precision Demand Gen - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:34.833564",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:35.016697",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "Vanguard Consulting Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:35.253873",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:35.453522",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:35.588593",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:35.725181",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:35.834138",
+    "lead_name": "Rachel Thompson",
+    "company": "Horizon Brand Studio",
+    "to_email": "rachel@horizonbrand.co",
+    "subject": "Horizon Brand Studio - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:36.048682",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:52:36.199340",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:02:01.265649",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "Meridian Marketing Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:02:04.137278",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:02:08.228212",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:02:11.827055",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:02:15.160991",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:02:20.258365",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:04:53.665176",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "Meridian Marketing Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:04:58.118935",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:05:04.607386",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:05:07.534165",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:05:13.641239",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:08.916326",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "Meridian Marketing Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:15.069424",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:20.926575",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:25.701053",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:29.019874",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:32.091321",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:37.130167",
+    "lead_name": "Rachel Thompson",
+    "company": "Horizon Brand Studio",
+    "to_email": "rachel@horizonbrand.co",
+    "subject": "Horizon Brand Studio - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:41.048895",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:44.478613",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:06:48.419350",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

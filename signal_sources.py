@@ -17,6 +17,20 @@ Environment variable SIGNAL_MODE controls signal pipeline behavior:
 Default: SANDBOX (safe mode for development)
 
 ============================================================================
+DRY_RUN MODE
+============================================================================
+Environment variable SIGNAL_DRY_RUN controls API call behavior:
+
+  True/1/yes: Sources log what they WOULD fetch, generate mock data instead
+  False/0/no: Sources make real API calls (default)
+
+When DRY_RUN is enabled:
+  - All log messages are prefixed with [DRY_RUN]
+  - No external API calls are made
+  - Mock/sample signals are generated for testing
+  - Useful for development and testing without hitting rate limits
+
+============================================================================
 ARCHITECTURE
 ============================================================================
 
@@ -27,6 +41,17 @@ ARCHITECTURE
   SignalPipeline            - Orchestrates fetch -> parse -> score -> persist
        |
   score_signal()            - Scoring utility with weighted factors
+       |
+  log_signal_activity()     - Structured logging for debugging
+
+============================================================================
+ERROR HANDLING & AUTO-DISABLE
+============================================================================
+Per-source error tracking:
+  - error_count: Consecutive error count
+  - MAX_CONSECUTIVE_ERRORS: 5 (default)
+  - Sources with > 5 consecutive errors are auto-disabled
+  - Use reset_source() to re-enable disabled sources
 
 ============================================================================
 MIAMI-FIRST TARGETING
@@ -40,6 +65,7 @@ Via LEAD_GEOGRAPHY and LEAD_NICHE environment variables:
 
 import json
 import os
+import random
 import requests
 import time
 from abc import ABC, abstractmethod
@@ -48,7 +74,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, Type
 from sqlmodel import Session, select
 
-from models import Signal, LeadEvent
+from models import Signal, LeadEvent, SignalLog
 
 
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
@@ -56,6 +82,7 @@ NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
 
 
 SIGNAL_MODE = os.environ.get("SIGNAL_MODE", "SANDBOX").upper()
+SIGNAL_DRY_RUN = os.environ.get("SIGNAL_DRY_RUN", "false").lower() in ("true", "1", "yes")
 LEAD_GEOGRAPHY = os.environ.get("LEAD_GEOGRAPHY", "Miami, Broward, South Florida")
 LEAD_NICHE = os.environ.get("LEAD_NICHE", "HVAC, Roofing, Med Spa, Immigration Attorney")
 
@@ -63,6 +90,7 @@ LEAD_GEOGRAPHY_LIST = [g.strip().lower() for g in LEAD_GEOGRAPHY.split(",")]
 LEAD_NICHE_LIST = [n.strip().lower() for n in LEAD_NICHE.split(",")]
 
 LEADEVENT_SCORE_THRESHOLD = 65
+MAX_CONSECUTIVE_ERRORS = 5
 
 URGENCY_CATEGORY_WEIGHTS = {
     "HURRICANE": 95,
@@ -80,7 +108,76 @@ URGENCY_CATEGORY_WEIGHTS = {
     "DEFAULT": 50,
 }
 
-print(f"[SIGNALNET][STARTUP] Mode: {SIGNAL_MODE}, Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
+_log_session: Optional[Session] = None
+
+
+def _get_dry_run_prefix() -> str:
+    """Get log prefix for dry run mode."""
+    return "[DRY_RUN]" if SIGNAL_DRY_RUN else ""
+
+
+def log_signal_activity(
+    source_name: str,
+    action: str,
+    details: Optional[Dict] = None,
+    signal_count: int = 0,
+    error: Optional[str] = None,
+    session: Optional[Session] = None
+) -> None:
+    """
+    Log signal activity for debugging with structured format.
+    
+    Logs to console and optionally persists to database for admin visibility.
+    
+    Args:
+        source_name: Name of the signal source (e.g., 'weather_openweather')
+        action: Action being performed (fetch, parse, score, persist, error, dry_run, auto_disable, reset)
+        details: Optional dict with relevant context data
+        signal_count: Number of signals processed (if applicable)
+        error: Error message (if any)
+        session: Optional database session for persistence
+    """
+    prefix = _get_dry_run_prefix()
+    timestamp = datetime.utcnow().isoformat()
+    
+    details_str = json.dumps(details) if details else "{}"
+    
+    log_level = "ERROR" if error else "INFO"
+    error_part = f" | Error: {error}" if error else ""
+    count_part = f" | Count: {signal_count}" if signal_count > 0 else ""
+    
+    console_msg = f"{prefix}[SIGNALNET][{source_name.upper()}][{action.upper()}] {details_str[:200]}{count_part}{error_part}"
+    print(console_msg)
+    
+    if session:
+        try:
+            log_entry = SignalLog(
+                timestamp=datetime.utcnow(),
+                source_name=source_name,
+                action=action,
+                details=details_str,
+                signal_count=signal_count,
+                error_message=error,
+                dry_run=SIGNAL_DRY_RUN,
+            )
+            session.add(log_entry)
+            session.commit()
+        except Exception as e:
+            print(f"[SIGNALNET][LOG] Failed to persist log entry: {e}")
+
+
+def set_log_session(session: Optional[Session]) -> None:
+    """Set the global session for logging persistence."""
+    global _log_session
+    _log_session = session
+
+
+def get_log_session() -> Optional[Session]:
+    """Get the global session for logging persistence."""
+    return _log_session
+
+
+print(f"{_get_dry_run_prefix()}[SIGNALNET][STARTUP] Mode: {SIGNAL_MODE}, DRY_RUN: {SIGNAL_DRY_RUN}, Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
 
 
 @dataclass
@@ -146,16 +243,29 @@ class SignalSource(ABC):
       - last_run: When the source was last executed
       - last_error: Most recent error message (if any)
       - items_last_run: Number of signals fetched in last run
+      - error_count: Consecutive error count (for auto-disable)
     
     Cooldown and rate limiting:
       - cooldown_seconds: Minimum time between runs
       - max_items_per_run: Cap on signals per execution
+    
+    Auto-disable:
+      - Sources with > MAX_CONSECUTIVE_ERRORS (5) are auto-disabled
+      - Use reset_source() to re-enable
+    
+    DRY_RUN mode:
+      - When SIGNAL_DRY_RUN is True, sources generate mock data instead of API calls
+      - Override _generate_mock_signals() for source-specific mock data
     """
     
     def __init__(self):
         self._last_run: Optional[datetime] = None
+        self._next_eligible: Optional[datetime] = None
         self._last_error: Optional[str] = None
         self._items_last_run: int = 0
+        self._error_count: int = 0
+        self._auto_disabled: bool = False
+        self._disabled_reason: Optional[str] = None
     
     @property
     @abstractmethod
@@ -190,6 +300,11 @@ class SignalSource(ABC):
         return self._last_run
     
     @property
+    def next_eligible(self) -> Optional[datetime]:
+        """When this source will next be eligible to run."""
+        return self._next_eligible
+    
+    @property
     def last_error(self) -> Optional[str]:
         """Most recent error message, if any."""
         return self._last_error
@@ -199,15 +314,39 @@ class SignalSource(ABC):
         """Number of signals fetched in last run."""
         return self._items_last_run
     
+    @property
+    def error_count(self) -> int:
+        """Consecutive error count."""
+        return self._error_count
+    
+    @property
+    def is_auto_disabled(self) -> bool:
+        """Whether source was auto-disabled due to errors."""
+        return self._auto_disabled
+    
+    @property
+    def disabled_reason(self) -> Optional[str]:
+        """Reason for auto-disable, if applicable."""
+        return self._disabled_reason
+    
+    @property
+    def is_dry_run(self) -> bool:
+        """Check if DRY_RUN mode is enabled globally."""
+        return SIGNAL_DRY_RUN
+    
     def is_eligible(self) -> bool:
         """
         Check if this source is eligible to run.
         
         Returns True if:
           - Source is enabled
+          - Source is not auto-disabled
           - Cooldown period has elapsed since last_run
         """
         if not self.enabled:
+            return False
+        
+        if self._auto_disabled:
             return False
         
         if self._last_run is None:
@@ -217,10 +356,92 @@ class SignalSource(ABC):
         return elapsed >= self.cooldown_seconds
     
     def record_run(self, items_count: int, error: Optional[str] = None):
-        """Record the results of a run."""
+        """Record the results of a run and update error tracking."""
         self._last_run = datetime.utcnow()
+        self._next_eligible = self._last_run + timedelta(seconds=self.cooldown_seconds)
         self._items_last_run = items_count
         self._last_error = error
+        
+        if error:
+            self._error_count += 1
+            if self._error_count >= MAX_CONSECUTIVE_ERRORS:
+                self._auto_disabled = True
+                self._disabled_reason = f"Auto-disabled after {self._error_count} consecutive errors: {error}"
+                log_signal_activity(
+                    self.name,
+                    "auto_disable",
+                    {"error_count": self._error_count, "last_error": error},
+                    error=self._disabled_reason,
+                    session=get_log_session()
+                )
+        else:
+            self._error_count = 0
+    
+    def reset(self) -> bool:
+        """
+        Reset source error state and re-enable if auto-disabled.
+        
+        Returns:
+            True if source was reset, False if no reset needed
+        """
+        was_disabled = self._auto_disabled
+        self._error_count = 0
+        self._auto_disabled = False
+        self._disabled_reason = None
+        self._last_error = None
+        
+        if was_disabled:
+            log_signal_activity(
+                self.name,
+                "reset",
+                {"previously_disabled": True, "reason": "Manual reset"},
+                session=get_log_session()
+            )
+        
+        return was_disabled
+    
+    def _generate_mock_signals(self) -> List[RawSignal]:
+        """
+        Generate mock signals for DRY_RUN mode.
+        
+        Override in subclasses for source-specific mock data.
+        Default implementation returns 1-3 generic mock signals.
+        """
+        num_signals = random.randint(1, 3)
+        signals = []
+        
+        for i in range(num_signals):
+            signals.append(RawSignal(
+                source_name=self.name,
+                source_type=self.source_type,
+                raw_data={
+                    "mock": True,
+                    "index": i,
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "description": f"Mock signal #{i+1} from {self.name}",
+                },
+                geography="Miami",
+            ))
+        
+        return signals
+    
+    def fetch_with_dry_run(self) -> List[RawSignal]:
+        """
+        Wrapper for fetch() that handles DRY_RUN mode.
+        
+        In DRY_RUN mode, logs what would be fetched and returns mock data.
+        In normal mode, calls the actual fetch() implementation.
+        """
+        if self.is_dry_run:
+            log_signal_activity(
+                self.name,
+                "dry_run",
+                {"action": "would_fetch", "source_type": self.source_type},
+                session=get_log_session()
+            )
+            return self._generate_mock_signals()
+        else:
+            return self.fetch()
     
     @abstractmethod
     def fetch(self) -> List[RawSignal]:
@@ -257,9 +478,33 @@ class SignalSource(ABC):
             "cooldown_seconds": self.cooldown_seconds,
             "max_items_per_run": self.max_items_per_run,
             "last_run": self._last_run.isoformat() if self._last_run else None,
+            "next_eligible": self._next_eligible.isoformat() if self._next_eligible else None,
             "last_error": self._last_error,
             "items_last_run": self._items_last_run,
+            "error_count": self._error_count,
+            "is_auto_disabled": self._auto_disabled,
+            "disabled_reason": self._disabled_reason,
             "is_eligible": self.is_eligible(),
+            "dry_run": self.is_dry_run,
+        }
+    
+    def get_throttle_status(self) -> Dict[str, Any]:
+        """Get throttle and error tracking status for this source."""
+        now = datetime.utcnow()
+        time_until_eligible = None
+        
+        if self._next_eligible and self._next_eligible > now:
+            time_until_eligible = (self._next_eligible - now).total_seconds()
+        
+        return {
+            "name": self.name,
+            "last_run": self._last_run.isoformat() if self._last_run else None,
+            "next_eligible": self._next_eligible.isoformat() if self._next_eligible else None,
+            "seconds_until_eligible": time_until_eligible,
+            "error_count": self._error_count,
+            "max_errors_before_disable": MAX_CONSECUTIVE_ERRORS,
+            "is_auto_disabled": self._auto_disabled,
+            "disabled_reason": self._disabled_reason,
         }
 
 
@@ -535,11 +780,11 @@ def _generate_recommended_action(category: str, context: str) -> str:
 
 class SignalPipeline:
     """
-    Orchestrates the signal ingestion pipeline.
+    Orchestrates the signal ingestion pipeline with structured logging.
     
     Pipeline stages:
       1. Get eligible sources from registry
-      2. Fetch raw signals from each source
+      2. Fetch raw signals from each source (or mock in DRY_RUN mode)
       3. Parse raw signals into standardized format
       4. Score each signal
       5. Persist signals to database
@@ -549,12 +794,23 @@ class SignalPipeline:
       - PRODUCTION: Full pipeline including LeadEvent creation
       - SANDBOX: Fetch, parse, score, persist signals - skip LeadEvent creation
       - OFF: Skip signal ingestion entirely
+    
+    DRY_RUN behavior (via SIGNAL_DRY_RUN env var):
+      - When True: Sources generate mock data instead of API calls
+      - All operations are logged with [DRY_RUN] prefix
+    
+    Error handling:
+      - Each source is processed independently
+      - Sources with > 5 consecutive errors are auto-disabled
+      - Structured logging captures all actions for debugging
     """
     
     def __init__(self, registry: SignalRegistry, session: Session):
         self.registry = registry
         self.session = session
         self.mode = SIGNAL_MODE
+        self.dry_run = SIGNAL_DRY_RUN
+        set_log_session(session)
     
     def run(self) -> Dict[str, Any]:
         """
@@ -563,24 +819,43 @@ class SignalPipeline:
         Returns:
             Dict with pipeline execution results
         """
+        prefix = _get_dry_run_prefix()
+        
         if self.mode == "OFF":
-            print("[SIGNALNET][PIPELINE] Mode is OFF - skipping signal ingestion")
+            log_signal_activity(
+                "pipeline",
+                "skip",
+                {"reason": "SIGNAL_MODE is OFF"},
+                session=self.session
+            )
             return {
                 "mode": "OFF",
+                "dry_run": self.dry_run,
                 "skipped": True,
                 "signals_fetched": 0,
                 "signals_persisted": 0,
                 "events_created": 0,
             }
         
-        print(f"[SIGNALNET][PIPELINE] Starting pipeline in {self.mode} mode...")
+        log_signal_activity(
+            "pipeline",
+            "start",
+            {"mode": self.mode, "dry_run": self.dry_run},
+            session=self.session
+        )
         
         eligible_sources = self.registry.get_eligible_sources()
         
         if not eligible_sources:
-            print("[SIGNALNET][PIPELINE] No eligible sources - all on cooldown or disabled")
+            log_signal_activity(
+                "pipeline",
+                "no_sources",
+                {"reason": "All sources on cooldown or disabled"},
+                session=self.session
+            )
             return {
                 "mode": self.mode,
+                "dry_run": self.dry_run,
                 "skipped": False,
                 "sources_checked": len(self.registry.get_all_sources()),
                 "sources_eligible": 0,
@@ -591,6 +866,7 @@ class SignalPipeline:
         
         results = {
             "mode": self.mode,
+            "dry_run": self.dry_run,
             "skipped": False,
             "sources_checked": len(self.registry.get_all_sources()),
             "sources_eligible": len(eligible_sources),
@@ -617,16 +893,26 @@ class SignalPipeline:
                     "error": source_result["error"],
                 })
         
-        print(f"[SIGNALNET][PIPELINE] Complete: {results['signals_persisted']} signals, "
-              f"{results['events_created']} events")
+        log_signal_activity(
+            "pipeline",
+            "complete",
+            {
+                "signals_persisted": results["signals_persisted"],
+                "events_created": results["events_created"],
+                "errors_count": len(results["errors"]),
+            },
+            signal_count=results["signals_persisted"],
+            session=self.session
+        )
         
         return results
     
     def _run_source(self, source: SignalSource) -> Dict[str, Any]:
-        """Run a single source through the pipeline."""
+        """Run a single source through the pipeline with structured logging."""
         result = {
             "source": source.name,
             "source_type": source.source_type,
+            "dry_run": source.is_dry_run,
             "fetched": 0,
             "parsed": 0,
             "scored": 0,
@@ -636,13 +922,24 @@ class SignalPipeline:
         }
         
         try:
-            print(f"[SIGNALNET][{source.name.upper()}] Fetching signals...")
-            raw_signals = source.fetch()
+            log_signal_activity(
+                source.name,
+                "fetch",
+                {"source_type": source.source_type, "dry_run": source.is_dry_run},
+                session=self.session
+            )
+            
+            raw_signals = source.fetch_with_dry_run()
             result["fetched"] = len(raw_signals)
             
             if len(raw_signals) > source.max_items_per_run:
                 raw_signals = raw_signals[:source.max_items_per_run]
-                print(f"[SIGNALNET][{source.name.upper()}] Capped at {source.max_items_per_run} items")
+                log_signal_activity(
+                    source.name,
+                    "throttle",
+                    {"capped_at": source.max_items_per_run, "original": result["fetched"]},
+                    session=self.session
+                )
             
             for raw_signal in raw_signals:
                 try:
@@ -652,30 +949,116 @@ class SignalPipeline:
                     scored = score_signal(parsed)
                     result["scored"] += 1
                     
-                    signal = self._persist_signal(parsed)
+                    log_signal_activity(
+                        source.name,
+                        "score",
+                        {"score": scored.score, "should_create_event": scored.should_create_event},
+                        session=self.session
+                    )
+                    
+                    signal = self._persist_signal(parsed, source.name)
                     result["persisted"] += 1
                     
                     if scored.should_create_event and self.mode == "PRODUCTION":
-                        self._create_lead_event(signal, scored)
+                        self._create_lead_event(signal, scored, source.name)
                         result["events_created"] += 1
                     elif scored.should_create_event and self.mode == "SANDBOX":
-                        print(f"[SIGNALNET][SANDBOX] Would create event (score={scored.score}) - skipped in SANDBOX")
+                        log_signal_activity(
+                            source.name,
+                            "sandbox_skip_event",
+                            {"score": scored.score, "reason": "SANDBOX mode"},
+                            session=self.session
+                        )
                     
+                except ValueError as ve:
+                    log_signal_activity(
+                        source.name,
+                        "error",
+                        {"stage": "parse", "error_type": "ValueError"},
+                        error=str(ve),
+                        session=self.session
+                    )
+                except TypeError as te:
+                    log_signal_activity(
+                        source.name,
+                        "error",
+                        {"stage": "parse", "error_type": "TypeError"},
+                        error=str(te),
+                        session=self.session
+                    )
                 except Exception as parse_err:
-                    print(f"[SIGNALNET][{source.name.upper()}] Parse error: {parse_err}")
+                    log_signal_activity(
+                        source.name,
+                        "error",
+                        {"stage": "parse", "error_type": type(parse_err).__name__},
+                        error=str(parse_err),
+                        session=self.session
+                    )
             
             source.record_run(result["fetched"])
             
+            log_signal_activity(
+                source.name,
+                "complete",
+                {
+                    "fetched": result["fetched"],
+                    "parsed": result["parsed"],
+                    "persisted": result["persisted"],
+                    "events_created": result["events_created"],
+                },
+                signal_count=result["persisted"],
+                session=self.session
+            )
+            
+        except requests.exceptions.ConnectionError as ce:
+            error_msg = f"Connection error: {str(ce)}"
+            result["error"] = error_msg
+            source.record_run(0, error=error_msg)
+            log_signal_activity(
+                source.name,
+                "error",
+                {"stage": "fetch", "error_type": "ConnectionError"},
+                error=error_msg,
+                session=self.session
+            )
+        except requests.exceptions.Timeout as te:
+            error_msg = f"Timeout error: {str(te)}"
+            result["error"] = error_msg
+            source.record_run(0, error=error_msg)
+            log_signal_activity(
+                source.name,
+                "error",
+                {"stage": "fetch", "error_type": "Timeout"},
+                error=error_msg,
+                session=self.session
+            )
+        except requests.exceptions.HTTPError as he:
+            error_msg = f"HTTP error: {str(he)}"
+            result["error"] = error_msg
+            source.record_run(0, error=error_msg)
+            log_signal_activity(
+                source.name,
+                "error",
+                {"stage": "fetch", "error_type": "HTTPError", "status_code": getattr(he.response, 'status_code', None)},
+                error=error_msg,
+                session=self.session
+            )
         except Exception as fetch_err:
             error_msg = str(fetch_err)
             result["error"] = error_msg
             source.record_run(0, error=error_msg)
-            print(f"[SIGNALNET][{source.name.upper()}] Fetch error: {error_msg}")
+            log_signal_activity(
+                source.name,
+                "error",
+                {"stage": "fetch", "error_type": type(fetch_err).__name__},
+                error=error_msg,
+                session=self.session
+            )
         
         return result
     
-    def _persist_signal(self, parsed: ParsedSignal) -> Signal:
-        """Persist a parsed signal to the database."""
+    def _persist_signal(self, parsed: ParsedSignal, source_name: str) -> Signal:
+        """Persist a parsed signal to the database with structured logging."""
         signal = Signal(
             company_id=parsed.company_id,
             lead_id=parsed.lead_id,
@@ -688,11 +1071,23 @@ class SignalPipeline:
         self.session.commit()
         self.session.refresh(signal)
         
-        print(f"[SIGNALNET][PERSIST] Signal #{signal.id}: {parsed.source_type} - {parsed.context_summary[:60]}...")
+        log_signal_activity(
+            source_name,
+            "persist",
+            {
+                "signal_id": signal.id,
+                "source_type": parsed.source_type,
+                "geography": parsed.geography,
+                "summary_preview": parsed.context_summary[:60] if parsed.context_summary else None,
+            },
+            signal_count=1,
+            session=self.session
+        )
+        
         return signal
     
-    def _create_lead_event(self, signal: Signal, scored: ScoredSignal) -> LeadEvent:
-        """Create a LeadEvent from a high-scoring signal."""
+    def _create_lead_event(self, signal: Signal, scored: ScoredSignal, source_name: str) -> LeadEvent:
+        """Create a LeadEvent from a high-scoring signal with structured logging."""
         parsed = scored.parsed_signal
         category = parsed.category_hint or _infer_category(
             parsed.source_type,
@@ -715,7 +1110,18 @@ class SignalPipeline:
         self.session.commit()
         self.session.refresh(event)
         
-        print(f"[SIGNALNET][EVENT] LeadEvent #{event.id}: {category} (urgency={scored.score})")
+        log_signal_activity(
+            source_name,
+            "create_event",
+            {
+                "event_id": event.id,
+                "signal_id": signal.id,
+                "category": category,
+                "urgency_score": scored.score,
+            },
+            session=self.session
+        )
+        
         return event
 
 
@@ -760,11 +1166,93 @@ def get_signal_status() -> Dict[str, Any]:
     """Get comprehensive status of the SignalNet system."""
     return {
         "mode": SIGNAL_MODE,
+        "dry_run": SIGNAL_DRY_RUN,
         "lead_geography": LEAD_GEOGRAPHY,
         "lead_niche": LEAD_NICHE,
         "leadevent_threshold": LEADEVENT_SCORE_THRESHOLD,
+        "max_consecutive_errors": MAX_CONSECUTIVE_ERRORS,
         "registry": _global_registry.get_status(),
     }
+
+
+def get_source_throttle_status(source_name: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get throttle and error tracking status for sources.
+    
+    Args:
+        source_name: Optional specific source name to get status for.
+                     If None, returns status for all sources.
+    
+    Returns:
+        Dict with throttle status for requested source(s)
+    """
+    if source_name:
+        source = _global_registry.get_source(source_name)
+        if source:
+            return source.get_throttle_status()
+        else:
+            return {"error": f"Source '{source_name}' not found"}
+    
+    sources = _global_registry.get_all_sources()
+    return {
+        "sources": [s.get_throttle_status() for s in sources],
+        "auto_disabled_count": sum(1 for s in sources if s.is_auto_disabled),
+        "total_sources": len(sources),
+    }
+
+
+def reset_source(source_name: str) -> Dict[str, Any]:
+    """
+    Reset a source's error state and re-enable if auto-disabled.
+    
+    Args:
+        source_name: Name of the source to reset
+        
+    Returns:
+        Dict with reset result
+    """
+    source = _global_registry.get_source(source_name)
+    if not source:
+        return {"success": False, "error": f"Source '{source_name}' not found"}
+    
+    was_disabled = source.reset()
+    
+    return {
+        "success": True,
+        "source": source_name,
+        "was_disabled": was_disabled,
+        "current_status": source.get_status(),
+    }
+
+
+def reset_all_sources() -> Dict[str, Any]:
+    """
+    Reset all sources' error states and re-enable any auto-disabled sources.
+    
+    Returns:
+        Dict with reset results for all sources
+    """
+    sources = _global_registry.get_all_sources()
+    reset_results = []
+    
+    for source in sources:
+        was_disabled = source.reset()
+        reset_results.append({
+            "source": source.name,
+            "was_disabled": was_disabled,
+        })
+    
+    return {
+        "success": True,
+        "sources_reset": len(sources),
+        "previously_disabled": sum(1 for r in reset_results if r["was_disabled"]),
+        "results": reset_results,
+    }
+
+
+def is_dry_run() -> bool:
+    """Check if DRY_RUN mode is enabled."""
+    return SIGNAL_DRY_RUN
 
 
 class SyntheticSignalSource(SignalSource):
@@ -773,7 +1261,43 @@ class SyntheticSignalSource(SignalSource):
     
     Generates synthetic signals based on the existing signals_agent patterns.
     Useful for testing the pipeline without real API integrations.
+    
+    Note: This source always generates mock data (no external API),
+    so DRY_RUN mode has no effect on its behavior.
     """
+    
+    MIAMI_AREAS = [
+        "Miami", "Coral Gables", "Brickell", "Wynwood", "Little Havana",
+        "Doral", "Hialeah", "Miami Beach", "Fort Lauderdale", "Broward County",
+    ]
+    
+    SIGNAL_TEMPLATES = [
+        {
+            "type": "competitor_update",
+            "summary": "Competitor updated pricing for core services",
+            "category": "COMPETITOR_SHIFT",
+        },
+        {
+            "type": "job_posting",
+            "summary": "Hiring bilingual customer service representative",
+            "category": "GROWTH_SIGNAL",
+        },
+        {
+            "type": "review",
+            "summary": "New 5-star review praising fast turnaround",
+            "category": "REPUTATION_CHANGE",
+        },
+        {
+            "type": "weather",
+            "summary": "Hurricane preparedness advisory - increased demand expected",
+            "category": "HURRICANE_SEASON",
+        },
+        {
+            "type": "permit",
+            "summary": "New building permit approved in target area",
+            "category": "GROWTH_SIGNAL",
+        },
+    ]
     
     @property
     def name(self) -> str:
@@ -795,49 +1319,25 @@ class SyntheticSignalSource(SignalSource):
     def max_items_per_run(self) -> int:
         return 10
     
+    def _generate_mock_signals(self) -> List[RawSignal]:
+        """Generate mock signals - same as fetch() since synthetic is always mock."""
+        return self.fetch()
+    
     def fetch(self) -> List[RawSignal]:
         """Generate synthetic signals for testing."""
-        import random
-        
-        miami_areas = [
-            "Miami", "Coral Gables", "Brickell", "Wynwood", "Little Havana",
-            "Doral", "Hialeah", "Miami Beach", "Fort Lauderdale", "Broward County",
-        ]
-        
-        signal_templates = [
-            {
-                "type": "competitor_update",
-                "summary": "Competitor updated pricing for core services",
-                "category": "COMPETITOR_SHIFT",
-            },
-            {
-                "type": "job_posting",
-                "summary": "Hiring bilingual customer service representative",
-                "category": "GROWTH_SIGNAL",
-            },
-            {
-                "type": "review",
-                "summary": "New 5-star review praising fast turnaround",
-                "category": "REPUTATION_CHANGE",
-            },
-            {
-                "type": "weather",
-                "summary": "Hurricane preparedness advisory - increased demand expected",
-                "category": "HURRICANE_SEASON",
-            },
-            {
-                "type": "permit",
-                "summary": "New building permit approved in target area",
-                "category": "GROWTH_SIGNAL",
-            },
-        ]
+        log_signal_activity(
+            self.name,
+            "fetch",
+            {"action": "generating_synthetic_signals"},
+            session=get_log_session()
+        )
         
         num_signals = random.randint(1, 5)
         signals = []
         
         for _ in range(num_signals):
-            template = random.choice(signal_templates)
-            area = random.choice(miami_areas)
+            template = random.choice(self.SIGNAL_TEMPLATES)
+            area = random.choice(self.MIAMI_AREAS)
             
             signals.append(RawSignal(
                 source_name=self.name,
@@ -847,9 +1347,18 @@ class SyntheticSignalSource(SignalSource):
                     "category": template["category"],
                     "area": area,
                     "timestamp": datetime.utcnow().isoformat(),
+                    "synthetic": True,
                 },
                 geography=area,
             ))
+        
+        log_signal_activity(
+            self.name,
+            "fetch_complete",
+            {"signals_generated": len(signals)},
+            signal_count=len(signals),
+            session=get_log_session()
+        )
         
         return signals
     
@@ -877,6 +1386,8 @@ class WeatherSignalSource(SignalSource):
     
     API Key: OPENWEATHER_API_KEY environment variable (optional)
     If no API key, source is disabled and logs a warning.
+    
+    DRY_RUN mode: Generates mock weather signals without API calls.
     """
     
     SOUTH_FLORIDA_LOCATIONS = [
@@ -904,8 +1415,9 @@ class WeatherSignalSource(SignalSource):
     
     @property
     def enabled(self) -> bool:
+        if self.is_dry_run:
+            return SIGNAL_MODE in ("SANDBOX", "PRODUCTION")
         if not OPENWEATHER_API_KEY:
-            print("[SIGNALNET][WEATHER] No OPENWEATHER_API_KEY set - source disabled")
             return False
         return SIGNAL_MODE in ("SANDBOX", "PRODUCTION")
     
@@ -917,10 +1429,72 @@ class WeatherSignalSource(SignalSource):
     def max_items_per_run(self) -> int:
         return 15
     
+    def _generate_mock_signals(self) -> List[RawSignal]:
+        """Generate mock weather signals for DRY_RUN mode."""
+        mock_events = [
+            {
+                "event_type": "extreme_heat",
+                "temp_f": 98,
+                "feels_like_f": 105,
+                "humidity": 75,
+                "description": "Extreme heat alert: 98°F (feels like 105°F)",
+                "business_impact": "HVAC demand surge expected",
+                "niche_opportunities": ["HVAC", "pool service", "landscaping"],
+            },
+            {
+                "event_type": "hurricane_alert",
+                "alert_event": "Tropical Storm Warning",
+                "description": "Tropical Storm approaching South Florida coast",
+                "business_impact": "Hurricane preparation and post-storm services",
+                "niche_opportunities": ["roofing", "restoration", "generators", "tree service"],
+            },
+            {
+                "event_type": "heavy_rain",
+                "rain_mm": 35,
+                "description": "Heavy rainfall expected throughout the day",
+                "business_impact": "Roofing and water damage service demand",
+                "niche_opportunities": ["roofing", "water damage restoration", "plumbing"],
+            },
+        ]
+        
+        signals = []
+        num_signals = random.randint(1, 3)
+        
+        for i in range(num_signals):
+            event = random.choice(mock_events)
+            location = random.choice(self.SOUTH_FLORIDA_LOCATIONS)
+            
+            signals.append(RawSignal(
+                source_name=self.name,
+                source_type="weather",
+                raw_data={
+                    **event,
+                    "location": location["name"],
+                    "mock": True,
+                    "generated_at": datetime.utcnow().isoformat(),
+                },
+                geography=location["name"],
+            ))
+        
+        log_signal_activity(
+            self.name,
+            "dry_run",
+            {"action": "generated_mock_weather", "count": len(signals)},
+            signal_count=len(signals),
+            session=get_log_session()
+        )
+        
+        return signals
+    
     def fetch(self) -> List[RawSignal]:
         """Fetch weather data from OpenWeatherMap for South Florida locations."""
         if not OPENWEATHER_API_KEY:
-            print("[SIGNALNET][WEATHER] Skipping fetch - no API key")
+            log_signal_activity(
+                self.name,
+                "skip",
+                {"reason": "No OPENWEATHER_API_KEY set"},
+                session=get_log_session()
+            )
             return []
         
         signals = []
@@ -937,11 +1511,33 @@ class WeatherSignalSource(SignalSource):
                     
                 time.sleep(0.25)
                 
+            except requests.exceptions.RequestException as e:
+                log_signal_activity(
+                    self.name,
+                    "error",
+                    {"stage": "fetch_location", "location": location["name"], "error_type": type(e).__name__},
+                    error=str(e),
+                    session=get_log_session()
+                )
+                continue
             except Exception as e:
-                print(f"[SIGNALNET][WEATHER] Error fetching {location['name']}: {e}")
+                log_signal_activity(
+                    self.name,
+                    "error",
+                    {"stage": "fetch_location", "location": location["name"], "error_type": type(e).__name__},
+                    error=str(e),
+                    session=get_log_session()
+                )
                 continue
         
-        print(f"[SIGNALNET][WEATHER] Fetched {len(signals)} weather signals from {len(self.SOUTH_FLORIDA_LOCATIONS)} locations")
+        log_signal_activity(
+            self.name,
+            "fetch_complete",
+            {"locations_checked": len(self.SOUTH_FLORIDA_LOCATIONS), "signals_found": len(signals)},
+            signal_count=len(signals),
+            session=get_log_session()
+        )
+        
         return signals
     
     def _fetch_current_weather(self, location: Dict) -> Optional[Dict]:
@@ -1133,7 +1729,7 @@ class NewsSearchSignalSource(SignalSource):
     - Commercial developments
     - Industry news for target niches
     
-    Falls back to RSS if NEWS_API_KEY is not set.
+    DRY_RUN mode: Generates mock news signals without API calls.
     """
     
     SEARCH_QUERIES = [
@@ -1168,6 +1764,65 @@ class NewsSearchSignalSource(SignalSource):
     def max_items_per_run(self) -> int:
         return 25
     
+    def _generate_mock_signals(self) -> List[RawSignal]:
+        """Generate mock news signals for DRY_RUN mode."""
+        mock_articles = [
+            {
+                "title": "New HVAC company opens in Coral Gables, promises 24/7 service",
+                "source": "Miami Herald",
+                "query": "Miami HVAC company",
+                "geography": "Miami",
+            },
+            {
+                "title": "South Florida roofing contractor expands operations after hurricane season",
+                "source": "Sun Sentinel",
+                "query": "South Florida roofing contractor",
+                "geography": "Fort Lauderdale",
+            },
+            {
+                "title": "Med spa franchise opening 3 new locations in Broward County",
+                "source": "Brickell Magazine",
+                "query": "Miami med spa opening",
+                "geography": "Fort Lauderdale",
+            },
+            {
+                "title": "New commercial development project approved for downtown Miami",
+                "source": "Miami Today",
+                "query": "South Florida commercial development",
+                "geography": "Miami",
+            },
+        ]
+        
+        signals = []
+        num_signals = random.randint(2, 4)
+        
+        for i in range(num_signals):
+            article = random.choice(mock_articles)
+            
+            signals.append(RawSignal(
+                source_name=self.name,
+                source_type="news",
+                raw_data={
+                    "title": article["title"],
+                    "link": f"https://example.com/mock-news-{i}",
+                    "published": datetime.utcnow().isoformat(),
+                    "source": article["source"],
+                    "query": article["query"],
+                    "mock": True,
+                },
+                geography=article["geography"],
+            ))
+        
+        log_signal_activity(
+            self.name,
+            "dry_run",
+            {"action": "generated_mock_news", "count": len(signals)},
+            signal_count=len(signals),
+            session=get_log_session()
+        )
+        
+        return signals
+    
     def fetch(self) -> List[RawSignal]:
         """Fetch news from Google News RSS feeds."""
         signals = []
@@ -1191,11 +1846,33 @@ class NewsSearchSignalSource(SignalSource):
                 
                 time.sleep(0.5)
                 
+            except requests.exceptions.RequestException as e:
+                log_signal_activity(
+                    self.name,
+                    "error",
+                    {"stage": "fetch_query", "query": query, "error_type": type(e).__name__},
+                    error=str(e),
+                    session=get_log_session()
+                )
+                continue
             except Exception as e:
-                print(f"[SIGNALNET][NEWS] Error fetching news for '{query}': {e}")
+                log_signal_activity(
+                    self.name,
+                    "error",
+                    {"stage": "fetch_query", "query": query, "error_type": type(e).__name__},
+                    error=str(e),
+                    session=get_log_session()
+                )
                 continue
         
-        print(f"[SIGNALNET][NEWS] Fetched {len(signals)} news signals from {len(self.SEARCH_QUERIES)} queries")
+        log_signal_activity(
+            self.name,
+            "fetch_complete",
+            {"queries_checked": len(self.SEARCH_QUERIES), "signals_found": len(signals)},
+            signal_count=len(signals),
+            session=get_log_session()
+        )
+        
         return signals
     
     def _fetch_google_news_rss(self, query: str) -> List[Dict]:
@@ -1319,6 +1996,8 @@ class RedditSignalSource(SignalSource):
     
     Note: Reddit may block automated requests (403 errors). The source
     auto-disables after repeated failures to avoid noisy logs.
+    
+    DRY_RUN mode: Generates mock Reddit posts without API calls.
     """
     
     SUBREDDITS = ["Miami", "FortLauderdale", "southflorida"]
@@ -1346,9 +2025,79 @@ class RedditSignalSource(SignalSource):
     
     @property
     def enabled(self) -> bool:
+        if self.is_dry_run:
+            return SIGNAL_MODE in ("SANDBOX", "PRODUCTION")
         if RedditSignalSource._blocked:
             return False
         return SIGNAL_MODE in ("SANDBOX", "PRODUCTION")
+    
+    def _generate_mock_signals(self) -> List[RawSignal]:
+        """Generate mock Reddit signals for DRY_RUN mode."""
+        mock_posts = [
+            {
+                "title": "Looking for a reliable HVAC company in Miami - AC stopped working",
+                "selftext": "My AC unit is making weird noises and isn't cooling. Anyone know a good, honest HVAC technician in the Miami area?",
+                "subreddit": "Miami",
+                "score": 15,
+                "num_comments": 23,
+            },
+            {
+                "title": "Recommend a good roofing contractor in Fort Lauderdale?",
+                "selftext": "Need some roof repairs after the last storm. Looking for recommendations for a licensed roofer.",
+                "subreddit": "FortLauderdale",
+                "score": 8,
+                "num_comments": 12,
+            },
+            {
+                "title": "Best immigration attorney in South Florida?",
+                "selftext": "Looking for an experienced immigration lawyer. Need help with visa process. Any recommendations?",
+                "subreddit": "southflorida",
+                "score": 22,
+                "num_comments": 45,
+            },
+            {
+                "title": "Need help finding a plumber in Brickell area",
+                "selftext": "Have a leak under my kitchen sink. Anyone know a good plumber who does same-day service?",
+                "subreddit": "Miami",
+                "score": 5,
+                "num_comments": 8,
+            },
+        ]
+        
+        signals = []
+        num_signals = random.randint(2, 4)
+        
+        for i in range(num_signals):
+            post = random.choice(mock_posts)
+            geography = self._subreddit_to_geography(post["subreddit"])
+            
+            signals.append(RawSignal(
+                source_name=self.name,
+                source_type="social",
+                raw_data={
+                    "title": post["title"],
+                    "selftext": post["selftext"],
+                    "subreddit": post["subreddit"],
+                    "author": f"mock_user_{i}",
+                    "score": post["score"],
+                    "num_comments": post["num_comments"],
+                    "permalink": f"/r/{post['subreddit']}/comments/mock{i}/",
+                    "created_utc": datetime.utcnow().timestamp(),
+                    "url": f"https://www.reddit.com/r/{post['subreddit']}/comments/mock{i}/",
+                    "mock": True,
+                },
+                geography=geography,
+            ))
+        
+        log_signal_activity(
+            self.name,
+            "dry_run",
+            {"action": "generated_mock_reddit", "count": len(signals)},
+            signal_count=len(signals),
+            session=get_log_session()
+        )
+        
+        return signals
     
     @property
     def cooldown_seconds(self) -> int:

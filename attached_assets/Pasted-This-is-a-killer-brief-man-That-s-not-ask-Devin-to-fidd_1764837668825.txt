@@ -1,0 +1,270 @@
+This is a killer brief, man. That’s not “ask Devin to fiddle with a helper script,” that’s “build me NORAD for business signals.”
+
+Couple things I’ll do for you right now:
+	•	✅ Sanity-check what you wrote (it’s solid)
+	•	✅ Add 2–3 tiny upgrades that will matter later
+	•	✅ Give you the exact one-block version you can paste into Magicbox with zero edits
+
+⸻
+
+Quick critique (you’re in great shape)
+
+You already:
+	•	Defined a clear goal (24/7 SignalNet feeding LeadEvents)
+	•	Gave a clean interface (SignalSource with fetch/parse)
+	•	Listed concrete sources for v0 (Google/Yelp/Reddit/Weather/Permits)
+	•	Included scoring + explanations
+	•	Wired it into the LeadEvent pipeline
+	•	Asked for an admin view
+	•	Added throttling + safety flags
+
+That’s basically the spec a senior backend engineer would write… if they weren’t busy over-engineering it.
+
+So I’m not going to mess with the core. I’ll just:
+	1.	Make sure it’s framed for your actual stack (Replit, Python, existing DB).
+	2.	Add explicit hooks for:
+	•	using LEAD_GEOGRAPHY / LEAD_NICHE env vars
+	•	logging to a single signals_log for debugging
+	•	a dry_run mode for sources (so you don’t get IP-banned while experimenting).
+
+⸻
+
+Upgraded one-block Magicbox prompt (copy-paste this)
+
+You are the backend engineering agent for my production HossAgent app running on Replit.
+
+HossAgent is already live with:
+- Customers, plans, Stripe, portal, and admin console
+- A Signals + LeadEvent model in the database
+- Miami / Broward + niche filters coming from env vars: LEAD_GEOGRAPHY and LEAD_NICHE
+- An email outbound agent and Autopilot loop
+
+Your job in this task is to build the always-on **SignalNet**: a modular, pluggable signal ingestion network that runs 24/7 and feeds high-quality Signals into the LeadEvent pipeline.
+
+Do NOT rely solely on Apollo. Apollo is only a structured enrichment layer. SignalNet is about detecting real-world CONTEXT and MOTION from ambient sources.
+
+--------------------------------
+PHASE 1 GOAL
+--------------------------------
+Stand up a pluggable signal ingestion framework where HossAgent can monitor multiple sources (scrapers, APIs, RSS feeds, etc.), extract relevant signals, score them, and feed them into the existing LeadEvent system.
+
+Keep it:
+- Pythonic
+- Compatible with the existing models and database
+- Safe to run in production (respect DRY_RUN / TEST modes)
+
+--------------------------------
+1. DESIGN THE SIGNALNET ARCHITECTURE
+--------------------------------
+Create a modular `SignalSource` base class in something like `signal_sources/base.py`:
+
+```python
+class SignalSource:
+    name: str
+
+    def fetch(self) -> list[RawSignal]:
+        """Fetch raw data from the external source."""
+        ...
+
+    def parse(self, raw: "RawSignal") -> list["Signal"]:
+        """Convert raw payloads into structured Signal objects."""
+        ...
+
+Each concrete SignalSource must:
+	•	Run on a configurable interval (e.g., every N minutes)
+	•	Fetch from a specific source (API, RSS, HTML page, etc.)
+	•	Produce structured Signal objects with at least:
+	•	id
+	•	source_name
+	•	signal_type (e.g., COMPETITOR_UPDATE, WEATHER_ALERT, REVIEW_SPIKE, PERMIT_FILED, SOCIAL_POST)
+	•	location (city, state, zip or geo tag)
+	•	title / summary
+	•	raw_content or URL
+	•	timestamp
+	•	score (int 0–100, filled later)
+	•	score_explanation (text)
+
+Use the existing Signals table/model if it exists; otherwise, extend the models cleanly and add migrations.
+
+Create a signal_engine.py (or reuse existing Signals agent) that:
+	•	Discovers all registered SignalSource subclasses (e.g., registry list)
+	•	Runs their fetch and parse methods
+	•	Writes new Signals to the database (idempotent on source + external_id or URL + timestamp)
+	•	Logs activity to a central log (e.g., signals_log table or structured logging)
+	•	For scored Signals above a threshold, calls the existing LeadEvent creation logic.
+
+Respect existing env vars:
+	•	LEAD_GEOGRAPHY → default regions to monitor
+	•	LEAD_NICHE → default industries / keywords
+Use these filters inside your sources and scoring.
+
+⸻
+
+	2.	IMPLEMENT INITIAL SIGNAL SOURCES (V0)
+
+⸻
+
+Implement at least 3–5 concrete SignalSources in a signal_sources/ package:
+	1.	Google / News search (RSS or scraping wrapper)
+	•	Queries like “new business in {geo}”, “{niche} grand opening in {geo}”, etc.
+	•	Use LEAD_GEOGRAPHY and LEAD_NICHE to build queries.
+	•	Parse result titles, URLs, snippet, and timestamps into Signals.
+	2.	Yelp review changes
+	•	For now, mock or simplify scraping for categories in our niches and geo.
+	•	Emit Signals when:
+	•	New reviews appear
+	•	Sentiment shifts (e.g., recent 1–2 star reviews for a local business)
+	•	Attach business name, link, and sentiment summary.
+	3.	Reddit posts
+	•	Monitor subreddits like r/miami, r/smallbusiness, r/AskMarketing (config as list).
+	•	Watch for niche and pain keywords (e.g., “need HVAC”, “roofing recommendation”, “any good med spas in {geo}”).
+	•	Emit Signals with the post title, link, subreddit, and inferred category.
+	4.	Weather API
+	•	Pull current + short forecast for our geo.
+	•	Emit Signals when:
+	•	Heatwave / extreme temps
+	•	Storm / hurricane warnings
+	•	Unusual cold fronts (for heating)
+	•	Tag with signal_type = WEATHER_ALERT and niche relevance (e.g., HVAC, roofing, tree services).
+	5.	Permit filings (v0)
+	•	Create a stub/source that can parse one or more public RSS/HTML feeds for city or county permits (you can start with a generic parser and leave detailed selectors in TODOs).
+	•	Emit Signals for new commercial construction, remodels, HVAC/roofing/electrical permits etc.
+
+Each source must support a dry_run mode so it logs what it would create without hammering external sites.
+
+⸻
+
+	3.	SIGNAL SCORING
+
+⸻
+
+Create a scoring module (e.g., signal_scoring.py) that scores Signals 0–100 based on:
+	•	Urgency (e.g., time-sensitive weather alert, recent complaint)
+	•	Relevance to LEAD_NICHE (industry match)
+	•	Geo proximity to LEAD_GEOGRAPHY
+	•	Recency
+	•	Novelty (avoid duplicates / floods)
+
+Store:
+	•	score (int)
+	•	score_explanation (short text, e.g., “Recent 1★ Yelp review for HVAC company in Miami; matches niche hvac, geo Miami.”)
+
+Only Signals above a configurable threshold (e.g., SIGNAL_MIN_SCORE env var, default 60) are pushed into LeadEvent generation.
+
+⸻
+
+	4.	LEADEVENT GENERATION FROM SIGNALS
+
+⸻
+
+Extend or create a lead_event_engine.py function like:
+
+def create_lead_events_from_signals():
+    ...
+
+For each eligible Signal:
+	•	Infer or extract the prospect (business name, domain, or contact info if available).
+	•	Use the existing OpenAI / LLM pipeline to:
+	•	Summarize the situation for the customer (context_summary).
+	•	Propose a draft outbound email/message (store in DB but don’t send yet if in Review mode).
+	•	Create a LeadEvent record linked to:
+	•	customer_id (who we’re working for)
+	•	signal_id
+	•	context_summary
+	•	status = NEW
+	•	urgency_score = signal.score
+	•	any tags
+
+Make sure:
+	•	You don’t create duplicate LeadEvents for the same signal + customer.
+	•	Status field supports: NEW, CONTACTED, RESPONDED, WON, LOST, IGNORED.
+
+⸻
+
+	5.	ADMIN CONSOLE FOR SIGNALS (V0)
+
+⸻
+
+Wire a simple Signals view into the existing admin console:
+	•	Route: /admin/signals
+	•	Show last 100 Signals with:
+	•	timestamp
+	•	source_name
+	•	signal_type
+	•	summary/title
+	•	location
+	•	score
+	•	score_explanation
+	•	whether they were turned into LeadEvents (yes/no)
+	•	Add buttons:
+	•	“Promote to Lead” → manually create a LeadEvent for that Signal.
+	•	“Discard” → mark noisy.
+	•	“Flag as noisy” → this should train a simple suppression rule for that source / pattern (store a suppression rule or TODO comment for v2).
+
+⸻
+
+	6.	SAFETY / PERFORMANCE
+
+⸻
+
+Add and use env vars:
+	•	SIGNAL_MODE = “TEST” or “PROD”
+	•	SIGNAL_FETCH_INTERVAL_MINUTES (default 60)
+	•	SIGNAL_MIN_SCORE (default 60)
+
+Behaviors:
+	•	In TEST mode:
+	•	Run fewer/smaller queries.
+	•	Log more verbosely.
+	•	Don’t hammer external sources.
+	•	In PROD mode:
+	•	Respect per-source throttling (e.g., no more than once per interval).
+	•	Handle errors gracefully; do not crash the whole loop if one source fails.
+
+Add basic logging around:
+	•	When each source runs
+	•	Number of Signals generated
+	•	Number of LeadEvents created
+
+⸻
+
+	7.	SCHEDULING / AUTOPILOT HOOK
+
+⸻
+
+Integrate SignalNet into the existing Autopilot scheduler:
+	•	Ensure there is a job that runs on a schedule (e.g., every 15 minutes) that:
+	1.	Runs all active SignalSources (respecting throttling).
+	2.	Scores incoming Signals.
+	3.	Creates LeadEvents from high-scoring Signals.
+	4.	Queues outbound for those LeadEvents according to customer settings (Auto vs Review mode).
+
+Do NOT break existing Autopilot functionality. Extend it.
+
+⸻
+
+	8.	DONE CRITERIA
+
+⸻
+
+You are done with this task when:
+	•	✅ SignalSource framework is scaffolded and integrated.
+	•	✅ At least 3–5 concrete SignalSources exist and can run on a schedule.
+	•	✅ Signals are stored in the database with score + explanation.
+	•	✅ High-scoring Signals are converted into LeadEvents via the existing pipeline.
+	•	✅ Admin console has a Signals view with basic controls.
+	•	✅ DummySeed / purely fake signals are no longer the primary source; they are deprecated or clearly marked as test-only.
+
+Keep the code boring, explicit, and well-commented. Document any TODOs or external dependencies inline so I can see them later.
+
+You are not building a toy scraper.
+You are building the nervous system of a business-awareness engine.
+Now go wire the world into HossAgent.
+
+---
+
+Drop that in, let her cook, and when you’re ready I can help you design:
+
+- v2 signal hygiene (noise suppression / per-customer relevance)  
+- a “Miami Heat Map” visualization of opportunity intensity  
+- and the PRFAQ for “HossAgent SignalNet: The Autopilot for Context.”

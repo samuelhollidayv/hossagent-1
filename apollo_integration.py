@@ -102,20 +102,28 @@ def _check_rate_limit(state: ApolloState) -> tuple[bool, str]:
 def get_apollo_status() -> Dict[str, Any]:
     """Get current Apollo integration status for admin display."""
     state = _load_state()
-    env_key = os.getenv("APOLLO_API_KEY", "")
+    env_key = os.getenv("APOLLO_API_KEY", "").strip()
     
     allowed, rate_msg = _check_rate_limit(state)
     
-    is_connected = bool(state.api_key or env_key or state.access_token)
+    is_connected = bool(state.connected and (state.api_key or env_key or state.access_token))
     auth_method = None
+    connection_source = None
+    
     if state.access_token:
         auth_method = "oauth"
+        connection_source = "oauth"
     elif state.api_key or env_key:
         auth_method = "api_key"
+        if env_key and state.api_key == env_key:
+            connection_source = "environment_secret"
+        elif state.api_key:
+            connection_source = "manual"
     
     return {
         "connected": is_connected,
         "auth_method": auth_method,
+        "connection_source": connection_source,
         "calls_today": state.calls_today,
         "daily_limit": DAILY_LIMIT,
         "rate_limit_ok": allowed,
@@ -135,7 +143,7 @@ def connect_apollo_with_key(api_key: str) -> Dict[str, Any]:
         api_key: Apollo.io API key
         
     Returns:
-        Status dict with success/error info
+        Status dict with success/error info and connected status
     """
     state = _load_state()
     
@@ -156,11 +164,11 @@ def connect_apollo_with_key(api_key: str) -> Dict[str, Any]:
             state.last_error = None
             _save_state(state)
             print(f"[APOLLO] Connected successfully with API key")
-            return {"success": True, "message": "Apollo connected successfully"}
+            return {"success": True, "connected": True, "message": "Apollo connected successfully"}
         elif response.status_code == 401 or response.status_code == 403:
             state.last_error = "Invalid API key"
             _save_state(state)
-            return {"success": False, "error": "Invalid API key - check your key at apollo.io/settings/api-keys"}
+            return {"success": False, "connected": False, "error": "Invalid API key - check your key at apollo.io/settings/api-keys"}
         else:
             test_response = requests.post(
                 f"{APOLLO_API_BASE}/mixed_people/search",
@@ -179,21 +187,64 @@ def connect_apollo_with_key(api_key: str) -> Dict[str, Any]:
                 state.last_error = None
                 _save_state(state)
                 print(f"[APOLLO] Connected successfully with API key (via search test)")
-                return {"success": True, "message": "Apollo connected successfully"}
+                return {"success": True, "connected": True, "message": "Apollo connected successfully"}
             else:
                 error_msg = f"API returned {test_response.status_code}"
                 state.last_error = error_msg
                 _save_state(state)
-                return {"success": False, "error": error_msg}
+                return {"success": False, "connected": False, "error": error_msg}
                 
     except requests.Timeout:
         state.last_error = "Connection timeout"
         _save_state(state)
-        return {"success": False, "error": "Connection timeout - try again"}
+        return {"success": False, "connected": False, "error": "Connection timeout - try again"}
     except Exception as e:
         state.last_error = str(e)
         _save_state(state)
-        return {"success": False, "error": f"Connection error: {str(e)}"}
+        return {"success": False, "connected": False, "error": f"Connection error: {str(e)}"}
+
+
+def auto_connect_from_env() -> Dict[str, Any]:
+    """
+    Auto-connect Apollo if APOLLO_API_KEY environment secret exists.
+    
+    Called on startup to provide frictionless Apollo integration.
+    No user interaction required - just set the secret and it works.
+    
+    Returns:
+        Status dict with connected status and message
+    """
+    apollo_key = os.getenv("APOLLO_API_KEY", "").strip()
+    
+    if not apollo_key:
+        return {
+            "success": False,
+            "connected": False,
+            "message": "APOLLO_API_KEY not set - lead generation paused"
+        }
+    
+    state = _load_state()
+    if state.connected and state.api_key == apollo_key:
+        return {
+            "success": True,
+            "connected": True,
+            "message": "Already connected via environment secret"
+        }
+    
+    result = connect_apollo_with_key(apollo_key)
+    
+    if result.get("connected"):
+        return {
+            "success": True,
+            "connected": True,
+            "message": "Auto-connected from APOLLO_API_KEY secret"
+        }
+    else:
+        return {
+            "success": False,
+            "connected": False,
+            "message": f"Failed to connect with APOLLO_API_KEY: {result.get('error', 'Unknown error')}"
+        }
 
 
 def disconnect_apollo() -> Dict[str, Any]:

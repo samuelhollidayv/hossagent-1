@@ -481,6 +481,7 @@ Audit Trail:
 @app.on_event("startup")
 async def startup_event():
     """Initialize database, validate configuration, and start autopilot background loop."""
+    import os
     print_startup_banners()
     
     create_db_and_tables()
@@ -494,6 +495,17 @@ async def startup_event():
         print(f"[STARTUP] Subscription bootstrap: {bootstrap_result['message']}")
     
     run_retroactive_payment_links()
+    
+    apollo_key = os.getenv("APOLLO_API_KEY")
+    if apollo_key:
+        from apollo_integration import connect_apollo_with_key
+        result = connect_apollo_with_key(apollo_key)
+        if result.get("connected"):
+            print("[APOLLO][STARTUP] Auto-connected from APOLLO_API_KEY secret")
+        else:
+            print(f"[APOLLO][STARTUP] Failed to auto-connect: {result.get('error', 'Unknown error')}")
+    else:
+        print("[APOLLO][STARTUP] APOLLO_API_KEY not set - lead generation paused until configured")
     
     asyncio.create_task(autopilot_loop())
     print("[STARTUP] HossAgent initialized. Autopilot loop active.")
@@ -3967,6 +3979,8 @@ def get_signalnet_status(
             "lead_event_id": lead_event.id if lead_event else None,
             "category": category,
             "score": score,
+            "status": getattr(sig, 'status', 'ACTIVE'),
+            "noisy_pattern": getattr(sig, 'noisy_pattern', False),
         })
     
     return {
@@ -4138,6 +4152,148 @@ def clear_old_signals(
         "deleted_count": count,
         "cutoff_date": cutoff_date.isoformat(),
         "message": f"Deleted {count} signals older than {days} days"
+    }
+
+
+@app.post("/api/admin/signalnet/signal/{signal_id}/promote")
+def promote_signal_to_event(
+    signal_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Manually promote a signal to a LeadEvent.
+    
+    Creates a new LeadEvent from the signal's context and marks the signal as PROMOTED.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    signal = session.exec(
+        select(Signal).where(Signal.id == signal_id)
+    ).first()
+    
+    if not signal:
+        raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found")
+    
+    existing_event = session.exec(
+        select(LeadEvent).where(LeadEvent.signal_id == signal_id)
+    ).first()
+    
+    if existing_event:
+        return {
+            "success": False,
+            "error": f"Signal already has LeadEvent #{existing_event.id}",
+            "lead_event_id": existing_event.id
+        }
+    
+    try:
+        payload = json.loads(signal.raw_payload) if signal.raw_payload else {}
+    except:
+        payload = {}
+    
+    category = payload.get("category", "OPPORTUNITY")
+    score = payload.get("score", 65)
+    
+    lead_event = LeadEvent(
+        company_id=signal.company_id,
+        lead_id=signal.lead_id,
+        signal_id=signal.id,
+        summary=signal.context_summary or f"Manual promotion from signal #{signal.id}",
+        category=category,
+        urgency_score=score,
+        status="NEW",
+        recommended_action="Manual review - promoted by admin"
+    )
+    
+    session.add(lead_event)
+    
+    signal.status = "PROMOTED"
+    session.add(signal)
+    
+    session.commit()
+    session.refresh(lead_event)
+    
+    print(f"[SIGNALNET][ADMIN] Promoted signal {signal_id} to LeadEvent {lead_event.id}")
+    
+    return {
+        "success": True,
+        "message": f"Signal promoted to LeadEvent #{lead_event.id}",
+        "lead_event_id": lead_event.id,
+        "signal_id": signal_id
+    }
+
+
+@app.post("/api/admin/signalnet/signal/{signal_id}/discard")
+def discard_signal(
+    signal_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Mark a signal as discarded/ignored.
+    
+    The signal will be marked with status=DISCARDED and hidden from the active stream.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    signal = session.exec(
+        select(Signal).where(Signal.id == signal_id)
+    ).first()
+    
+    if not signal:
+        raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found")
+    
+    signal.status = "DISCARDED"
+    session.add(signal)
+    session.commit()
+    
+    print(f"[SIGNALNET][ADMIN] Discarded signal {signal_id}")
+    
+    return {
+        "success": True,
+        "message": f"Signal #{signal_id} discarded",
+        "signal_id": signal_id
+    }
+
+
+@app.post("/api/admin/signalnet/signal/{signal_id}/flag-noisy")
+def flag_signal_noisy(
+    signal_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Flag a signal's source pattern as noisy.
+    
+    Marks the signal with noisy_pattern=True. Future signals from similar
+    source patterns may be suppressed or given lower priority.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    signal = session.exec(
+        select(Signal).where(Signal.id == signal_id)
+    ).first()
+    
+    if not signal:
+        raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found")
+    
+    signal.noisy_pattern = True
+    session.add(signal)
+    session.commit()
+    
+    print(f"[SIGNALNET][ADMIN] Flagged signal {signal_id} source pattern as noisy (source_type: {signal.source_type})")
+    
+    return {
+        "success": True,
+        "message": f"Signal #{signal_id} flagged as noisy pattern. Source type: {signal.source_type}",
+        "signal_id": signal_id,
+        "source_type": signal.source_type
     }
 
 

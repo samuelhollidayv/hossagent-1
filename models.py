@@ -237,12 +237,22 @@ class PasswordResetToken(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+SIGNAL_STATUS_ACTIVE = "ACTIVE"
+SIGNAL_STATUS_DISCARDED = "DISCARDED"
+SIGNAL_STATUS_PROMOTED = "PROMOTED"
+
+
 class Signal(SQLModel, table=True):
     """
     Signals Engine: Captures external context signals about companies.
     
     Sources include competitor updates, job postings, reviews, permits, weather events.
     Each signal can generate one or more LeadEvents for actionable opportunities.
+    
+    Status:
+    - ACTIVE: Signal is active and visible
+    - DISCARDED: Signal was manually discarded by admin
+    - PROMOTED: Signal was manually promoted to a LeadEvent
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
@@ -251,6 +261,8 @@ class Signal(SQLModel, table=True):
     raw_payload: str  # JSON string of raw signal data
     context_summary: Optional[str] = None  # LLM-generated summary
     geography: Optional[str] = None  # Miami, Broward, etc.
+    status: str = Field(default="ACTIVE")  # ACTIVE, DISCARDED, PROMOTED
+    noisy_pattern: bool = Field(default=False)  # Flagged as noisy source pattern
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -286,3 +298,21 @@ TRIAL_TASK_LIMIT = 15
 TRIAL_LEAD_LIMIT = 20
 SUBSCRIPTION_PRICE_CENTS = 9900  # $99/month
 TRIAL_DAYS = 7
+
+
+class SignalLog(SQLModel, table=True):
+    """
+    Structured logging for signal source activity.
+    
+    Captures all signal pipeline operations for debugging and monitoring.
+    Actions: fetch, parse, score, persist, error, dry_run, auto_disable, reset
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    source_name: str = Field(index=True)
+    action: str = Field(index=True)
+    details: Optional[str] = None
+    signal_count: int = Field(default=0)
+    error_message: Optional[str] = None
+    dry_run: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
