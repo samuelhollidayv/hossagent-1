@@ -84,23 +84,28 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - `EMAIL_MODE=SENDGRID`: Requires SENDGRID_API_KEY
 - **Fallback Behavior:** If credentials are missing, system falls back to DRY_RUN with warning
 
+**Lead Source System:** Priority order in PRODUCTION mode:
+1. `APOLLO_API_KEY` - Apollo.io integration (recommended, targets Miami/South Florida)
+2. `LEAD_SEARCH_API_URL` + `LEAD_SEARCH_API_KEY` - Generic lead API
+3. Falls back to DummySeed with warning if neither configured
+
 **Required Secrets for Production:**
-- `STRIPE_SECRET_KEY`: Valid Stripe API key (CURRENTLY INVALID - needs update)
+- `STRIPE_API_KEY`: Stripe secret API key for payment processing
 - `STRIPE_WEBHOOK_SECRET`: Webhook signing secret
 - `SMTP_HOST`: SMTP server hostname (e.g., smtp.gmail.com)
 - `SMTP_USERNAME`: SMTP username/email
 - `SMTP_PASSWORD`: SMTP password or app password
 - `SMTP_FROM_EMAIL`: From email address
 - `ADMIN_PASSWORD`: Admin console password
-- `LEAD_SEARCH_API_KEY` (optional): For real lead sourcing API
+- `APOLLO_API_KEY`: Apollo.io API key for real lead sourcing (get from apollo.io/settings/api-keys)
 
 **Production Cleanup:** Admin console has "PURGE TEST DATA" button to remove sandbox data before going live.
 
 ## External Dependencies
 - **FastAPI**: Primary web framework for the backend.
 - **SQLModel**: ORM for data modeling and interaction.
-- **SQLite**: Database used for data persistence.
+- **PostgreSQL**: Production database (Neon-backed via Replit).
 - **bcrypt**: Used for secure password hashing.
 - **SendGrid / SMTP**: Email service providers for sending outreach and system emails.
 - **Stripe**: Payment gateway for managing subscriptions, invoices, and billing.
-- **External Lead API**: Optional third-party services for lead sourcing.
+- **Apollo.io**: Lead generation API for finding real business contacts in Miami/South Florida.

@@ -143,21 +143,178 @@ class DummySeedLeadSourceProvider(LeadSourceProvider):
         return candidates
 
 
+class ApolloLeadSourceProvider(LeadSourceProvider):
+    """
+    Production provider that fetches leads from Apollo.io API.
+    
+    Configure via environment variables:
+        APOLLO_API_KEY - Apollo.io API key (get from apollo.io/settings/api-keys)
+        
+    Uses Apollo's People Search API to find decision-makers at target companies.
+    Filters by location (Miami/South Florida) and industry keywords.
+    
+    Safety:
+        Falls back gracefully on errors with [LEADS][API_ERROR] logging.
+        Never crashes the autopilot loop.
+    """
+    
+    last_error: Optional[str] = None
+    last_status: str = "unknown"
+    
+    APOLLO_API_URL = "https://api.apollo.io/v1/mixed_people/search"
+    
+    INDUSTRY_KEYWORDS = {
+        "med spa": ["medical spa", "medspa", "aesthetics", "cosmetic", "beauty clinic"],
+        "hvac": ["hvac", "heating", "cooling", "air conditioning", "climate control"],
+        "realtor": ["real estate", "realtor", "property", "brokerage", "realty"],
+        "roofing": ["roofing", "roof", "roofer", "construction"],
+        "immigration attorney": ["immigration", "law firm", "attorney", "legal services"],
+        "marketing agency": ["marketing", "advertising", "digital agency", "media agency"]
+    }
+    
+    MIAMI_LOCATIONS = [
+        "Miami", "Fort Lauderdale", "Boca Raton", "West Palm Beach",
+        "Coral Gables", "Miami Beach", "Doral", "Hialeah", "Hollywood",
+        "Pompano Beach", "Aventura", "Homestead", "Kendall"
+    ]
+    
+    @property
+    def name(self) -> str:
+        return "Apollo"
+    
+    def fetch_candidates(self, config: LeadSourceConfig, limit: int) -> List[LeadCandidate]:
+        """Fetch leads from Apollo.io People Search API."""
+        try:
+            import requests
+            
+            api_key = os.getenv("APOLLO_API_KEY", "")
+            
+            if not api_key:
+                self.last_status = "no_creds"
+                self.last_error = "APOLLO_API_KEY not set"
+                print(f"[LEADS][APOLLO] {self.last_error} - cannot fetch leads")
+                return []
+            
+            search_params = self._build_apollo_query(config, limit)
+            
+            response = requests.post(
+                self.APOLLO_API_URL,
+                headers={
+                    "Content-Type": "application/json",
+                    "Cache-Control": "no-cache",
+                    "X-Api-Key": api_key
+                },
+                json=search_params,
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                self.last_status = "api_error"
+                self.last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+                print(f"[LEADS][APOLLO] API error: {self.last_error}")
+                return []
+            
+            data = response.json()
+            people = data.get("people", [])
+            
+            if not people:
+                self.last_status = "ok"
+                self.last_error = None
+                print(f"[LEADS][APOLLO] No results found for query")
+                return []
+            
+            candidates = []
+            for person in people[:limit]:
+                org = person.get("organization", {}) or {}
+                
+                email = person.get("email")
+                if not email:
+                    continue
+                
+                company_name = org.get("name") or person.get("organization_name", "Unknown Company")
+                contact_name = person.get("name") or f"{person.get('first_name', '')} {person.get('last_name', '')}".strip()
+                website = org.get("website_url") or org.get("primary_domain")
+                
+                if website and not website.startswith("http"):
+                    website = f"https://{website}"
+                
+                industry = org.get("industry") or config.niche
+                
+                candidates.append(LeadCandidate(
+                    company_name=company_name,
+                    contact_name=contact_name if contact_name else None,
+                    email=email,
+                    website=website,
+                    niche=industry,
+                    source="apollo",
+                    raw_data={
+                        "apollo_id": person.get("id"),
+                        "title": person.get("title"),
+                        "linkedin_url": person.get("linkedin_url"),
+                        "city": person.get("city"),
+                        "state": person.get("state"),
+                        "org_id": org.get("id"),
+                        "org_size": org.get("estimated_num_employees"),
+                        "org_linkedin": org.get("linkedin_url")
+                    }
+                ))
+            
+            self.last_status = "ok"
+            self.last_error = None
+            print(f"[LEADS][APOLLO] Fetched {len(candidates)} leads from Apollo.io")
+            return candidates
+            
+        except Exception as e:
+            self.last_status = "api_error"
+            self.last_error = str(e)
+            print(f"[LEADS][APOLLO] Exception: {self.last_error}")
+            return []
+    
+    def _build_apollo_query(self, config: LeadSourceConfig, limit: int) -> dict:
+        """Build Apollo.io search query from config."""
+        query = {
+            "page": 1,
+            "per_page": min(limit, 25),
+            "person_titles": [
+                "Owner", "CEO", "Founder", "President", "Director",
+                "General Manager", "Managing Partner", "Principal"
+            ]
+        }
+        
+        if config.geography:
+            geo_lower = config.geography.lower()
+            if any(loc.lower() in geo_lower for loc in ["miami", "broward", "south florida", "florida"]):
+                query["person_locations"] = self.MIAMI_LOCATIONS
+            else:
+                query["person_locations"] = [config.geography]
+        else:
+            query["person_locations"] = self.MIAMI_LOCATIONS
+        
+        if config.niche:
+            niche_lower = config.niche.lower()
+            keywords = []
+            for key, terms in self.INDUSTRY_KEYWORDS.items():
+                if key in niche_lower:
+                    keywords.extend(terms)
+            
+            if keywords:
+                query["q_organization_keyword_tags"] = keywords
+            else:
+                query["q_keywords"] = config.niche
+        
+        if config.min_company_size or config.max_company_size:
+            min_size = config.min_company_size or 1
+            max_size = config.max_company_size or 500
+            query["organization_num_employees_ranges"] = [f"{min_size},{max_size}"]
+        else:
+            query["organization_num_employees_ranges"] = ["1,50", "51,200"]
+        
+        return query
+
+
 class SearchApiLeadSourceProvider(LeadSourceProvider):
     """
-    Production provider that fetches leads from an external search/enrichment API.
-    
-    Expected API response format:
-    [
-        {
-            "company_name": "Acme Corp",
-            "contact_name": "John Doe",
-            "email": "john@acme.com",
-            "website": "https://acme.com",
-            "niche": "Marketing"
-        },
-        ...
-    ]
+    Generic production provider for custom lead search APIs.
     
     Configure via environment variables:
         LEAD_SEARCH_API_URL - API endpoint
@@ -169,7 +326,7 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
     """
     
     last_error: Optional[str] = None
-    last_status: str = "unknown"  # "ok", "no_creds", "api_error"
+    last_status: str = "unknown"
     
     @property
     def name(self) -> str:
@@ -273,27 +430,30 @@ def get_lead_source_provider() -> LeadSourceProvider:
     
     Provider selection depends on RELEASE_MODE:
     - SANDBOX: Always uses DummySeedLeadSourceProvider
-    - PRODUCTION: Uses SearchApiLeadSourceProvider if configured,
-                  otherwise falls back to DummySeedLeadSourceProvider with warning
+    - PRODUCTION: Priority order:
+        1. Apollo.io if APOLLO_API_KEY is set
+        2. Generic SearchApi if LEAD_SEARCH_API_URL + LEAD_SEARCH_API_KEY are set
+        3. Falls back to DummySeedLeadSourceProvider with warning
     
     This ensures safe behavior - production resources are only used when
     explicitly opted into via RELEASE_MODE=PRODUCTION.
     """
     release_mode = get_release_mode()
     
-    # SANDBOX mode always uses dummy leads regardless of API credentials
     if release_mode == ReleaseMode.SANDBOX:
         print("[LEADS][STARTUP] Using DummySeed provider (sandbox mode)")
         return DummySeedLeadSourceProvider()
     
-    # PRODUCTION mode - try to use real provider if configured
+    if os.getenv("APOLLO_API_KEY"):
+        print("[LEADS][STARTUP] Using Apollo.io provider (production mode)")
+        return ApolloLeadSourceProvider()
+    
     if os.getenv("LEAD_SEARCH_API_URL") and os.getenv("LEAD_SEARCH_API_KEY"):
         print("[LEADS][STARTUP] Using SearchApi provider (production mode)")
         return SearchApiLeadSourceProvider()
-    else:
-        # Production mode but no API configured - use dummy with warning
-        print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no lead API configured - using DummySeed fallback")
-        return DummySeedLeadSourceProvider()
+    
+    print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no lead API configured - using DummySeed fallback")
+    return DummySeedLeadSourceProvider()
 
 
 def get_lead_source_status() -> Dict[str, Any]:
@@ -306,6 +466,8 @@ def get_lead_source_status() -> Dict[str, Any]:
     provider = get_lead_source_provider()
     release_status = get_release_mode_status()
     
+    is_real_provider = isinstance(provider, (ApolloLeadSourceProvider, SearchApiLeadSourceProvider))
+    
     status = {
         "niche": config.niche,
         "geography": config.geography,
@@ -313,14 +475,14 @@ def get_lead_source_status() -> Dict[str, Any]:
         "max_company_size": config.max_company_size,
         "max_new_leads_per_cycle": config.max_new_leads_per_cycle,
         "provider": provider.name,
-        "provider_configured": isinstance(provider, SearchApiLeadSourceProvider),
+        "provider_configured": is_real_provider,
         "release_mode": release_status["mode"],
         "release_mode_message": release_status["message"],
         "last_status": "ok",
         "last_error": None
     }
     
-    if isinstance(provider, SearchApiLeadSourceProvider):
+    if is_real_provider:
         status["last_status"] = getattr(provider, "last_status", "unknown")
         status["last_error"] = getattr(provider, "last_error", None)
     
