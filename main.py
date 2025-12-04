@@ -386,10 +386,23 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "", purge
         r"@example\.", r"@test\.", r"@fake\.", r"@demo\.",
         r"@localhost", r"@mailinator", r"@dummy",
         r"^contact@(quantum|apex|stratton|atlas|nexus|titan|meridian|catalyst|vanguard)",
+        r"@atlasrevenue", r"@stratton", r"@apex", r"@quantum", r"@nexus",
+        r"@titan", r"@meridian", r"@catalyst", r"@vanguard", r"@blackstone",
+        r"@vector", r"@summit", r"@horizon", r"@precision", r"@sterling",
+        r"@forge", r"@momentum", r"@elevate", r"@keystone", r"@pioneer",
+    ]
+    
+    fake_company_names = [
+        "atlas", "stratton", "apex", "quantum", "nexus", "titan", "meridian",
+        "catalyst", "vanguard", "blackstone", "vector", "summit", "horizon",
+        "precision", "sterling", "forge", "momentum", "elevate", "keystone", "pioneer"
     ]
     
     for lead in leads:
         is_fake_lead = False
+        
+        if hasattr(lead, 'source') and lead.source == "dummy_seed":
+            is_fake_lead = True
         
         if lead.email:
             for pattern in fake_lead_patterns:
@@ -399,6 +412,13 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "", purge
         
         if lead.name and re.match(r"^Lead_\d+$", lead.name):
             is_fake_lead = True
+        
+        if hasattr(lead, 'company') and lead.company:
+            company_lower = lead.company.lower()
+            for fake_name in fake_company_names:
+                if fake_name in company_lower:
+                    is_fake_lead = True
+                    break
         
         if is_fake_lead:
             session.delete(lead)

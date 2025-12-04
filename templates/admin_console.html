@@ -271,6 +271,51 @@
             border-color: var(--text-tertiary);
         }
 
+        .agent-btn.danger {
+            background: var(--accent-red);
+            color: var(--text-primary);
+            border: 1px solid var(--accent-red);
+        }
+
+        .agent-btn.danger:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            color: var(--accent-red);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .modal-content p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
         .log-panel {
             background: var(--bg-secondary);
             border: 1px solid var(--border-subtle);
@@ -756,6 +801,29 @@
         <button class="agent-btn secondary" onclick="runAgent('onboarding')">ONBOARDING</button>
         <button class="agent-btn secondary" onclick="runAgent('ops')">OPS</button>
         <button class="agent-btn secondary" onclick="runAgent('billing')">BILLING</button>
+        <button class="agent-btn danger" onclick="showCleanupModal()">PURGE TEST DATA</button>
+    </div>
+    
+    <div id="cleanup-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Production Cleanup</h2>
+            <p>This will permanently delete all test/demo data:</p>
+            <ul style="text-align: left; margin: 1rem 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                <li>All signals and lead events</li>
+                <li>Leads from dummy_seed source</li>
+                <li>Fake company names (Atlas, Stratton, Quantum, etc.)</li>
+                <li>Test emails (@example, @test, etc.)</li>
+            </ul>
+            <p style="color: var(--accent-orange); margin-bottom: 1rem;">Real customers with Stripe integration or your email domain will be preserved.</p>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Your email domain (to preserve):</label>
+                <input type="text" id="cleanup-domain" placeholder="gmail.com" style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-medium); color: var(--text-primary); border-radius: var(--radius-sm); font-family: inherit;">
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="agent-btn" onclick="hideCleanupModal()">CANCEL</button>
+                <button class="agent-btn danger" onclick="runCleanup()">CONFIRM PURGE</button>
+            </div>
+        </div>
     </div>
 
     <div class="log-panel" id="log-panel">
@@ -995,6 +1063,46 @@
             } catch (e) {
                 addLog(`Error: ${e.message}`, 'error');
             }
+        }
+
+        function showCleanupModal() {
+            document.getElementById('cleanup-modal').style.display = 'flex';
+        }
+
+        function hideCleanupModal() {
+            document.getElementById('cleanup-modal').style.display = 'none';
+        }
+
+        async function runCleanup() {
+            const domain = document.getElementById('cleanup-domain').value.trim();
+            const btn = document.querySelector('#cleanup-modal .agent-btn.danger');
+            btn.textContent = 'PURGING...';
+            btn.disabled = true;
+            
+            addLog('Starting production cleanup...', '');
+            
+            try {
+                const url = `/admin/production-cleanup?owner_email_domain=${encodeURIComponent(domain)}&purge_all_signals=true&confirm=true`;
+                const res = await fetch(url, {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    if (data.already_run) {
+                        addLog('Cleanup already completed previously.', 'warning');
+                    } else {
+                        addLog(`Cleanup complete! Deleted: ${data.signals_deleted} signals, ${data.lead_events_deleted} events, ${data.leads_deleted} leads, ${data.customers_deleted} customers`, 'success');
+                    }
+                    hideCleanupModal();
+                    setTimeout(refreshAllData, 500);
+                } else {
+                    addLog(`Cleanup failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Cleanup error: ${e.message}`, 'error');
+            }
+            
+            btn.textContent = 'CONFIRM PURGE';
+            btn.disabled = false;
         }
 
         function addLog(msg, level = '') {
