@@ -1,0 +1,375 @@
+Here’s the full MagicBox prompt that turns all that “inevitabilities” gospel into an actual, buildable Conversation Engine inside HossAgent.
+
+Copy–paste this straight into MagicBox.
+
+⸻
+
+You are the primary engineering agent for HossAgent.
+
+HossAgent already has:
+	•	LeadEvents
+	•	Outbound email
+	•	Autopilot
+	•	Customer Portal
+	•	Admin Console
+
+Your next mission is to build the Conversation Engine:
+
+A full inbound–outbound loop where every lead becomes a threaded conversation, replies are parsed, drafts are generated, and the AI never oversteps its role.
+
+Implement the following changes without breaking existing functionality and while keeping DRY_RUN and safety intact.
+
+────────────────────────
+	1.	INBOUND EMAIL PARSING
+────────────────────────
+
+Goal: We no longer do one-way email blasts. HossAgent must receive and understand replies.
+	1.	Add a SendGrid Inbound Parse (or equivalent SMTP/webhook) handler:
+	•	Create an endpoint:
+	•	POST /email/inbound
+	•	It should:
+	•	Validate the request (basic secret/token check from env, e.g. INBOUND_EMAIL_SECRET).
+	•	Extract:
+	•	from_email
+	•	to_email
+	•	cc
+	•	subject
+	•	raw body (text and/or HTML)
+	•	message-id
+	•	in-reply-to / references headers (if present)
+	•	received_at timestamp
+	2.	Store inbound messages in a messages table (or extend an existing one):
+messages
+	•	id (PK)
+	•	thread_id (nullable for now, will link later)
+	•	lead_id (nullable)
+	•	customer_id (nullable)
+	•	direction: INBOUND | OUTBOUND
+	•	from_email
+	•	to_email
+	•	cc (string or JSON)
+	•	subject
+	•	body_text
+	•	body_html (optional)
+	•	raw_metadata (JSON, headers, etc.)
+	•	created_at
+	3.	Initial threading logic:
+	•	Try to associate inbound email with:
+	•	An existing LeadEvent and Customer based on:
+	•	to_email or cc = customer.email
+	•	from_email = lead_email in LeadEvents
+	•	If in-reply-to or references matches an outbound message we sent, use that to find the thread/message.
+	•	If found:
+	•	Attach to that thread_id.
+	•	If not found:
+	•	Create a new thread (see below), best-effort match to a lead, or leave lead_id null for now.
+
+────────────────────────
+2) THREADS: EVERYTHING IS A CONVERSATION
+────────────────────────
+
+Goal: Stop treating email as isolated events; organize everything into threads.
+
+Create a threads table:
+
+threads
+	•	id (PK)
+	•	lead_id (nullable; can be created from LeadEvent or inferred later)
+	•	customer_id (required)
+	•	created_at
+	•	updated_at
+	•	status: OPEN | HUMAN_OWNED | AUTO | CLOSED
+	•	last_message_at
+	•	last_direction: INBOUND | OUTBOUND
+	•	last_summary (short text summary for UI)
+
+Rules:
+	•	Each LeadEvent should map to one primary thread.
+	•	All outbound/inbound messages related to that lead + customer should share the same thread_id.
+	•	When a new outbound message is created for a LeadEvent without a thread:
+	•	Create a new thread and attach it.
+	•	When inbound arrives:
+	•	Prefer mapping via message-id / in-reply-to.
+	•	Fallback: from_email + customer_id + recent messages.
+
+────────────────────────
+3) DRAFT REPLIES (AI-ASSISTED RESPONSES)
+────────────────────────
+
+Goal: When a lead replies, HossAgent drafts the next move.
+
+Extend your message model and logic with a status for outbound drafts:
+	•	For outbound messages, add:
+	•	status: QUEUED | SENT | DRAFT | FAILED
+	•	generated_by: AI | HUMAN | SYSTEM
+
+When a new inbound message is stored:
+	1.	Fetch:
+	•	The thread context (last few messages).
+	•	The associated LeadEvent and Lead.
+	•	The Customer’s business profile (services, pricing notes, target customer, constraints, voice/tone).
+	2.	Use the LLM to generate a draft reply that:
+	•	Is consistent with the customer’s voice & tone.
+	•	References the lead’s context, not the customer.
+	•	Avoids committing to anything outside allowed guardrails (see next section).
+	3.	Save this as a new outbound messages row:
+	•	direction = OUTBOUND
+	•	status = DRAFT
+	•	from_email = HossAgent sending identity (e.g. hello@hossagent.com or configured OUTBOUND_FROM)
+	•	reply_to = customer.email
+	•	to_email = lead.email
+	•	cc = customer.email
+	•	thread_id linked
+	•	body_text = AI draft
+
+Do NOT send automatically unless allowed by guardrails and mode.
+
+────────────────────────
+4) GUARDRAILS: WHAT THE ROBOT CAN/CAN’T SAY
+────────────────────────
+
+Goal: No Skynet behavior. AI stays in its lane.
+
+Implement a simple rules engine for proposed outbound replies.
+
+Before auto-sending any AI-generated reply:
+	•	Inspect the proposed body for disallowed behaviors:
+	•	Hard commitments on:
+	•	Pricing (“$X per hour”, “I can do it for $Y”, discounts, etc.)
+	•	Scheduling specific times/dates (“I’ll come Tuesday at 3pm”)
+	•	Legal / medical advice
+	•	Sensitive content (as already handled by your safety filters)
+	•	Negotiation language (“I can lower the price”, “I’ll beat their quote”, etc.)
+
+If any disallowed behavior is detected:
+	•	Force status = DRAFT
+	•	Require human approval in the portal (see UI section).
+
+Auto-send is allowed only for low-risk replies like:
+	•	“Got it, thanks — here’s a bit more info…”
+	•	“Here’s a link where you can learn more…”
+	•	“We received your reply and will follow up soon.”
+
+Respect an env config:
+	•	AUTO_REPLY_LEVEL = NONE | SAFE_ONLY | AGGRESSIVE
+	•	For now, default to SAFE_ONLY.
+
+────────────────────────
+5) HUMAN-IN-THE-LOOP PRIORITY
+────────────────────────
+
+Goal: Human owner always wins. When they step in, the robot backs off.
+
+Rules:
+	•	If the customer themselves (customer.email) replies in a thread:
+	•	Mark threads.status = HUMAN_OWNED
+	•	Disable auto-sends for that thread (no more autopilot).
+	•	HossAgent can still propose drafts, but must never auto-send without explicit approval.
+	•	The customer can flip a thread back to AUTO from the UI if desired.
+
+────────────────────────
+6) OPT-OUT & SUPPRESSION
+────────────────────────
+
+Goal: If someone says “stop”, we stop. Forever.
+
+Create/extend a suppression list structure:
+
+suppressions
+	•	id
+	•	customer_id
+	•	email
+	•	domain (optional)
+	•	reason
+	•	created_at
+
+Logic:
+	•	When inbound body matches patterns like:
+	•	“unsubscribe”
+	•	“remove me”
+	•	“stop”
+	•	“no more emails”
+	•	Then:
+	•	Add that email (and optionally its domain) to suppressions.
+	•	Mark related threads as CLOSED.
+	•	Prevent any future outbound for that customer to that email/domain.
+	•	Check suppression list before:
+	•	Creating new LeadEvents.
+	•	Sending outbound emails.
+	•	Generating drafts (if suppressed, don’t bother).
+
+────────────────────────
+7) EMAIL IDENTITY & ROUTING
+────────────────────────
+
+Goal: Keep clear separation between robot identity and human identity.
+
+Enforce:
+	•	Outbound emails:
+	•	From: HossAgent <OUTBOUND_FROM_EMAIL> (configured via env)
+	•	Reply-To: customer.email
+	•	To: lead.email
+	•	CC: customer.email
+	•	Inbound parsing:
+	•	We ONLY parse emails coming through the inbound webhook address, not the customer’s actual inbox.
+	•	We NEVER log into their Gmail/O365 directly.
+	•	Make sure outbound uses the unified email sending module you already have (SMTP/SendGrid), with the new To/CC/Reply-To logic.
+
+────────────────────────
+8) UI: THREADS & CONVERSATIONS
+────────────────────────
+
+Goal: Make the conversation loop visible and controllable in both Admin and Customer Portal.
+
+Customer Portal:
+
+Add a “Conversations” or “Inbox” section that shows:
+	•	For each thread:
+	•	Lead name + company
+	•	Status: OPEN / HUMAN_OWNED / AUTO / CLOSED
+	•	Last message snippet
+	•	Last message direction (You ↔ Lead)
+	•	Last activity timestamp
+	•	Clicking a thread opens a full message view:
+	•	Shows chronological messages (inbound + outbound, clearly labeled).
+	•	Shows AI-generated drafts (status = DRAFT) with:
+	•	“Edit & Send”
+	•	“Send as-is”
+	•	“Discard”
+	•	Add a small indicator when a thread is:
+	•	Suppressed / opted out
+	•	Human-owned (auto replies off)
+
+Admin Console:
+	•	Add a Conversations / Threads tab:
+	•	Filter by customer, status, activity.
+	•	See summary stats: open conversations, reply rates, etc.
+	•	Ability to inspect any thread for debugging.
+
+────────────────────────
+9) SEQUENCE CONTROL: STOP WHEN HUMAN JOINS
+────────────────────────
+
+Goal: If the human takes over in a thread, cadence stops.
+
+Behaviors:
+	•	When we detect that the lead replied, we:
+	•	Pause any ongoing outbound sequence for that LeadEvent (no more automated follow-ups in the old cadence).
+	•	Transition to conversation mode:
+	•	AI drafts replies
+	•	Human approves/sends
+	•	When we detect human owner (customer.email) sending a message in the thread:
+	•	Set threads.status = HUMAN_OWNED
+	•	No further auto-sends in that thread unless owner explicitly flips back to AUTO.
+
+────────────────────────
+10) METRICS & ANALYTICS
+────────────────────────
+
+Goal: Make this measurable. This will inform future optimization and is critical for product value.
+
+Track per customer and optionally per thread:
+	•	Number of LeadEvents created.
+	•	Number of threads opened.
+	•	Reply rate:
+	•	Leads who replied / total leads contacted.
+	•	Average response time (lead’s first reply after first outbound).
+	•	Thread depth (number of messages in a conversation).
+	•	% of messages:
+	•	AI-drafted
+	•	AI-sent automatically
+	•	Human-edited-and-sent
+	•	Opt-out rate.
+
+Surface basic stats in:
+	•	Admin Console → “Conversations / Performance”.
+	•	Optional summary in Customer Portal (“Your month in review”).
+
+────────────────────────
+11) SAFETY, DRY_RUN, AND TESTING
+────────────────────────
+	•	In EMAIL_MODE = DRY_RUN:
+	•	Do NOT send real emails.
+	•	Log outbound messages clearly.
+	•	Still create threads and messages as if they were sent.
+	•	Add basic unit/integration tests (or at least describe them) for:
+	•	Inbound webhook → messages → threads.
+	•	Draft generation on inbound.
+	•	Suppression behavior.
+	•	HUMAN_OWNED logic turning off auto-send.
+	•	Do NOT remove or break any existing:
+	•	LeadEvent creation
+	•	Outbound sending for first-touch
+	•	Customer Portal / Admin Console flows
+
+────────────────────────
+12) FINAL CHECKLIST BEFORE YOU’RE “DONE”
+────────────────────────
+
+When you finish, summarize:
+	•	New/modified DB tables and fields.
+	•	New endpoints (e.g. /email/inbound, any new API routes).
+	•	How threads are created and linked to LeadEvents / Leads.
+	•	Where in the UI:
+	•	Customers see conversations and drafts.
+	•	Admins see conversations and metrics.
+	•	How suppression works.
+	•	How HUMAN_OWNED status is set and enforced.
+	•	How to test:
+	•	Create lead → send outbound → reply as lead → see drafts → approve and send → verify identity and CC logic.
+
+Everything must support multiple customers, must respect per-customer suppression, and must remain safe in DRY_RUN.
+
+You are not building a toy inbox.
+You are building the Conversation Engine for HossAgent:
+the loop where strangers become leads, leads become conversations, and conversations become revenue.
+
+Master Magic Box Prompt – Business Requirements Document (BRD)
+
+Overview
+
+Magic Box is an intelligent customer support agent integrated into our customer portal. It is designed to automatically assist users with common issues (like login problems) and perform troubleshooting steps on their behalf. By leveraging AI and connecting to our systems (e.g. database and knowledge base), Magic Box aims to resolve customer problems quickly without human intervention, improving response times and reducing support workload. If the AI cannot fully resolve an issue, it will seamlessly escalate the conversation to a human support agent to ensure the customer is helped without frustration.
+
+Key Objectives:
+	•	Instant Assistance: Provide users with immediate, AI-driven support for common queries and issues (e.g. account login troubles, password resets, basic FAQs).
+	•	Automated Troubleshooting: Perform predefined diagnostic or corrective actions (such as checking account status in the database or running a known fix) to solve issues during the live chat.
+	•	User-Friendly Experience: Interact with customers in a friendly, professional tone, making the support experience feel personal and helpful rather than robotic.
+	•	Efficient Escalation: Recognize when the AI cannot solve the problem and hand off to a human seamlessly, so users never hit a dead end in support .
+
+Features and Functionality
+
+1. Automated Issue Resolution
+	•	Common Issue Handling: Magic Box is programmed to address frequent support scenarios. For example, if a user cannot log in, the agent will verify the user’s account status in the database and attempt fixes (such as unlocking the account or guiding a password reset). It can similarly handle other routine problems using its knowledge base (e.g. troubleshooting error messages, providing how-to guidance).
+	•	Decision Trees & Strategies: The agent uses an internal decision logic to choose the best approach for a given issue. (For instance, it might decide to use a “customer portal login” strategy for login issues, which includes checking credentials, account locks, and recent login attempts.) These decision flows are based on our established support procedures, ensuring the AI’s actions are effective and in line with what a human agent would do.
+	•	Tool Integrations: Magic Box can utilize integrated tools to assist in resolutions. This includes database queries (read-only access to relevant tables for user account info, order status, etc.), knowledge base searches for reference, and email or API calls for certain tasks (e.g. sending a reset link). All tool usage by the AI is logged for transparency and later review.
+
+2. User Interaction and Tone
+	•	Conversational Tone: The AI communicates in a warm, professional manner, similar to a helpful support representative. It uses clear and concise language, avoids technical jargon when possible, and confirms understanding of the user’s issue. The tone is reassuring and patient, guiding the user step-by-step through solutions.
+	•	Prompting and Clarification: Magic Box will ask clarifying questions if the user’s request is not clear. It ensures it fully understands the problem before attempting a solution. For example, if a user says “I can’t access my account,” the AI might respond with a brief apology for the inconvenience and ask for specific error messages or whether they forgot their password, to determine the correct resolution path.
+	•	Feedback and Confirmation: After providing a solution or performing a fix, the agent confirms if the issue is resolved. It may say, “Please try logging in now” and then, after the user tries, ask “Did that work for you?” This ensures the user is satisfied before concluding the interaction or moving to further steps.
+
+3. Analytics & User Tracking
+
+To continually improve the system and identify where customers get stuck vs. where we are succeeding, Magic Box will include basic analytics tracking. We will implement lightweight tracking methods (nothing heavy or overly complex) to gather key interaction data:
+	•	Journey Tracking: Monitor the steps users take in the support flow. For instance, track which issues are most commonly raised and at what point in the conversation the AI resolves the issue or has to escalate. This reveals patterns, such as particular questions that frequently lead to confusion or drop-off. Using a simple analytics tool (e.g. Google Analytics 4 or an internal logging system), we can see what users do and where they get stuck in the process . This might include capturing events like “User requested password reset” or “AI provided solution X” and whether the user eventually solved their problem.
+	•	Success Metrics: Define what “winning” looks like for Magic Box. For example, a successful interaction could be measured by the issue being resolved without human help (AI-only resolution), or by high user satisfaction (thumbs-up feedback). We will track successful resolutions versus those that needed escalation. Over time, these metrics will tell us which areas the AI handles well and which areas need improvement.
+	•	Minimal Implementation: The tracking will be implemented in the easiest way possible to avoid adding technical overhead. This could be as simple as logging events to a file or database, or using a small script to send events to an analytics service. The goal is to get useful data for troubleshooting and improvement, without building a complex analytics infrastructure. For instance, we might log the conversation ID, issue type, steps taken, and outcome (resolved by AI, escalated, etc.). These logs and stats will help us pinpoint choke points in the user experience and debug any recurring failures in the support flow.
+
+4. Customer Support Escalation
+
+While Magic Box will handle many issues autonomously, there will be cases where human intervention is required. We have planned a straightforward escalation path to seamlessly hand off customers to a human support agent (likely to ourselves or our support team) when needed . Key details of this process:
+	•	Escalation Triggers: The system will trigger a human handoff under certain conditions. For example, if Magic Box cannot interpret or solve the user’s problem after a couple of attempts, if it encounters an error (like inability to access needed data), or if the user explicitly requests a human, it will initiate escalation. We will set simple rules such as “If the AI provides two solutions and the issue is still unresolved, escalate to human” or specific keywords like “agent” or “representative” from the user to immediately hand off.
+	•	Seamless Handoff: When escalating, Magic Box will smoothly transition the conversation. It may say something like, “I’m sorry I couldn’t resolve this. I’m escalating this issue to a human support agent who will assist you shortly.” It will then notify the human agent (e.g. via an email, Slack message, or a ticket in our system) with context of the case. The context will include the conversation transcript and any diagnostic info gathered (for instance, what steps were tried, relevant account data looked up, etc.), so the human can jump in with full knowledge of the situation.
+	•	Direct Alert to Support: The escalation process will route the customer’s query and data directly to us (the support team). Since we want to keep this lightweight, the simplest method might be sending an email or chat notification to the on-call support (which could be the product owner or a small team). For now, escalated issues will come to the product owner (you), ensuring that “sending them to me” is achieved in critical cases. We’ll avoid complex ticketing software at this stage; an email with the issue details or a ping in our team’s Slack channel can suffice as the alert. Only if absolutely needed will the user leave the AI chat to communicate by email – ideally, we intercept and handle it in real-time once alerted.
+	•	Troubleshooting Info: All information collected during the AI interaction is logged and made available to the human agent. This helps with troubleshooting the user’s issue (since the human can see exactly what was attempted and what error might have occurred). It also helps improve Magic Box itself: by reviewing cases that had to be escalated, we can adjust the AI’s knowledge and responses for the future. The analytics described above tie in here – they will show how often escalations happen and why, which is critical for refining our support process.
+
+Implementation Considerations
+	•	Privacy and Data Security: We will ensure that any user data accessed (account info, etc.) and the conversation logs are handled securely. Analytics tracking will be done in compliance with privacy standards – focusing on operational metrics and not storing sensitive personal data beyond what’s necessary for support.
+	•	Performance Impact: The added analytics and escalation hooks are lightweight. The logging and event tracking should not noticeably slow down the support interactions. Using established services (like GA4 or a simple logging database) ensures we aren’t re-inventing the wheel, and we can scale these tracking capabilities if usage grows.
+	•	Monitoring and Alerts: As part of the analytics, we can set up simple alerts for ourselves. For example, if an unusual spike in a certain issue occurs or if the AI fails on a certain step repeatedly, we get notified. This way, the analytics aren’t just retrospective but can sometimes prompt proactive fixes. Similarly, for escalations, an alert system (email/SMS) should notify the human agent immediately to take over the live session. Fast response in escalations will maintain a positive user experience.
+
+Conclusion
+
+The Master Magic Box prompt is crafted to deliver a balanced approach to automated customer support: it’s smart and self-sufficient enough to handle common issues through AI-driven solutions, yet humble enough to know its limits and call for help when a human touch is needed. By tracking user interactions and outcomes, we gain valuable insights into customer pain points and Magic Box’s performance – allowing continuous improvement of both the AI and our product  . This ensures that we know exactly “where customers are getting stuck and where we are winning,” and we can refine the experience accordingly. Going forward, we will use these insights to expand Magic Box’s capabilities, making it more resilient and helpful over time, while always providing an easy out to real human support for those exceptional cases.
+
+With this framework in place, Magic Box will enhance user satisfaction by resolving issues instantly when possible, and by never leaving a customer stranded when human assistance is truly needed. The result should be a smoother support journey for our customers and a more efficient support process for our team.
