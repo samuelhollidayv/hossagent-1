@@ -7,7 +7,7 @@ HossAgent is an autonomous AI business system designed with a noir aesthetic. It
 Not specified.
 
 ## System Architecture
-HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persistence with SQLite, ensuring schema auto-creation and migration. The system's core functionality revolves around asynchronous, idempotent agent cycles.
+HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persistence with PostgreSQL (production) or SQLite (development fallback), ensuring schema auto-creation and migration. The system's core functionality revolves around asynchronous, idempotent agent cycles.
 
 **UI/UX Design (2025 Professional Noir):** The system employs a modern professional noir aesthetic with:
 - **Fonts**: Inter (customer-facing pages) and JetBrains Mono (admin console) via Google Fonts

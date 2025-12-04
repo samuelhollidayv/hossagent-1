@@ -35958,5 +35958,205 @@
     "mode": "SMTP",
     "result": "throttled",
     "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:50.239317",
+    "lead_name": "David Kim",
+    "company": "Forge Strategic Partners",
+    "to_email": "david@forgestrategic.com",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:50.428127",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Quick idea for Apex Revenue Partners",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:50.553285",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:50.815912",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:50.935653",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:51.036015",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Quick idea for Sterling Strategy Group",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:51.138407",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:51.332524",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:51.495989",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:51.584291",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Quick idea for Catalyst Growth Agency",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:51.969411",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "Meridian Marketing Co - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:52.174750",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:52.355816",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:52.543623",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:52.725480",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:52.938031",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "Vanguard Consulting Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:53.123761",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:53.304102",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:53.528489",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:49:53.727378",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
   }
 ]

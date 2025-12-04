@@ -1,18 +1,29 @@
 from sqlmodel import SQLModel, create_engine, Session, select
-import sqlite3
 import os
 
-DATABASE_URL = "sqlite:///./hossagent.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.environ.get("DATABASE_URL")
+IS_POSTGRES = DATABASE_URL is not None and "postgresql" in DATABASE_URL
+
+if DATABASE_URL:
+    engine = create_engine(DATABASE_URL, echo=False)
+    print(f"[DATABASE] Using PostgreSQL")
+else:
+    DATABASE_URL = "sqlite:///./hossagent.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    print(f"[DATABASE] Using SQLite (development only)")
 
 
-def _run_migrations():
+def _run_sqlite_migrations():
     """
-    Run schema migrations for existing databases.
+    Run schema migrations for existing SQLite databases.
     This ensures new columns are added without losing data.
+    Only runs for SQLite - PostgreSQL uses fresh schema from SQLModel.
     """
+    if IS_POSTGRES:
+        return
+    
+    import sqlite3
     import secrets
-    from datetime import datetime, timedelta
     
     conn = sqlite3.connect('./hossagent.db')
     cursor = conn.cursor()
@@ -188,7 +199,8 @@ def _run_migrations():
     cursor.execute("SELECT id FROM customer WHERE public_token IS NULL")
     customers_without_token = cursor.fetchall()
     for (customer_id,) in customers_without_token:
-        token = secrets.token_urlsafe(16)
+        import secrets as sec
+        token = sec.token_urlsafe(16)
         cursor.execute("UPDATE customer SET public_token = ? WHERE id = ?", (token, customer_id))
         print(f"[MIGRATION] Generated public_token for customer {customer_id}")
     
@@ -206,7 +218,7 @@ def create_db_and_tables():
     """Create database tables if they don't exist and initialize SystemSettings."""
     SQLModel.metadata.create_all(engine)
     
-    _run_migrations()
+    _run_sqlite_migrations()
     
     from models import SystemSettings
     with Session(engine) as session:

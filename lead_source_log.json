@@ -2591,10 +2591,19 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T02:49:44.584791",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 10,
+      "leads_skipped": 0
     }
   ],
-  "last_run": "2025-12-04T02:46:44.528023",
-  "last_created_count": 0,
+  "last_run": "2025-12-04T02:49:44.584791",
+  "last_created_count": 10,
   "recent_leads": [
     {
       "id": 27,
@@ -2700,6 +2709,76 @@
       "email": "david@forgestrategic.com",
       "source": "dummy_seed",
       "created_at": "2025-12-02T09:14:44.497939"
+    },
+    {
+      "id": 1,
+      "company": "Forge Strategic Partners",
+      "email": "david@forgestrategic.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:42.741695"
+    },
+    {
+      "id": 2,
+      "company": "Apex Revenue Partners",
+      "email": "james@apexrevenue.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:42.931702"
+    },
+    {
+      "id": 3,
+      "company": "Elevate Agency Group",
+      "email": "chris@elevateagency.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:43.121117"
+    },
+    {
+      "id": 4,
+      "company": "Pioneer Growth Co",
+      "email": "jordan@pioneergrowth.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:43.310439"
+    },
+    {
+      "id": 5,
+      "company": "Summit Digital Solutions",
+      "email": "amanda@summitdigital.io",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:43.499911"
+    },
+    {
+      "id": 6,
+      "company": "Sterling Strategy Group",
+      "email": "daniel@sterlingstrategy.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:43.690053"
+    },
+    {
+      "id": 7,
+      "company": "Vanguard Consulting Group",
+      "email": "michael@vanguardcg.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:43.879694"
+    },
+    {
+      "id": 8,
+      "company": "Meridian Marketing Co",
+      "email": "sarah@meridianmktg.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:44.072015"
+    },
+    {
+      "id": 9,
+      "company": "Keystone Advisory",
+      "email": "nicole@keystoneadv.com",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:44.261507"
+    },
+    {
+      "id": 10,
+      "company": "Catalyst Growth Agency",
+      "email": "emily@catalystgrowth.co",
+      "source": "dummy_seed",
+      "created_at": "2025-12-04T02:49:44.512438"
     }
   ]
 }

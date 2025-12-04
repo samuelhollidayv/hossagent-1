@@ -11,3 +11,4 @@ sqlmodel
 bcrypt
 itsdangerous
 python-multipart
+psycopg2-binary
