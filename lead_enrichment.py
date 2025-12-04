@@ -54,7 +54,26 @@ REQUEST_TIMEOUT = 10
 RATE_LIMIT_DELAY = 1.0
 MAX_RETRIES = 2
 
-CONTACT_PAGE_PATHS = ["/contact", "/contact-us", "/about", "/about-us", "/team", "/our-team"]
+CONTACT_PAGE_PATHS = [
+    "/contact", "/contact-us", "/contact_us", "/contactus",
+    "/about", "/about-us", "/about_us", "/aboutus",
+    "/team", "/our-team", "/our_team", "/ourteam",
+    "/connect", "/get-in-touch", "/reach-us", "/reach-out",
+    "/support", "/help", "/inquiries", "/inquiry",
+    "/locations", "/location", "/offices", "/office",
+    "/staff", "/leadership", "/management", "/people",
+    "/company", "/who-we-are", "/meet-the-team",
+]
+
+MAILTO_REGEX = re.compile(r'href=["\']mailto:([^"\'?]+)', re.IGNORECASE)
+
+CONTACT_LINK_PATTERNS = [
+    r'href=["\']([^"\']*contact[^"\']*)["\']',
+    r'href=["\']([^"\']*about[^"\']*)["\']',
+    r'href=["\']([^"\']*team[^"\']*)["\']',
+    r'href=["\']([^"\']*get-in-touch[^"\']*)["\']',
+    r'href=["\']([^"\']*reach[^"\']*)["\']',
+]
 
 EMAIL_REGEX = re.compile(
     r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
