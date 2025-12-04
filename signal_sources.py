@@ -829,6 +829,10 @@ def _extract_company_from_context(context_summary: str) -> Optional[str]:
         "breaks down", "supporter", "evolves", "boom", "gives away",
         "vets receive", "florida home", "fortune 500", "amid", "after",
         "between miami", "across south", "works to", "files complaint",
+        "hurricane", "preparedness", "advisory", "demand expected",
+        "competitor", "pricing", "updated", "call florida", "call home",
+        "south florida", "new businesses", "stores opening", "ice takes",
+        "development sites", "major projects", "broke ground", "bankruptcy",
     ]
     
     generic_descriptors = [
@@ -873,10 +877,53 @@ def _extract_domain_from_context(context_summary: str, raw_payload: str) -> Opti
     """
     Extract domain from signal context or raw payload.
     
-    Looks for URLs or domain patterns in the signal data.
-    Returns None if no domain can be extracted.
+    Prioritizes:
+    1. Real article URLs from news sources (not news aggregators)
+    2. Source/publisher domains from RSS metadata
+    3. Explicit URLs in context
+    
+    Filters out news aggregator domains (news.google.com, etc.)
     """
     import re
+    import json
+    
+    AGGREGATOR_DOMAINS = [
+        "news.google.com", "google.com", "yahoo.com", "msn.com", 
+        "flipboard.com", "feedly.com", "apple.news", "smartnews.com"
+    ]
+    
+    PUBLISHER_TO_DOMAIN = {
+        "miami herald": "miamiherald.com",
+        "sun sentinel": "sun-sentinel.com",
+        "south florida business journal": "bizjournals.com/southflorida",
+        "local 10": "local10.com",
+        "wsvn": "wsvn.com",
+        "nbc 6": "nbcmiami.com",
+        "palm beach post": "palmbeachpost.com",
+        "openpr": "openpr.com",
+        "pr newswire": "prnewswire.com",
+        "business wire": "businesswire.com",
+        "globenewswire": "globenewswire.com",
+    }
+    
+    if raw_payload:
+        try:
+            data = json.loads(raw_payload)
+            
+            source = data.get("source", "").lower()
+            for publisher, domain in PUBLISHER_TO_DOMAIN.items():
+                if publisher in source:
+                    return domain
+            
+            link = data.get("link", "")
+            if link and "news.google.com" not in link:
+                url_match = re.search(r'https?://(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+)', link)
+                if url_match:
+                    domain = url_match.group(1)
+                    if not any(agg in domain for agg in AGGREGATOR_DOMAINS):
+                        return domain
+        except (json.JSONDecodeError, TypeError):
+            pass
     
     url_pattern = r'https?://(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+)'
     domain_pattern = r'(?:www\.)?([a-zA-Z0-9-]+\.(?:com|io|net|org|co|biz|info))'
@@ -887,11 +934,15 @@ def _extract_domain_from_context(context_summary: str, raw_payload: str) -> Opti
         
         url_match = re.search(url_pattern, text)
         if url_match:
-            return url_match.group(1)
+            domain = url_match.group(1)
+            if not any(agg in domain for agg in AGGREGATOR_DOMAINS):
+                return domain
         
         domain_match = re.search(domain_pattern, text.lower())
         if domain_match:
-            return domain_match.group(1)
+            domain = domain_match.group(1)
+            if not any(agg in domain for agg in AGGREGATOR_DOMAINS):
+                return domain
     
     return None
 

@@ -38358,5 +38358,105 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:01.650912",
+    "lead_name": null,
+    "company": "Owner",
+    "to_email": "support@owner.com",
+    "subject": "Owner - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:04.394788",
+    "lead_name": null,
+    "company": "Partnership",
+    "to_email": "sales@PartnerShip.com",
+    "subject": "Partnership - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:07.797846",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "Sai.k@datamintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:10.208106",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "Sai.k@datamintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:16.333915",
+    "lead_name": null,
+    "company": "Roofing Announces Expanded",
+    "to_email": "sales@transparencymarketresearch.com",
+    "subject": "Roofing Announces Expanded - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:21.326173",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "sales@transparencymarketresearch.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:27.068594",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "media@mordorintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:33.282719",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "media@mordorintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:37.315538",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "Sai.k@datamintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:05:42.334796",
+    "lead_name": null,
+    "company": "MYSHOP",
+    "to_email": "support@myshop.com",
+    "subject": "MYSHOP - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

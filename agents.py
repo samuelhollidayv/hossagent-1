@@ -503,9 +503,10 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     
     # Only process LeadEvents that have been enriched (ENRICHED or OUTBOUND_READY)
     # Skip UNENRICHED events - wait for enrichment pipeline to process them
+    # Use LEAD_STATUS_NEW constant (uppercase "NEW") to match database storage
     new_events = session.exec(
         select(LeadEvent)
-        .where(LeadEvent.status == "new")
+        .where(LeadEvent.status == LEAD_STATUS_NEW)
         .where(LeadEvent.enrichment_status.in_([ENRICHMENT_STATUS_ENRICHED, ENRICHMENT_STATUS_OUTBOUND_READY]))
         .order_by(LeadEvent.urgency_score.desc())
         .limit(max_events)
@@ -514,10 +515,13 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     # Count unenriched events for logging
     unenriched_count = session.exec(
         select(LeadEvent)
-        .where(LeadEvent.status == "new")
+        .where(LeadEvent.status == LEAD_STATUS_NEW)
         .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_UNENRICHED)
     ).all()
     unenriched_count = len(unenriched_count)
+    
+    # Diagnostic log for debugging
+    print(f"[EVENT-BIZDEV] Found {len(new_events)} enriched events to process, {unenriched_count} awaiting enrichment")
     
     if not new_events:
         if unenriched_count > 0:
