@@ -1269,12 +1269,14 @@
             if (data.outbound_messages && data.outbound_messages.length > 0) {{
                 html += '<div class="detail-section">';
                 html += '<div class="detail-section-title">Outbound Messages (' + data.outbound_messages.length + ')</div>';
+                html += '<div style="background: rgba(34, 197, 94, 0.1); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent-green);">These emails are sent TO the lead/prospect. You are CC\'d for visibility.</div>';
                 data.outbound_messages.forEach(function(msg) {{
                     html += '<div class="outbound-card">';
                     html += '<div class="outbound-meta">';
-                    html += '<div class="outbound-to">To: ' + escapeHtml(msg.to_email) + '</div>';
+                    html += '<div class="outbound-to"><strong>To (Lead):</strong> ' + escapeHtml(msg.to_email) + '</div>';
                     html += '<span class="outbound-status ' + msg.status.toLowerCase() + '">' + escapeHtml(msg.status) + '</span>';
                     html += '</div>';
+                    html += '<div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.5rem;"><strong>CC:</strong> You &nbsp;|&nbsp; <strong>Reply-To:</strong> You</div>';
                     html += '<div class="outbound-subject"><strong>Subject:</strong> ' + escapeHtml(msg.subject) + '</div>';
                     if (msg.body) {{
                         html += '<div class="outbound-body">' + escapeHtml(msg.body.substring(0, 300)) + (msg.body.length > 300 ? '...' : '') + '</div>';

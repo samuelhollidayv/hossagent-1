@@ -38348,5 +38348,15 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T12:12:08.902907",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "info@keystoneadv.com",
+    "subject": "Your company - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

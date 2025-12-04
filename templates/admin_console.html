@@ -2043,7 +2043,12 @@
                     data.outbound_messages.forEach(o => {
                         html += '<div class="detail-outbound">';
                         html += '<div class="detail-outbound-subject">' + (o.subject || 'No subject') + '</div>';
-                        html += '<div class="detail-outbound-to">To: ' + (o.to_email || '-') + ' | Status: ' + (o.status || '-') + '</div>';
+                        html += '<div class="detail-outbound-to" style="line-height: 1.6;">';
+                        html += '<strong>To (Lead):</strong> ' + (o.to_email || '-') + '<br>';
+                        html += '<strong>CC:</strong> Customer<br>';
+                        html += '<strong>Reply-To:</strong> Customer<br>';
+                        html += '<strong>Status:</strong> ' + (o.status || '-');
+                        html += '</div>';
                         html += '<div class="detail-outbound-body">' + (o.body || 'No body').substring(0, 200) + '...</div>';
                         html += '</div>';
                     });
@@ -2165,8 +2170,11 @@
                                             <div class="detail-text">${o.subject || 'No subject'}</div>
                                         </div>
                                         <div class="detail-section">
+                                            <div class="detail-section-title">Email Direction</div>
                                             <div class="detail-grid">
-                                                <div class="detail-item"><div class="detail-label">To</div><div class="detail-value">${o.to_email || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">To (Lead)</div><div class="detail-value">${o.to_email || '-'}</div></div>
+                                                <div class="detail-item"><div class="detail-label">CC</div><div class="detail-value">Customer</div></div>
+                                                <div class="detail-item"><div class="detail-label">Reply-To</div><div class="detail-value">Customer</div></div>
                                                 <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${o.status || '-'}</div></div>
                                                 <div class="detail-item"><div class="detail-label">Lead Event ID</div><div class="detail-value">${o.lead_event_id || '-'}</div></div>
                                                 <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
@@ -2391,9 +2399,15 @@
                                         <div class="detail-text">${po.subject || 'No subject'}</div>
                                     </div>
                                     <div class="detail-section">
+                                        <div class="detail-section-title">Email Direction</div>
+                                        <div style="background: rgba(34, 197, 94, 0.1); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.75rem; border-left: 3px solid var(--accent-green);">
+                                            This outbound email will be sent <strong>TO the lead/prospect</strong>, with the customer CC'd for visibility.
+                                        </div>
                                         <div class="detail-grid">
-                                            <div class="detail-item"><div class="detail-label">To</div><div class="detail-value">${po.to_email || '-'}</div></div>
-                                            <div class="detail-item"><div class="detail-label">To Name</div><div class="detail-value">${po.to_name || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">To (Lead)</div><div class="detail-value">${po.to_email || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">Lead Name</div><div class="detail-value">${po.to_name || '-'}</div></div>
+                                            <div class="detail-item"><div class="detail-label">CC</div><div class="detail-value">Customer</div></div>
+                                            <div class="detail-item"><div class="detail-label">Reply-To</div><div class="detail-value">Customer</div></div>
                                             <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${po.status || '-'}</div></div>
                                             <div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${created}</div></div>
                                         </div>

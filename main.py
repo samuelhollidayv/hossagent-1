@@ -2847,11 +2847,16 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             timestamp = po.created_at.strftime("%Y-%m-%d %H:%M") if po.created_at else "-"
             context_truncated = (po.context_summary[:100] + "...") if po.context_summary and len(po.context_summary) > 100 else (po.context_summary or "")
             body_escaped = html_module.escape(po.body or "") if po.body else ""
+            lead_name = html_module.escape(po.to_name or "Lead")
+            lead_email = html_module.escape(po.to_email)
             outreach_cards += f"""
                 <div class="outreach-card">
                     <div class="outreach-header">
-                        <div class="outreach-to">To: {html_module.escape(po.to_email)}</div>
+                        <div class="outreach-to">Email to {lead_name} ({lead_email})</div>
                         <div class="outreach-date">{timestamp}</div>
+                    </div>
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent-green);">
+                        You will be CC'd on this email for visibility
                     </div>
                     <div class="outreach-subject"><strong>Subject:</strong> {html_module.escape(po.subject or "")}</div>
                     <div class="outreach-context">{html_module.escape(context_truncated)}</div>
@@ -2872,7 +2877,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             <div class="section-header">
                 <div class="section-title">Pending Outreach</div>
             </div>
-            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Review and approve outbound emails before they are sent</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Review and approve outbound emails to leads/prospects. These emails are sent TO leads on your behalf, with you CC'd for visibility.</div>
             {outreach_cards}
         </div>
         <script>
