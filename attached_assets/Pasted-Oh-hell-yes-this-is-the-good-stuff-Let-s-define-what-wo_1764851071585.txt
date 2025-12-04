@@ -1,0 +1,420 @@
+Oh hell yes, this is the good stuff.
+Let’s define what “working” actually means for HossAgent end-to-end.
+
+Below is a soup-to-nuts UAT script: you can literally walk this like a checklist every time you ship a big change. Think of it as “Did the Hoss actually do the job?” broken into flows.
+
+I’ll assume:
+	•	You’re on the prod Replit URL.
+	•	Stripe + SMTP + EMAIL_MODE are already set.
+	•	Dummy data has been nuked or clearly marked as test.
+
+Use this however you want, but if you run these flows clean and everything passes, you’re not in fantasyland—you’ve got a functioning system.
+
+⸻
+
+0. Environment & Secrets Sanity Check
+
+Goal: Make sure the pipes are real before we touch UI.
+
+Steps:
+	1.	Open Replit Secrets.
+	2.	Verify these exist and look sane (no typos, no extra spaces):
+	•	EMAIL_MODE = SMTP or SENDGRID (for now you’re on Gmail SMTP)
+	•	SMTP mode:
+	•	SMTP_HOST (e.g. smtp.gmail.com)
+	•	SMTP_PORT (587)
+	•	SMTP_USERNAME
+	•	SMTP_PASSWORD (app password)
+	•	SMTP_FROM_EMAIL (matches your “from” address)
+	•	Stripe:
+	•	STRIPE_API_KEY (live secret key)
+	•	STRIPE_PUBLIC_KEY
+	•	STRIPE_DEFAULT_CURRENCY = usd (or whatever)
+	•	ENABLE_STRIPE = TRUE
+	•	HossAgent config:
+	•	ADMIN_PASSWORD
+	•	LEAD_GEOGRAPHY
+	•	LEAD_NICHE
+	3.	Confirm EMAIL_MODE is not DRY_RUN if you actually want live sends.
+
+Expected:
+	•	App boots with no env-related stack traces.
+	•	Admin console email indicator shows SMTP (or SENDGRID) and “healthy”.
+
+⸻
+
+1. Landing Page & Signup Flow
+
+Goal: A stranger hits the URL and can understand what HossAgent does and sign up for a trial.
+
+1.1 Landing Page Copy & Layout
+	1.	Hit root URL (e.g. https://…spock.replit.dev/).
+	2.	Check:
+	•	Hero headline matches what MVP does now (contextual leads / opportunities, not “full AI COO” magic).
+	•	Subhead explains: HossAgent watches for opportunities & surfaces them to you; outreach runs in autopilot/review mode.
+	•	CTA buttons:
+	•	Start Free Trial / Start 7-Day Trial → /signup
+	•	No “Book a Demo” button (we killed that).
+	•	Footer has:
+	•	Brand line
+	•	Link to Operator Console (/admin) for you.
+
+Expected:
+	•	Page feels like a real product, not Heaven’s Gate.
+	•	Copy doesn’t oversell beyond current feature set.
+
+1.2 Signup Flow
+	1.	Click Start Trial.
+	2.	On /signup:
+	•	Enter a new test email (e.g. test+uat1@yourdomain.com).
+	•	Set password.
+	3.	Submit.
+
+Expected:
+	•	Signup succeeds.
+	•	You land in customer portal (not admin).
+	•	Trial banner visible (e.g. 7-day trial, tasks/leads usage = 0).
+
+⸻
+
+2. Customer Portal – Basic Experience
+
+Goal: New customer sees a sane, self-explanatory dashboard.
+
+From fresh signup:
+	1.	Confirm top of page shows:
+	•	Plan name (Trial / Pro).
+	•	Price (e.g. $99/mo).
+	•	Trial days remaining.
+	•	Tasks used / Leads used counters (0/0 initially).
+	•	Start Paid Subscription button.
+	2.	Below that, confirm sections:
+	•	“Recent Opportunities” or “Lead Events” (even if empty).
+	•	“Task History” or “Recent Work”.
+	•	“Reports” (if present; may be empty).
+	•	“Settings” link / tab.
+	3.	Click Settings:
+	•	Fill in:
+	•	Business Information:
+	•	Short description (use the blurb we wrote).
+	•	Services (comma separated).
+	•	Pricing notes (brief).
+	•	Target / Ideal customer (Miami SMBs, etc.).
+	•	Excluded customers (e.g. enterprise, certain industries).
+	•	Communication Style:
+	•	Tone: Confident + Friendly.
+	•	Style: Conversational + Data-Driven (pick one primary).
+	•	Contact Info:
+	•	Name: Hoss
+	•	Email: your Gmail you wired to SMTP.
+	•	Outreach Mode:
+	•	Start with Review (so you can approve).
+	•	Autopilot:
+	•	Enabled.
+	4.	Save settings.
+
+Expected:
+	•	Settings persist.
+	•	Refresh page – values still there.
+	•	Back on dashboard, summary reflects your business identity (blurb, etc.).
+
+⸻
+
+3. Auth: Login, Logout, Forgot Password
+
+Goal: Basic account lifecycle works for a mortal.
+	1.	From portal, click Log out.
+	2.	Go back to root → click Login:
+	•	Use the account you just created.
+	•	Verify login works.
+	3.	Close browser tab, reopen, hit /portal:
+	•	See if session persists (depends on cookie behavior; aim for staying logged in for a while).
+	4.	Click Forgot password link on login:
+	•	Enter the same email.
+	•	In DRY_RUN: reset link should log to console.
+	•	In real SMTP: check your inbox for reset email.
+	5.	Click reset link:
+	•	Set new password.
+	•	Confirm you land in portal logged in.
+
+Expected:
+	•	Forgot password flow works end-to-end.
+	•	Broken / expired token shows friendly error.
+	•	No weird 500s.
+
+⸻
+
+4. Admin Console – Operator View
+
+Goal: You can see and control the system from the War Room.
+	1.	Visit /admin.
+	2.	Login with ADMIN_PASSWORD.
+	3.	On main admin screen, check:
+
+	•	Customers table:
+	•	Shows the trial account you just created.
+	•	Columns: email, plan, trial end, tasks used, leads used, autopilot status.
+	•	Buttons per customer:
+	•	View as customer.
+	•	Upgrade.
+	•	Cancel.
+	•	Email panel:
+	•	Shows EMAIL_MODE.
+	•	Shows recent email attempts (if any).
+	•	Signals / LeadEvents / Pending outreach tabs:
+	•	May be empty initially, but UI loads with no errors.
+
+Expected:
+	•	No dummy “seed” customers unless you intentionally left them for testing.
+	•	If they exist, mark them clearly or delete them.
+
+⸻
+
+5. Signals & LeadEvents – Opportunity Creation
+
+Goal: Prove the engine can create LeadEvents/opportunities for a customer.
+
+There are two ways: wait for real signals or force a test.
+
+5.1 Trigger / Confirm Signals
+	1.	In admin, find the Signals Engine / Run now / “Manual cycle” button (if present).
+	•	If not, you may need to wait for cron/autopilot interval (5–15 min).
+	2.	After a cycle:
+	•	Check Signals tab:
+	•	New rows show up with source, type, timestamp, score.
+	3.	Check LeadEvents tab:
+	•	Some signals should be converted into LeadEvents for your test customer:
+	•	Show lead name, company, context summary, status = NEW.
+
+Expected:
+	•	Signals exist.
+	•	LeadEvents created with non-garbage context (not your own business).
+
+⸻
+
+6. Outbound Engine – Direction & CC Logic
+
+Goal: Outbound emails go to the lead, CC the customer, Reply-To customer. No more “emailing yourself about yourself”.
+
+For this you need at least one LeadEvent with a real test email you control.
+
+6.1 Create a Test Lead
+
+In admin (or via the portal, if supported):
+	1.	Create a fake lead manually:
+	•	Lead name: “Test Lead UAT”.
+	•	Email: use an alternate inbox you own (e.g. yourname+leadtest@gmail.com).
+	•	Company: fake or real.
+	•	Context: “Testing outbound pipeline.”
+	2.	Ensure it shows in LeadEvents with status = NEW.
+
+6.2 Outbound in Review Mode
+	1.	In your customer portal settings:
+	•	Outreach mode = Review.
+	•	Autopilot = Enabled.
+	2.	Wait for next BizDev/autopilot run or trigger manually if a button exists.
+	3.	In portal:
+	•	Look for Pending Outreach / “Emails to approve”.
+	4.	Open a pending email.
+
+Expected:
+	•	“To” = Test Lead email.
+	•	“CC” = your customer email (from settings).
+	•	“Reply-To” = your customer email.
+	•	Body references the lead’s business context, NOT “Dear [your business name]…”
+
+	5.	Approve one email.
+	6.	Check inboxes:
+	•	Lead inbox gets the email.
+	•	Customer inbox (you) gets CC.
+	•	If you hit “Reply” from lead inbox, it should reply to customer email, not some internal address.
+
+Expected:
+	•	No emails addressed to the customer as if they’re a prospect.
+	•	Lead status updates to CONTACTED (or equivalent).
+
+6.3 Outbound in Auto Mode
+	1.	Change outreach mode = Auto – Emails sent automatically.
+	2.	Ensure Autopilot ON.
+	3.	Let it run.
+
+Expected:
+	•	New LeadEvents get emails automatically sent.
+	•	Admin Outbound log shows:
+	•	To: lead email
+	•	CC: customer email
+	•	Reply-To: customer email
+	•	Mode: SMTP / SENDGRID
+	•	Status: success.
+
+⸻
+
+7. Reports / Task History – Value Delivery
+
+Goal: The portal actually shows work product, not just numbers.
+
+7.1 Generate a Report
+
+Ideally there’s a button like “Run Research Snapshot” / “Generate report” in portal or admin.
+	1.	Trigger a report for your test customer (e.g. competitive analysis, market snapshot).
+	2.	Let Ops agent generate it.
+	3.	Check admin/logs to confirm the report was created.
+
+Expected data model:
+	•	A Report record with:
+	•	customer_id
+	•	title
+	•	summary
+	•	full_content (text / HTML)
+	•	created_at
+
+7.2 Portal Surface
+
+Back in customer portal:
+	1.	Go to Reports / Recent Work section.
+	2.	Confirm:
+	•	You see an entry for the new report:
+	•	Date
+	•	Title
+	•	Short description.
+	•	Clicking it:
+	•	Opens full report (page or modal) with content.
+	3.	Check Task History:
+	•	Should show a row like:
+	•	Type: Research report / Analysis.
+	•	Status: Completed.
+	•	Date/time.
+
+Expected:
+	•	Reports are visible and readable in the portal.
+	•	Task/lead counters:
+	•	tasks_used incremented.
+	•	If report tied to a LeadEvent, leads_used may also increment.
+
+⸻
+
+8. Billing & Stripe – Trial → Paid
+
+Goal: User can go from trial to paid via Stripe or via admin override.
+
+8.1 Trial Banner
+	1.	In portal:
+	•	Verify trial copy: days remaining, tasks/leads used.
+	•	“Start Paid Subscription” button visible.
+
+8.2 Stripe Checkout
+	1.	Click Start Paid Subscription (as test flow).
+	2.	Ensure:
+	•	You’re taken to a Stripe Checkout or Payment Link.
+	•	Amount = $99/mo (or whatever your plan is).
+	•	Plan name matches product identity.
+	3.	DO NOT actually charge your real card unless you want to. This can be a smoke-test step only, or you do it once.
+
+Expected:
+	•	After a successful Stripe payment (even if simulated once), subscription status:
+	•	Changes to ACTIVE / Pro.
+	•	Trial banner disappears.
+	•	Portal shows “Your subscription is active.”
+
+Note: If webhooks aren’t fully tested yet, you can rely on admin override.
+
+8.3 Admin Upgrade Override
+	1.	In /admin, find your test customer row.
+	2.	Click Upgrade.
+	3.	Refresh:
+
+Expected:
+	•	Subscription now shows ACTIVE / Pro.
+	•	Trial countdown gone.
+	•	Limits may show “Unlimited” / not enforced.
+
+8.4 Cancel Subscription (MVP)
+	1.	In customer portal:
+	•	For a paid account, click Cancel subscription.
+	2.	Confirm messaging:
+	•	“Your subscription will stay active until end of current period…”
+	3.	In admin:
+	•	See cancelled_at_period_end or similar flag set.
+
+Expected:
+	•	No immediate access loss.
+	•	Future billing will not recur (once wired to Stripe fully).
+
+⸻
+
+9. Admin Controls: View as Customer, Comp, Kill Dummy Data
+
+Goal: Operator has god-mode but in a safe, understandable way.
+	1.	In /admin → Customers:
+	•	Use View as Customer:
+	•	Confirm it takes you into that customer’s portal context.
+	2.	Use Upgrade, Cancel, maybe Comp / free plan if present.
+	3.	Confirm:
+	•	Changes reflect in portal immediately.
+	4.	If legacy/dummy customers exist:
+	•	Use delete/cleanup tools to wipe them, or:
+	•	Rename them clearly as “TEST – DO NOT USE” and push them off-screen.
+
+Expected:
+	•	No orphaned or confusing accounts.
+	•	You can always get back to admin easily.
+
+⸻
+
+10. Support & Observability
+
+Goal: You can debug when things go sideways.
+	1.	Trigger:
+	•	A failed email (e.g. bogus SMTP credentials in a throwaway env).
+	•	A failed Stripe config (e.g. invalid API key in DRY env).
+	2.	Observe in logs / admin:
+	•	Failures are logged with clear messages.
+	•	System falls back to DRY_RUN or gracefully errors without crashing autopilot.
+	3.	Check:
+	•	Email logs show [EMAIL][MODE][FAIL] with reason.
+	•	Signals/LeadEvents don’t explode the app if one source breaks.
+
+⸻
+
+11. “Hoss as Customer” Scenarios
+
+Goal: You’re your own first customers.
+
+Run two profiles in prod:
+	1.	HossAgent LLC (B2B SMB target, Miami GTM).
+	2.	Your YouTube Outlaw Music persona (for future lead gen / bookings).
+
+For each:
+	•	Fill settings with the info we wrote (services, who they serve, etc.).
+	•	Turn on Autopilot.
+	•	Run for a day and watch:
+	•	Do you get actual opportunities?
+	•	Does the outbound copy match your brand voice?
+	•	Are you seeing real value from the reports and opportunities?
+
+This is the truth test. Everything else is just lab work.
+
+⸻
+
+How to Use This Script
+	•	Treat each section (0–11) as a test suite.
+	•	When you make a big change:
+	•	Re-run at least sections 1–4, 6, 7, 8.
+	•	Keep a simple spreadsheet:
+	•	Columns: Test Case, Status (Pass/Fail), Notes, Date.
+	•	When something fails:
+	•	Capture the exact symptom.
+	•	Feed it back to Magicbox as:
+“Here’s the behavior, here’s what should have happened—fix the code so X holds true.”
+
+⸻
+
+If you want, I can turn this into:
+	•	A copy-paste checklist (markdown table or Google Sheet template).
+	•	A “HossAgent QA Playbook.md” text you can drop in your repo so any future engineer (or agent) can run the same gauntlet.
+
+But if you walk through everything above and it all behaves as expected?
+
+Then yeah, Hoss:
+the machine’s not a demo anymore.
+It’s a product.
