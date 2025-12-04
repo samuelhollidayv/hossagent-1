@@ -8,6 +8,23 @@ from generic lead gen into a context-aware intelligence engine.
 Miami-tuned heuristics included for South Florida market.
 
 ============================================================================
+SIGNALNET INTEGRATION
+============================================================================
+The Signals Agent now integrates with the SignalNet framework for real signal
+sources (weather, news, Reddit). The SIGNAL_MODE environment variable controls
+the pipeline behavior:
+
+  PRODUCTION: Run real sources, create LeadEvents for high-scoring signals
+  SANDBOX: Run sources and score signals, but don't create LeadEvents
+  OFF: Skip signal ingestion entirely
+
+Default: SANDBOX (safe mode for development)
+
+When SIGNAL_MODE is OFF, the agent skips the entire SignalNet pipeline.
+When SignalNet returns 0 signals AND no leads exist in DB, synthetic fallback
+signals are generated for demo purposes.
+
+============================================================================
 MIAMI BIAS CONFIGURATION
 ============================================================================
 The Signals Engine is configured via two key environment variables:
@@ -37,6 +54,14 @@ from sqlmodel import Session, select
 
 from models import Signal, LeadEvent, Customer, Lead
 from subscription_utils import increment_leads_used
+from signal_sources import (
+    run_signal_pipeline,
+    get_signal_status,
+    get_signal_mode,
+    SIGNAL_MODE,
+    LEAD_GEOGRAPHY as SIGNALNET_GEOGRAPHY,
+    LEAD_NICHE as SIGNALNET_NICHE,
+)
 
 
 # ============================================================================
@@ -52,8 +77,25 @@ LEAD_GEOGRAPHY_LIST = [g.strip().lower() for g in LEAD_GEOGRAPHY.split(",")]
 # Parse LEAD_NICHE into searchable list for industry matching
 LEAD_NICHE_LIST = [n.strip().lower() for n in LEAD_NICHE.split(",")]
 
-# Log configuration at module load (startup)
+# Log configuration at module load (startup) - include SignalNet mode
+print(f"[SIGNALS][STARTUP] Mode: {SIGNAL_MODE}")
 print(f"[SIGNALS][STARTUP] Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
+
+def _log_signalnet_sources_status():
+    """Log status of SignalNet sources at startup."""
+    status = get_signal_status()
+    registry = status.get("registry", {})
+    sources = registry.get("sources", [])
+    
+    enabled_sources = [s["name"] for s in sources if s.get("enabled")]
+    disabled_sources = [s["name"] for s in sources if not s.get("enabled")]
+    
+    if enabled_sources:
+        print(f"[SIGNALS][STARTUP] Enabled sources: {', '.join(enabled_sources)}")
+    if disabled_sources:
+        print(f"[SIGNALS][STARTUP] Disabled sources: {', '.join(disabled_sources)}")
+
+_log_signalnet_sources_status()
 
 
 # Miami-specific industry verticals - high-value niches for South Florida market
@@ -374,30 +416,19 @@ def generate_recommended_action(category: str, signal_summary: str) -> str:
     return actions.get(category, "Prepare contextual outreach based on signal")
 
 
-def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
+def _generate_synthetic_fallback_signals(session: Session, max_signals: int = 10) -> Dict:
     """
-    Run the Signals Agent to generate synthetic context signals.
+    Generate synthetic fallback signals for demo purposes.
     
-    This v1 is intentionally synthetic - it simulates the 'obituary men' 
-    noticing engine without hitting real APIs. Each signal generates
-    actionable LeadEvents for moment-aware outreach.
+    This is called when:
+    - SignalNet pipeline returns 0 signals (all sources cooling down or failing)
+    - AND there are no leads in the database
     
-    Miami-first targeting via LEAD_GEOGRAPHY, LEAD_NICHE:
-    - Signals are generated with Miami-area geography
-    - Urgency scores are boosted for signals matching LEAD_GEOGRAPHY (+15)
-    - Urgency scores are boosted for signals matching LEAD_NICHE (+10)
-    - Miami-tuned categories (HURRICANE_SEASON, MIAMI_PRICE_MOVE, BILINGUAL_OPPORTUNITY)
-      get higher base urgency weights
-    
-    LeadEvent creation uses:
-    - Category inferred from signal content (Miami-tuned categories prioritized)
-    - Urgency calculated with geography and niche boosts
-    - Recommended actions tailored for South Florida market
+    Signals are clearly marked with source="synthetic" to distinguish from real signals.
     
     Returns dict with counts of signals and events generated.
     """
-    print("[SIGNALS] Starting Signals Agent cycle...")
-    print(f"[SIGNALS] Active config - Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
+    print("[SIGNALS][SYNTHETIC] Generating fallback signals for demo purposes...")
     
     customers = session.exec(select(Customer).limit(20)).all()
     leads = session.exec(select(Lead).where(Lead.status != "dead").limit(30)).all()
@@ -419,18 +450,17 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
         })
     
     if not all_companies:
-        print("[SIGNALS] No companies found. Skipping signal generation.")
-        return {"signals_created": 0, "events_created": 0}
+        print("[SIGNALS][SYNTHETIC] No companies found. Skipping synthetic signal generation.")
+        return {"signals_created": 0, "events_created": 0, "source": "synthetic"}
     
     signals_created = 0
     events_created = 0
     
-    companies_to_process = random.sample(all_companies, min(len(all_companies), max_signals))
+    num_to_generate = random.randint(5, min(10, len(all_companies)))
+    companies_to_process = random.sample(all_companies, num_to_generate)
     
     for company in companies_to_process:
-        num_signals = random.randint(0, 3)
-        if num_signals == 0:
-            continue
+        num_signals = random.randint(1, 2)
             
         signal_generators = [
             generate_competitor_signal,
@@ -444,14 +474,16 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
         for generator in chosen_generators:
             signal_data = generator(company["name"], company["niche"])
             
-            # Assign geography from Miami areas for South Florida targeting
             signal_geography = random.choice(MIAMI_AREAS)
+            
+            raw_payload = json.loads(signal_data["raw_payload"])
+            raw_payload["source"] = "synthetic"
             
             signal = Signal(
                 company_id=company["id"] if company["type"] == "customer" else None,
                 lead_id=company["id"] if company["type"] == "lead" else None,
                 source_type=signal_data["source_type"],
-                raw_payload=signal_data["raw_payload"],
+                raw_payload=json.dumps(raw_payload),
                 context_summary=signal_data["context_summary"],
                 geography=signal_geography
             )
@@ -460,12 +492,10 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
             session.refresh(signal)
             signals_created += 1
             
-            print(f"[SIGNALS][{signal.source_type.upper()}] {company['name']}: {signal.context_summary[:80]}...")
+            print(f"[SIGNALS][SYNTHETIC][{signal.source_type.upper()}] {company['name']}: {signal.context_summary[:60]}...")
             
-            # Miami-first targeting: Category assignment uses Miami-tuned heuristics
             category = infer_category(signal.source_type, signal.context_summary)
             
-            # Miami-first targeting: Urgency boosted for matching geography/niche
             urgency = calculate_urgency(
                 signal.source_type, 
                 category, 
@@ -475,15 +505,14 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
             
             recommended_action = generate_recommended_action(category, signal.context_summary)
             
-            # LeadEvent creation with Miami-tuned category and boosted urgency
             event = LeadEvent(
                 company_id=company["id"] if company["type"] == "customer" else None,
                 lead_id=company["id"] if company["type"] == "lead" else None,
                 signal_id=signal.id,
-                summary=signal.context_summary,
+                summary=f"[SYNTHETIC] {signal.context_summary}",
                 category=category,
                 urgency_score=urgency,
-                status="new",
+                status="NEW",
                 recommended_action=recommended_action
             )
             session.add(event)
@@ -494,16 +523,117 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
                 increment_leads_used(session, company["id"])
                 session.commit()
             
-            # Log with geography match indicator
-            geo_match = "✓ GEO MATCH" if matches_lead_geography(signal_geography) else ""
-            niche_match = "✓ NICHE MATCH" if matches_lead_niche(company["niche"]) else ""
-            print(f"[SIGNALS][EVENT] Created {category} event (urgency: {urgency}) for {company['name']} {geo_match} {niche_match}")
+            geo_match = "✓ GEO" if matches_lead_geography(signal_geography) else ""
+            niche_match = "✓ NICHE" if matches_lead_niche(company["niche"]) else ""
+            print(f"[SIGNALS][SYNTHETIC][EVENT] {category} (urgency: {urgency}) {geo_match} {niche_match}")
     
-    print(f"[SIGNALS] Cycle complete. Created {signals_created} signals, {events_created} events.")
+    print(f"[SIGNALS][SYNTHETIC] Complete. Created {signals_created} signals, {events_created} events.")
     
     return {
         "signals_created": signals_created,
-        "events_created": events_created
+        "events_created": events_created,
+        "source": "synthetic"
+    }
+
+
+def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
+    """
+    Run the Signals Agent with SignalNet integration.
+    
+    Pipeline behavior is controlled by SIGNAL_MODE environment variable:
+    
+      OFF: Skip SignalNet entirely, log and return immediately
+      SANDBOX: Run SignalNet sources, score signals, but don't create LeadEvents
+      PRODUCTION: Full pipeline including LeadEvent creation for high-scoring signals
+    
+    Synthetic Fallback:
+      If SignalNet returns 0 signals AND there are no leads in the database,
+      synthetic fallback signals are generated for demo purposes.
+      Synthetic signals are clearly marked with source="synthetic".
+    
+    Miami-first targeting via LEAD_GEOGRAPHY, LEAD_NICHE:
+    - Signals are scored with Miami-area geography boost (+15)
+    - Urgency scores are boosted for signals matching LEAD_NICHE (+10)
+    - Miami-tuned categories (HURRICANE_SEASON, etc.) get higher base urgency
+    
+    Returns dict with counts of signals and events generated, plus source details.
+    """
+    print(f"[SIGNALS] ============================================================")
+    print(f"[SIGNALS] Starting Signals Agent cycle - Mode: {SIGNAL_MODE}")
+    print(f"[SIGNALS] Geography: {LEAD_GEOGRAPHY}")
+    print(f"[SIGNALS] Niche: {LEAD_NICHE}")
+    print(f"[SIGNALS] ============================================================")
+    
+    if SIGNAL_MODE == "OFF":
+        print("[SIGNALS] SIGNAL_MODE is OFF - skipping SignalNet pipeline entirely")
+        return {
+            "signals_created": 0,
+            "events_created": 0,
+            "mode": "OFF",
+            "skipped": True,
+            "message": "SignalNet is disabled (SIGNAL_MODE=OFF)"
+        }
+    
+    print(f"[SIGNALS] Running SignalNet pipeline in {SIGNAL_MODE} mode...")
+    
+    pipeline_result = run_signal_pipeline(session)
+    
+    signals_from_pipeline = pipeline_result.get("signals_persisted", 0)
+    events_from_pipeline = pipeline_result.get("events_created", 0)
+    sources_run = pipeline_result.get("sources_run", [])
+    errors = pipeline_result.get("errors", [])
+    
+    print(f"[SIGNALS] SignalNet pipeline results:")
+    print(f"[SIGNALS]   - Sources checked: {pipeline_result.get('sources_checked', 0)}")
+    print(f"[SIGNALS]   - Sources eligible: {pipeline_result.get('sources_eligible', 0)}")
+    print(f"[SIGNALS]   - Signals fetched: {pipeline_result.get('signals_fetched', 0)}")
+    print(f"[SIGNALS]   - Signals persisted: {signals_from_pipeline}")
+    print(f"[SIGNALS]   - Events created: {events_from_pipeline}")
+    
+    for source_result in sources_run:
+        source_name = source_result.get("source", "unknown")
+        fetched = source_result.get("fetched", 0)
+        persisted = source_result.get("persisted", 0)
+        events = source_result.get("events_created", 0)
+        error = source_result.get("error")
+        
+        if error:
+            print(f"[SIGNALS][{source_name.upper()}] ERROR: {error}")
+        else:
+            print(f"[SIGNALS][{source_name.upper()}] Fetched: {fetched}, Persisted: {persisted}, Events: {events}")
+    
+    if errors:
+        print(f"[SIGNALS] Pipeline errors:")
+        for err in errors:
+            print(f"[SIGNALS]   - {err.get('source')}: {err.get('error')}")
+    
+    if signals_from_pipeline == 0:
+        leads = session.exec(select(Lead).where(Lead.status != "dead").limit(1)).all()
+        
+        if not leads:
+            print("[SIGNALS] No signals from SignalNet AND no leads in DB - triggering synthetic fallback")
+            synthetic_result = _generate_synthetic_fallback_signals(session, max_signals)
+            
+            return {
+                "signals_created": synthetic_result.get("signals_created", 0),
+                "events_created": synthetic_result.get("events_created", 0),
+                "mode": SIGNAL_MODE,
+                "source": "synthetic_fallback",
+                "signalnet_result": pipeline_result,
+                "message": "Used synthetic fallback (no signals from SignalNet, no leads in DB)"
+            }
+        else:
+            print("[SIGNALS] No signals from SignalNet, but leads exist - skipping synthetic fallback")
+    
+    print(f"[SIGNALS] Cycle complete. Mode: {SIGNAL_MODE}, Signals: {signals_from_pipeline}, Events: {events_from_pipeline}")
+    
+    return {
+        "signals_created": signals_from_pipeline,
+        "events_created": events_from_pipeline,
+        "mode": SIGNAL_MODE,
+        "source": "signalnet",
+        "signalnet_result": pipeline_result,
+        "message": f"SignalNet pipeline completed in {SIGNAL_MODE} mode"
     }
 
 

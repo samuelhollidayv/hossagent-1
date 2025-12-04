@@ -882,6 +882,314 @@
         .apollo-hint a:hover {
             text-decoration: underline;
         }
+
+        .signalnet-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .signalnet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border-bottom: 1px solid var(--border-subtle);
+            cursor: pointer;
+        }
+
+        .signalnet-header:hover {
+            background: linear-gradient(135deg, #222222 0%, var(--bg-tertiary) 100%);
+        }
+
+        .signalnet-title-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .signalnet-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--text-primary);
+        }
+
+        .signalnet-mode-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .signalnet-mode-badge.production {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--accent-green);
+        }
+
+        .signalnet-mode-badge.sandbox {
+            background: rgba(249, 115, 22, 0.15);
+            color: var(--accent-orange);
+        }
+
+        .signalnet-mode-badge.off {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        .signalnet-mode-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        .signalnet-mode-badge.production .signalnet-mode-dot {
+            background: var(--accent-green);
+        }
+
+        .signalnet-mode-badge.sandbox .signalnet-mode-dot {
+            background: var(--accent-orange);
+        }
+
+        .signalnet-mode-badge.off .signalnet-mode-dot {
+            background: var(--accent-red);
+            animation: none;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .signalnet-stats {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+        }
+
+        .signalnet-stat-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .signalnet-content {
+            display: none;
+            padding: 1.5rem;
+        }
+
+        .signalnet-content.open {
+            display: block;
+        }
+
+        .signalnet-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .signalnet-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-medium);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .signalnet-select:focus {
+            outline: none;
+            border-color: var(--accent-green);
+        }
+
+        .signalnet-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .signalnet-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .signalnet-section-title {
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+        }
+
+        .source-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .source-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            transition: border-color var(--transition-fast);
+        }
+
+        .source-card:hover {
+            border-color: var(--border-medium);
+        }
+
+        .source-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .source-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .source-type-badge {
+            font-size: 0.6rem;
+            padding: 0.2rem 0.5rem;
+            background: var(--bg-tertiary);
+            color: var(--text-tertiary);
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .source-enabled-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.7rem;
+        }
+
+        .source-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .source-dot.enabled {
+            background: var(--accent-green);
+        }
+
+        .source-dot.disabled {
+            background: var(--accent-red);
+        }
+
+        .source-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            margin-top: 0.5rem;
+        }
+
+        .source-stat-label {
+            color: var(--text-tertiary);
+        }
+
+        .source-stat-value {
+            color: var(--text-secondary);
+        }
+
+        .source-error {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: var(--radius-sm);
+            font-size: 0.65rem;
+            color: var(--accent-red);
+        }
+
+        .signal-stream-table {
+            width: 100%;
+            font-size: 0.7rem;
+        }
+
+        .signal-score {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 22px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.65rem;
+        }
+
+        .signal-score.high {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--accent-green);
+        }
+
+        .signal-score.medium {
+            background: rgba(249, 115, 22, 0.2);
+            color: var(--accent-orange);
+        }
+
+        .signal-score.low {
+            background: rgba(107, 114, 128, 0.2);
+            color: var(--text-tertiary);
+        }
+
+        .signal-leadevent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.6rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .signal-leadevent-badge.yes {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--accent-green);
+        }
+
+        .signal-leadevent-badge.no {
+            background: rgba(107, 114, 128, 0.15);
+            color: var(--text-tertiary);
+        }
+
+        .signal-category-badge {
+            font-size: 0.6rem;
+            padding: 0.2rem 0.5rem;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .signal-context-preview {
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .signalnet-toggle {
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -1006,6 +1314,69 @@
             <div class="apollo-stat">
                 <span>Total Leads:</span>
                 <span class="apollo-stat-value" id="apollo-total">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SignalNet Intelligence Panel -->
+    <div class="signalnet-panel" id="signalnet-panel">
+        <div class="signalnet-header" onclick="toggleSignalNetPanel()">
+            <div class="signalnet-title-row">
+                <div class="signalnet-title">SIGNALNET INTELLIGENCE</div>
+                <div class="signalnet-mode-badge" id="signalnet-mode-badge">
+                    <div class="signalnet-mode-dot"></div>
+                    <span id="signalnet-mode-text">LOADING</span>
+                </div>
+            </div>
+            <div class="signalnet-stats">
+                <div><span>Last Run:</span> <span class="signalnet-stat-value" id="signalnet-last-run">-</span></div>
+                <div><span>Total Signals:</span> <span class="signalnet-stat-value" id="signalnet-total">-</span></div>
+                <span class="signalnet-toggle" id="signalnet-toggle-icon">▶</span>
+            </div>
+        </div>
+        <div class="signalnet-content" id="signalnet-content">
+            <div class="signalnet-controls">
+                <select class="signalnet-select" id="signalnet-mode-select">
+                    <option value="PRODUCTION">PRODUCTION</option>
+                    <option value="SANDBOX">SANDBOX</option>
+                    <option value="OFF">OFF</option>
+                </select>
+                <button class="agent-btn" onclick="changeSignalNetMode()">Change Mode</button>
+                <button class="agent-btn" onclick="runSignalNetPipeline()">Run Pipeline Now</button>
+                <button class="agent-btn secondary" onclick="clearOldSignals()">Clear Old Signals (7 days)</button>
+            </div>
+
+            <div class="signalnet-section">
+                <div class="signalnet-section-title">Source Status</div>
+                <div class="source-status-grid" id="source-status-grid">
+                    <div class="source-card">
+                        <div class="source-card-header">
+                            <span class="source-name">Loading sources...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="signalnet-section">
+                <div class="signalnet-section-title">Signal Stream (Last 20)</div>
+                <div class="table-wrapper">
+                    <table class="signal-stream-table" id="signal-stream-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Source</th>
+                                <th>Category</th>
+                                <th>Score</th>
+                                <th>Company</th>
+                                <th>Context</th>
+                                <th>LeadEvent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" class="empty-row">Loading signals...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -1966,11 +2337,256 @@
             }
         }
 
+        // ======================================
+        // SIGNALNET PANEL FUNCTIONS
+        // ======================================
+
+        function toggleSignalNetPanel() {
+            const content = document.getElementById('signalnet-content');
+            const icon = document.getElementById('signalnet-toggle-icon');
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                icon.textContent = '▶';
+            } else {
+                content.classList.add('open');
+                icon.textContent = '▼';
+                refreshSignalNetStatus();
+            }
+        }
+
+        async function refreshSignalNetStatus() {
+            try {
+                const res = await fetch('/api/admin/signalnet/status');
+                const data = await res.json();
+                
+                const modeBadge = document.getElementById('signalnet-mode-badge');
+                const modeText = document.getElementById('signalnet-mode-text');
+                const lastRun = document.getElementById('signalnet-last-run');
+                const total = document.getElementById('signalnet-total');
+                const modeSelect = document.getElementById('signalnet-mode-select');
+                
+                modeBadge.className = 'signalnet-mode-badge ' + (data.mode || 'sandbox').toLowerCase();
+                modeText.textContent = data.mode || 'UNKNOWN';
+                modeSelect.value = data.mode || 'SANDBOX';
+                
+                lastRun.textContent = data.last_pipeline_run ? 
+                    new Date(data.last_pipeline_run).toLocaleString() : 'Never';
+                total.textContent = data.total_signals || 0;
+                
+                renderSourceStatusGrid(data.registry || []);
+                renderSignalStream(data.recent_signals || []);
+                
+            } catch (e) {
+                console.error('SignalNet status error:', e);
+                addLog('Failed to load SignalNet status', 'error');
+            }
+        }
+
+        function renderSourceStatusGrid(registry) {
+            const grid = document.getElementById('source-status-grid');
+            
+            if (!registry || registry.length === 0) {
+                grid.innerHTML = `
+                    <div class="source-card">
+                        <div class="source-card-header">
+                            <span class="source-name">No sources registered</span>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = registry.map(source => {
+                const enabledClass = source.enabled ? 'enabled' : 'disabled';
+                const enabledText = source.enabled ? 'Enabled' : 'Disabled';
+                const lastRun = source.last_run ? 
+                    new Date(source.last_run).toLocaleString() : 'Never';
+                const itemsLastRun = source.items_last_run !== null ? source.items_last_run : '-';
+                
+                let errorHtml = '';
+                if (source.last_error) {
+                    const errorText = source.last_error.length > 80 ? 
+                        source.last_error.substring(0, 80) + '...' : source.last_error;
+                    errorHtml = `<div class="source-error">${errorText}</div>`;
+                }
+                
+                return `
+                    <div class="source-card">
+                        <div class="source-card-header">
+                            <span class="source-name">${source.name}</span>
+                            <span class="source-type-badge">${source.source_type}</span>
+                        </div>
+                        <div class="source-enabled-indicator">
+                            <div class="source-dot ${enabledClass}"></div>
+                            <span style="color: var(--text-${enabledClass === 'enabled' ? 'secondary' : 'tertiary'})">${enabledText}</span>
+                            <button class="agent-btn secondary" style="margin-left: auto; padding: 0.25rem 0.5rem; font-size: 0.6rem;" onclick="toggleSource('${source.name}')">Info</button>
+                        </div>
+                        <div class="source-stats">
+                            <div class="source-stat-label">Last Run:</div>
+                            <div class="source-stat-value">${lastRun}</div>
+                            <div class="source-stat-label">Items:</div>
+                            <div class="source-stat-value">${itemsLastRun}</div>
+                            <div class="source-stat-label">Cooldown:</div>
+                            <div class="source-stat-value">${source.cooldown_seconds || 0}s</div>
+                            <div class="source-stat-label">Eligible:</div>
+                            <div class="source-stat-value">${source.is_eligible ? 'Yes' : 'No'}</div>
+                        </div>
+                        ${errorHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSignalStream(signals) {
+            const tbody = document.getElementById('signal-stream-table').querySelector('tbody');
+            
+            if (!signals || signals.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-row">No signals yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = signals.map(sig => {
+                const timestamp = sig.created_at ? 
+                    new Date(sig.created_at).toLocaleString() : '-';
+                
+                const score = sig.score !== null ? sig.score : '-';
+                let scoreClass = 'low';
+                if (score >= 70) scoreClass = 'high';
+                else if (score >= 40) scoreClass = 'medium';
+                
+                const category = sig.category || '-';
+                const companyName = sig.company_name || '-';
+                const context = sig.context_summary ? 
+                    (sig.context_summary.length > 60 ? 
+                        sig.context_summary.substring(0, 60) + '...' : sig.context_summary) : '-';
+                
+                const hasEvent = sig.has_lead_event;
+                const eventBadge = hasEvent ? 
+                    `<span class="signal-leadevent-badge yes">✓ LE #${sig.lead_event_id}</span>` :
+                    `<span class="signal-leadevent-badge no">—</span>`;
+                
+                return `
+                    <tr>
+                        <td>${timestamp}</td>
+                        <td>${sig.source_type || '-'}</td>
+                        <td><span class="signal-category-badge">${category}</span></td>
+                        <td><span class="signal-score ${scoreClass}">${score}</span></td>
+                        <td>${companyName}</td>
+                        <td class="signal-context-preview" title="${sig.context_summary || ''}">${context}</td>
+                        <td>${eventBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function changeSignalNetMode() {
+            const select = document.getElementById('signalnet-mode-select');
+            const newMode = select.value;
+            
+            if (!confirm(`Change SignalNet mode to ${newMode}?\n\n` + 
+                'PRODUCTION: Creates LeadEvents for high-scoring signals\n' +
+                'SANDBOX: Scores signals but does not create LeadEvents\n' +
+                'OFF: Disables all signal ingestion\n\n' +
+                'Note: This is a runtime change. Update SIGNAL_MODE in Replit Secrets for persistence.')) {
+                return;
+            }
+            
+            addLog(`Changing SignalNet mode to ${newMode}...`, '');
+            
+            try {
+                const res = await fetch(`/api/admin/signalnet/mode?new_mode=${newMode}`, {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    addLog(`SignalNet mode changed: ${data.old_mode} → ${data.new_mode}`, 'success');
+                    refreshSignalNetStatus();
+                } else {
+                    addLog(`Mode change failed: ${data.detail || 'Unknown error'}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Mode change error: ${e.message}`, 'error');
+            }
+        }
+
+        async function runSignalNetPipeline() {
+            addLog('Running SignalNet pipeline...', '');
+            
+            try {
+                const res = await fetch('/api/admin/signalnet/run', {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    const result = data.result || {};
+                    addLog(`Pipeline complete: ${result.signals_persisted || 0} signals, ${result.events_created || 0} events`, 'success');
+                    if (result.sources_run) {
+                        addLog(`Sources run: ${result.sources_run.join(', ')}`, '');
+                    }
+                    refreshSignalNetStatus();
+                    refreshKPIs();
+                } else {
+                    addLog(`Pipeline failed: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Pipeline error: ${e.message}`, 'error');
+            }
+        }
+
+        async function clearOldSignals() {
+            if (!confirm('Delete all signals older than 7 days?\n\nLeadEvents will NOT be deleted, only raw Signal records.')) {
+                return;
+            }
+            
+            addLog('Clearing old signals...', '');
+            
+            try {
+                const res = await fetch('/api/admin/signalnet/clear-old?days=7', {method: 'POST'});
+                const data = await res.json();
+                
+                if (data.success) {
+                    addLog(`Deleted ${data.deleted_count} old signals`, 'success');
+                    refreshSignalNetStatus();
+                    refreshKPIs();
+                } else {
+                    addLog(`Clear failed: ${data.detail || 'Unknown error'}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Clear error: ${e.message}`, 'error');
+            }
+        }
+
+        async function toggleSource(sourceName) {
+            addLog(`Getting info for source: ${sourceName}...`, '');
+            
+            try {
+                const res = await fetch(`/api/admin/signalnet/source/${sourceName}/toggle`, {method: 'POST'});
+                const data = await res.json();
+                
+                let info = `Source: ${data.source_name}\n`;
+                info += `Type: ${data.source_type}\n`;
+                info += `Enabled: ${data.enabled ? 'Yes' : 'No'}\n`;
+                info += `Eligible to run: ${data.is_eligible ? 'Yes' : 'No'}\n`;
+                info += `Last run: ${data.last_run || 'Never'}\n`;
+                info += `Items last run: ${data.items_last_run || '-'}\n`;
+                info += `Cooldown: ${data.cooldown_seconds}s\n`;
+                if (data.last_error) {
+                    info += `Last error: ${data.last_error}\n`;
+                }
+                info += `\n${data.message}`;
+                
+                alert(info);
+                
+            } catch (e) {
+                addLog(`Source info error: ${e.message}`, 'error');
+            }
+        }
+
         loadSettings();
         refreshAllData();
+        refreshSignalNetStatus();
         
         setInterval(refreshKPIs, 30000);
         setInterval(refreshAllData, 60000);
+        setInterval(refreshSignalNetStatus, 60000);
     </script>
 </body>
 </html>

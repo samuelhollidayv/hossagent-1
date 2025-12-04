@@ -46,6 +46,7 @@ from email_utils import send_email, get_email_status, get_email_log
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
 import signal_sources
+from signal_sources import get_signal_status, run_signal_pipeline, get_registry, get_signal_mode
 from release_mode import is_release_mode, print_startup_banners, get_release_mode_status
 from stripe_utils import (
     validate_stripe_at_startup,
@@ -3894,6 +3895,249 @@ def get_lead_event_detail_admin(
         "reports": reports_list,
         "lead": lead_data,
         "company": company_data
+    }
+
+
+# ============================================================================
+# SIGNALNET ADMIN API ENDPOINTS
+# ============================================================================
+
+
+@app.get("/api/admin/signalnet/status")
+def get_signalnet_status(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get comprehensive SignalNet status including mode, sources, and recent signals.
+    
+    Returns:
+    - mode: Current SIGNAL_MODE (PRODUCTION/SANDBOX/OFF)
+    - lead_geography: Configured geography filter
+    - lead_niche: Configured niche filter
+    - leadevent_threshold: Score threshold for creating LeadEvents
+    - registry: Status of all registered signal sources
+    - total_signals: Total signals in database
+    - last_pipeline_run: Most recent signal timestamp (approximation)
+    - recent_signals: Last 20 signals with details
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    status = get_signal_status()
+    
+    total_signals = session.exec(select(func.count(Signal.id))).one()
+    
+    last_signal = session.exec(
+        select(Signal).order_by(Signal.created_at.desc()).limit(1)
+    ).first()
+    last_pipeline_run = last_signal.created_at.isoformat() if last_signal else None
+    
+    recent_signals = session.exec(
+        select(Signal).order_by(Signal.created_at.desc()).limit(20)
+    ).all()
+    
+    signals_with_events = []
+    for sig in recent_signals:
+        lead_event = session.exec(
+            select(LeadEvent).where(LeadEvent.signal_id == sig.id)
+        ).first()
+        
+        company_name = None
+        if sig.company_id:
+            customer = session.exec(
+                select(Customer).where(Customer.id == sig.company_id)
+            ).first()
+            if customer:
+                company_name = customer.company
+        
+        category = lead_event.category if lead_event else None
+        score = lead_event.urgency_score if lead_event else None
+        
+        signals_with_events.append({
+            "id": sig.id,
+            "source_type": sig.source_type,
+            "context_summary": sig.context_summary,
+            "geography": sig.geography,
+            "company_id": sig.company_id,
+            "company_name": company_name,
+            "created_at": sig.created_at.isoformat() if sig.created_at else None,
+            "has_lead_event": lead_event is not None,
+            "lead_event_id": lead_event.id if lead_event else None,
+            "category": category,
+            "score": score,
+        })
+    
+    return {
+        "mode": status["mode"],
+        "lead_geography": status["lead_geography"],
+        "lead_niche": status["lead_niche"],
+        "leadevent_threshold": status["leadevent_threshold"],
+        "registry": status["registry"],
+        "total_signals": total_signals,
+        "last_pipeline_run": last_pipeline_run,
+        "recent_signals": signals_with_events,
+    }
+
+
+@app.post("/api/admin/signalnet/mode")
+def change_signalnet_mode(
+    request: Request,
+    new_mode: str = Query(..., description="New mode: PRODUCTION, SANDBOX, or OFF"),
+    session: Session = Depends(get_session)
+):
+    """
+    Change SIGNAL_MODE.
+    
+    NOTE: This changes the environment variable at runtime but won't persist after restart.
+    For permanent changes, update the SIGNAL_MODE environment variable in Replit Secrets.
+    
+    Valid modes:
+    - PRODUCTION: Run real sources, create LeadEvents for high-scoring signals
+    - SANDBOX: Run sources and score signals, but don't create LeadEvents
+    - OFF: Skip signal ingestion entirely
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    new_mode_upper = new_mode.upper()
+    if new_mode_upper not in ("PRODUCTION", "SANDBOX", "OFF"):
+        raise HTTPException(status_code=400, detail="Invalid mode. Use PRODUCTION, SANDBOX, or OFF")
+    
+    import os
+    old_mode = os.environ.get("SIGNAL_MODE", "SANDBOX")
+    os.environ["SIGNAL_MODE"] = new_mode_upper
+    
+    import signal_sources as ss
+    ss.SIGNAL_MODE = new_mode_upper
+    
+    print(f"[SIGNALNET][ADMIN] Mode changed: {old_mode} -> {new_mode_upper}")
+    
+    return {
+        "success": True,
+        "old_mode": old_mode,
+        "new_mode": new_mode_upper,
+        "message": f"SIGNAL_MODE changed to {new_mode_upper}. Note: This is a runtime change. Update SIGNAL_MODE in Replit Secrets for persistence."
+    }
+
+
+@app.post("/api/admin/signalnet/run")
+def run_signalnet_pipeline(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Trigger immediate SignalNet pipeline run.
+    
+    Runs all eligible signal sources through the pipeline:
+    1. Fetch raw signals from each source
+    2. Parse into standardized format
+    3. Score each signal
+    4. Persist to database
+    5. Create LeadEvents for high-scoring signals (PRODUCTION mode only)
+    
+    Returns pipeline execution results.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        result = run_signal_pipeline(session)
+        
+        return {
+            "success": True,
+            "message": f"Pipeline complete: {result['signals_persisted']} signals, {result['events_created']} events",
+            "result": result
+        }
+    except Exception as e:
+        print(f"[SIGNALNET][ADMIN] Pipeline error: {e}")
+        return {
+            "success": False,
+            "message": f"Pipeline error: {str(e)}",
+            "result": None
+        }
+
+
+@app.post("/api/admin/signalnet/source/{source_name}/toggle")
+def toggle_signalnet_source(
+    source_name: str,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Toggle a signal source enabled/disabled status.
+    
+    NOTE: Source enabled status is determined by the source's `enabled` property,
+    which typically checks API keys and SIGNAL_MODE. This endpoint provides info
+    about the source but cannot directly toggle most sources.
+    
+    For sources like weather_openweather that require API keys, 
+    set/unset the environment variable to enable/disable.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    registry = get_registry()
+    source = registry.get_source(source_name)
+    
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Source '{source_name}' not found")
+    
+    return {
+        "source_name": source_name,
+        "source_type": source.source_type,
+        "enabled": source.enabled,
+        "is_eligible": source.is_eligible(),
+        "last_run": source.last_run.isoformat() if source.last_run else None,
+        "last_error": source.last_error,
+        "items_last_run": source.items_last_run,
+        "cooldown_seconds": source.cooldown_seconds,
+        "message": "Source status retrieved. To enable/disable, configure the required environment variables (API keys, SIGNAL_MODE)."
+    }
+
+
+@app.post("/api/admin/signalnet/clear-old")
+def clear_old_signals(
+    request: Request,
+    days: int = Query(default=7, description="Delete signals older than this many days"),
+    session: Session = Depends(get_session)
+):
+    """
+    Clear signals older than specified days.
+    
+    This helps manage database size by removing old signal data.
+    LeadEvents are NOT deleted - only the raw Signal records.
+    
+    Default: 7 days
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    old_signals = session.exec(
+        select(Signal).where(Signal.created_at < cutoff_date)
+    ).all()
+    
+    count = len(old_signals)
+    
+    for sig in old_signals:
+        session.delete(sig)
+    
+    session.commit()
+    
+    print(f"[SIGNALNET][ADMIN] Cleared {count} signals older than {days} days")
+    
+    return {
+        "success": True,
+        "deleted_count": count,
+        "cutoff_date": cutoff_date.isoformat(),
+        "message": f"Deleted {count} signals older than {days} days"
     }
 
 
