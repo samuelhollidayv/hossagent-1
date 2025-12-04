@@ -79,9 +79,13 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
   - `OFF`: Disables signal ingestion entirely
 - **Admin Panel**: SignalNet Intelligence panel in admin console shows:
   - Mode status, last run, total signals
-  - Per-source status (enabled, last run, errors)
-  - Recent signal stream with scores
+  - Per-source status (enabled, last run, errors, auto-disable state)
+  - Recent signal stream with scores and action buttons
   - Controls: Run Now, Change Mode, Clear Old Signals
+  - Signal Actions: Promote to Lead, Discard, Flag as Noisy
+- **DRY_RUN Mode**: `SIGNAL_DRY_RUN=True` enables testing without external API calls
+- **Structured Logging**: `SignalLog` model tracks all signal activity for debugging
+- **Per-Source Throttling**: Auto-disables sources with 5+ consecutive errors, with reset capability
 
 - **Signals Engine ("Ethical Briefcase System"):** Transforms generic lead generation into context-aware intelligence. Categorizes `LeadEvents` (e.g., HURRICANE_SEASON, COMPETITOR_SHIFT) with urgency scoring (0-100) and Miami-tuned heuristics.
 - **Reports System:** Auto-generated from completed tasks, viewable in the customer portal.
@@ -109,7 +113,7 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 **Lead Source System:** Apollo.io is the ONLY lead source. No fallbacks.
 - If Apollo is not connected, lead generation PAUSES (does not fall back)
 - If daily quota (100 calls) is exceeded, lead generation PAUSES until midnight UTC
-- Connect via admin console "Connect Apollo" button or set `APOLLO_API_KEY`
+- **Frictionless connection**: Set `APOLLO_API_KEY` in Secrets tab, auto-connects on restart - no forms/buttons needed
 
 **Required Secrets for Production:**
 - `APOLLO_API_KEY`: Apollo.io API key (REQUIRED - get from apollo.io/settings/api-keys)
