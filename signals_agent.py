@@ -426,6 +426,10 @@ def _generate_synthetic_fallback_signals(session: Session, max_signals: int = 10
     
     Signals are clearly marked with source="synthetic" to distinguish from real signals.
     
+    IMPORTANT: Synthetic signals are generated about EXTERNAL prospect companies,
+    NOT about customers using HossAgent. This prevents self-referential signals
+    where a customer sees signals about their own business.
+    
     Returns dict with counts of signals and events generated.
     """
     print("[SIGNALS][SYNTHETIC] Generating fallback signals for demo purposes...")
@@ -433,21 +437,37 @@ def _generate_synthetic_fallback_signals(session: Session, max_signals: int = 10
     customers = session.exec(select(Customer).limit(20)).all()
     leads = session.exec(select(Lead).where(Lead.status != "dead").limit(30)).all()
     
+    customer_company_names = {c.company.lower() for c in customers if c.company}
+    
+    SYNTHETIC_PROSPECT_COMPANIES = [
+        {"name": "Sunshine HVAC Solutions", "niche": "HVAC"},
+        {"name": "Miami Cooling Experts", "niche": "HVAC"},
+        {"name": "Coastal Roofing Pros", "niche": "roofing"},
+        {"name": "South Florida Roofers", "niche": "roofing"},
+        {"name": "Glow Med Spa Miami", "niche": "med spa"},
+        {"name": "Brickell Aesthetics", "niche": "med spa"},
+        {"name": "Garcia Immigration Law", "niche": "immigration attorney"},
+        {"name": "Coral Gables Realty", "niche": "realtor"},
+        {"name": "Doral Marketing Group", "niche": "marketing agency"},
+        {"name": "Premier Dental Care", "niche": "dental practice"},
+    ]
+    
     all_companies = []
-    for c in customers:
+    for prospect in SYNTHETIC_PROSPECT_COMPANIES:
         all_companies.append({
-            "id": c.id,
-            "name": c.company,
-            "niche": c.niche or "small business",
-            "type": "customer"
+            "id": None,
+            "name": prospect["name"],
+            "niche": prospect["niche"],
+            "type": "synthetic_prospect"
         })
     for l in leads:
-        all_companies.append({
-            "id": l.id,
-            "name": l.company,
-            "niche": l.niche or "small business",
-            "type": "lead"
-        })
+        if l.company and l.company.lower() not in customer_company_names:
+            all_companies.append({
+                "id": l.id,
+                "name": l.company,
+                "niche": l.niche or "small business",
+                "type": "lead"
+            })
     
     if not all_companies:
         print("[SIGNALS][SYNTHETIC] No companies found. Skipping synthetic signal generation.")
@@ -480,7 +500,7 @@ def _generate_synthetic_fallback_signals(session: Session, max_signals: int = 10
             raw_payload["source"] = "synthetic"
             
             signal = Signal(
-                company_id=company["id"] if company["type"] == "customer" else None,
+                company_id=None,
                 lead_id=company["id"] if company["type"] == "lead" else None,
                 source_type=signal_data["source_type"],
                 raw_payload=json.dumps(raw_payload),
@@ -506,22 +526,19 @@ def _generate_synthetic_fallback_signals(session: Session, max_signals: int = 10
             recommended_action = generate_recommended_action(category, signal.context_summary)
             
             event = LeadEvent(
-                company_id=company["id"] if company["type"] == "customer" else None,
+                company_id=None,
                 lead_id=company["id"] if company["type"] == "lead" else None,
                 signal_id=signal.id,
                 summary=f"[SYNTHETIC] {signal.context_summary}",
                 category=category,
                 urgency_score=urgency,
                 status="NEW",
-                recommended_action=recommended_action
+                recommended_action=recommended_action,
+                lead_company=company["name"]
             )
             session.add(event)
             session.commit()
             events_created += 1
-            
-            if company["type"] == "customer" and company["id"]:
-                increment_leads_used(session, company["id"])
-                session.commit()
             
             geo_match = "✓ GEO" if matches_lead_geography(signal_geography) else ""
             niche_match = "✓ NICHE" if matches_lead_niche(company["niche"]) else ""
