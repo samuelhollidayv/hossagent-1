@@ -2600,10 +2600,19 @@
       "candidates_fetched": 10,
       "leads_created": 10,
       "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-04T06:03:31.410120",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-04T02:49:44.584791",
-  "last_created_count": 10,
+  "last_run": "2025-12-04T06:03:31.410120",
+  "last_created_count": 0,
   "recent_leads": [
     {
       "id": 27,
