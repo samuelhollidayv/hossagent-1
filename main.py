@@ -2011,7 +2011,7 @@ Sent at: {datetime.utcnow().isoformat()}
 @app.post("/admin/production-cleanup")
 def admin_production_cleanup(
     request: Request,
-    owner_email_domain: str = Query(default="", description="Domain to identify real customers (e.g., 'gmail.com')"),
+    owner_email_domain: str = Query(default="", description="Domain to identify real customers (e.g., 'hossagent.net')"),
     purge_all_signals: bool = Query(default=True, description="If true, delete ALL signals and lead_events (fresh start)"),
     confirm: bool = Query(default=False, description="Set to true to actually run cleanup"),
     session: Session = Depends(get_session)
@@ -2029,7 +2029,7 @@ def admin_production_cleanup(
     - Produces an audit log file for compliance
     
     Usage:
-        POST /admin/production-cleanup?owner_email_domain=gmail.com&purge_all_signals=true&confirm=true
+        POST /admin/production-cleanup?owner_email_domain=hossagent.net&purge_all_signals=true&confirm=true
     
     What it deletes:
     - ALL signals and lead_events (if purge_all_signals=true)
