@@ -36258,5 +36258,135 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:14.131066",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:19.944492",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:22.766912",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "Meridian Marketing Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:45.194762",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:50.550883",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:53.442516",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:24:58.728765",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:25:01.984071",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:25:06.586931",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:25:10.767368",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:25:13.599287",
+    "lead_name": "Sarah Chen",
+    "company": "Meridian Marketing Co",
+    "to_email": "sarah@meridianmktg.com",
+    "subject": "Meridian Marketing Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:25:19.454816",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T06:25:25.211116",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

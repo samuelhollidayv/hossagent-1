@@ -2609,9 +2609,27 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T06:24:02.947077",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T06:24:32.701308",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-04T06:03:31.410120",
+  "last_run": "2025-12-04T06:24:32.701308",
   "last_created_count": 0,
   "recent_leads": [
     {

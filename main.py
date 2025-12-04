@@ -1689,6 +1689,108 @@ def run_lead_source_manual(session: Session = Depends(get_session)):
 
 
 # ============================================================================
+# API ENDPOINTS - APOLLO.IO INTEGRATION
+# ============================================================================
+
+
+@app.get("/api/apollo/status")
+def get_apollo_status_endpoint(request: Request):
+    """Get Apollo.io connection status and usage stats."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from apollo_integration import get_apollo_status
+        return get_apollo_status()
+    except ImportError:
+        return {"connected": False, "error": "Apollo module not available"}
+
+
+@app.post("/api/apollo/connect")
+def connect_apollo_endpoint(request: Request, api_key: str = Query(...)):
+    """
+    Connect Apollo.io with API key.
+    Validates key before saving.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from apollo_integration import connect_apollo_with_key
+        result = connect_apollo_with_key(api_key)
+        return result
+    except ImportError:
+        return {"success": False, "error": "Apollo module not available"}
+
+
+@app.post("/api/apollo/disconnect")
+def disconnect_apollo_endpoint(request: Request):
+    """Disconnect Apollo.io integration."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from apollo_integration import disconnect_apollo
+        return disconnect_apollo()
+    except ImportError:
+        return {"success": False, "error": "Apollo module not available"}
+
+
+@app.post("/api/apollo/test")
+def test_apollo_endpoint(request: Request):
+    """
+    Test Apollo connection by fetching sample leads.
+    Returns first 5 leads from Miami HVAC search.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from apollo_integration import test_apollo_connection
+        return test_apollo_connection()
+    except ImportError:
+        return {"success": False, "error": "Apollo module not available"}
+
+
+@app.get("/api/apollo/log")
+def get_apollo_log_endpoint(request: Request, limit: int = Query(default=20, le=100)):
+    """Get Apollo.io fetch log entries."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from apollo_integration import get_fetch_log
+        return {"entries": get_fetch_log(limit)}
+    except ImportError:
+        return {"entries": [], "error": "Apollo module not available"}
+
+
+@app.post("/api/lead-source/preference")
+def set_lead_source_preference_endpoint(request: Request, source: str = Query(...)):
+    """
+    Set lead source preference.
+    
+    Args:
+        source: "apollo", "dummy", or "auto"
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from lead_sources import set_lead_source_preference, get_lead_source_preference
+    
+    if set_lead_source_preference(source):
+        return {"success": True, "preference": get_lead_source_preference()}
+    else:
+        return {"success": False, "error": f"Invalid source: {source}. Must be 'apollo', 'dummy', or 'auto'"}
+
+
+# ============================================================================
 # API ENDPOINTS - AGENT EXECUTION (MANUAL TRIGGERS)
 # ============================================================================
 

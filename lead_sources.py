@@ -147,21 +147,19 @@ class ApolloLeadSourceProvider(LeadSourceProvider):
     """
     Production provider that fetches leads from Apollo.io API.
     
-    Configure via environment variables:
-        APOLLO_API_KEY - Apollo.io API key (get from apollo.io/settings/api-keys)
-        
-    Uses Apollo's People Search API to find decision-makers at target companies.
-    Filters by location (Miami/South Florida) and industry keywords.
+    Uses the apollo_integration module for:
+    - Rate limiting (100 calls/day)
+    - Detailed fetch logging
+    - Automatic fallback when quota hit
     
-    Safety:
-        Falls back gracefully on errors with [LEADS][API_ERROR] logging.
-        Never crashes the autopilot loop.
+    Configure via:
+        - Admin console "Connect Apollo" button (preferred)
+        - APOLLO_API_KEY environment variable (fallback)
     """
     
     last_error: Optional[str] = None
     last_status: str = "unknown"
-    
-    APOLLO_API_URL = "https://api.apollo.io/v1/mixed_people/search"
+    fallback_triggered: bool = False
     
     INDUSTRY_KEYWORDS = {
         "med spa": ["medical spa", "medspa", "aesthetics", "cosmetic", "beauty clinic"],
@@ -172,144 +170,93 @@ class ApolloLeadSourceProvider(LeadSourceProvider):
         "marketing agency": ["marketing", "advertising", "digital agency", "media agency"]
     }
     
-    MIAMI_LOCATIONS = [
-        "Miami", "Fort Lauderdale", "Boca Raton", "West Palm Beach",
-        "Coral Gables", "Miami Beach", "Doral", "Hialeah", "Hollywood",
-        "Pompano Beach", "Aventura", "Homestead", "Kendall"
-    ]
-    
     @property
     def name(self) -> str:
         return "Apollo"
     
     def fetch_candidates(self, config: LeadSourceConfig, limit: int) -> List[LeadCandidate]:
-        """Fetch leads from Apollo.io People Search API."""
+        """Fetch leads from Apollo.io with rate limiting and auto-fallback."""
         try:
-            import requests
+            from apollo_integration import fetch_leads_from_apollo, get_apollo_status
             
-            api_key = os.getenv("APOLLO_API_KEY", "")
-            
-            if not api_key:
-                self.last_status = "no_creds"
-                self.last_error = "APOLLO_API_KEY not set"
-                print(f"[LEADS][APOLLO] {self.last_error} - cannot fetch leads")
+            status = get_apollo_status()
+            if not status.get("connected") and not os.getenv("APOLLO_API_KEY"):
+                self.last_status = "not_connected"
+                self.last_error = "Apollo not connected - use admin console to connect"
+                print(f"[LEADS][APOLLO] {self.last_error}")
                 return []
             
-            search_params = self._build_apollo_query(config, limit)
+            location = config.geography or "Miami"
+            niche = config.niche or "small business"
+            min_size = config.min_company_size or 1
+            max_size = config.max_company_size or 200
             
-            response = requests.post(
-                self.APOLLO_API_URL,
-                headers={
-                    "Content-Type": "application/json",
-                    "Cache-Control": "no-cache",
-                    "X-Api-Key": api_key
-                },
-                json=search_params,
-                timeout=30
+            result = fetch_leads_from_apollo(
+                location=location,
+                niche=niche,
+                min_size=min_size,
+                max_size=max_size,
+                limit=limit
             )
             
-            if response.status_code != 200:
+            if result.get("fallback_to_dummy"):
+                self.fallback_triggered = True
+                self.last_status = "fallback"
+                self.last_error = result.get("error", "Quota exceeded or API error")
+                print(f"[LEADS][APOLLO] Fallback triggered: {self.last_error}")
+                return []
+            
+            if not result.get("success"):
                 self.last_status = "api_error"
-                self.last_error = f"HTTP {response.status_code}: {response.text[:200]}"
-                print(f"[LEADS][APOLLO] API error: {self.last_error}")
+                self.last_error = result.get("error", "Unknown error")
+                print(f"[LEADS][APOLLO] Error: {self.last_error}")
                 return []
             
-            data = response.json()
-            people = data.get("people", [])
-            
-            if not people:
-                self.last_status = "ok"
-                self.last_error = None
-                print(f"[LEADS][APOLLO] No results found for query")
-                return []
-            
+            leads = result.get("leads", [])
             candidates = []
-            for person in people[:limit]:
-                org = person.get("organization", {}) or {}
-                
-                email = person.get("email")
-                if not email:
-                    continue
-                
-                company_name = org.get("name") or person.get("organization_name", "Unknown Company")
-                contact_name = person.get("name") or f"{person.get('first_name', '')} {person.get('last_name', '')}".strip()
-                website = org.get("website_url") or org.get("primary_domain")
-                
+            
+            for lead in leads:
+                website = lead.get("website", "")
                 if website and not website.startswith("http"):
                     website = f"https://{website}"
                 
-                industry = org.get("industry") or config.niche
-                
                 candidates.append(LeadCandidate(
-                    company_name=company_name,
-                    contact_name=contact_name if contact_name else None,
-                    email=email,
+                    company_name=lead.get("company", "Unknown"),
+                    contact_name=lead.get("name"),
+                    email=lead.get("email"),
                     website=website,
-                    niche=industry,
+                    niche=lead.get("industry", config.niche),
                     source="apollo",
                     raw_data={
-                        "apollo_id": person.get("id"),
-                        "title": person.get("title"),
-                        "linkedin_url": person.get("linkedin_url"),
-                        "city": person.get("city"),
-                        "state": person.get("state"),
-                        "org_id": org.get("id"),
-                        "org_size": org.get("estimated_num_employees"),
-                        "org_linkedin": org.get("linkedin_url")
+                        "apollo_id": lead.get("apollo_id"),
+                        "apollo_url": lead.get("apollo_url"),
+                        "title": lead.get("title"),
+                        "linkedin": lead.get("linkedin"),
+                        "city": lead.get("city"),
+                        "state": lead.get("state"),
+                        "employee_count": lead.get("employee_count")
                     }
                 ))
             
             self.last_status = "ok"
             self.last_error = None
-            print(f"[LEADS][APOLLO] Fetched {len(candidates)} leads from Apollo.io")
+            self.fallback_triggered = False
+            
+            calls_remaining = result.get("calls_remaining", "?")
+            print(f"[LEADS][APOLLO] Fetched {len(candidates)} real leads ({calls_remaining} API calls remaining today)")
+            
             return candidates
             
+        except ImportError:
+            self.last_status = "module_error"
+            self.last_error = "apollo_integration module not found"
+            print(f"[LEADS][APOLLO] {self.last_error}")
+            return []
         except Exception as e:
-            self.last_status = "api_error"
+            self.last_status = "exception"
             self.last_error = str(e)
             print(f"[LEADS][APOLLO] Exception: {self.last_error}")
             return []
-    
-    def _build_apollo_query(self, config: LeadSourceConfig, limit: int) -> dict:
-        """Build Apollo.io search query from config."""
-        query = {
-            "page": 1,
-            "per_page": min(limit, 25),
-            "person_titles": [
-                "Owner", "CEO", "Founder", "President", "Director",
-                "General Manager", "Managing Partner", "Principal"
-            ]
-        }
-        
-        if config.geography:
-            geo_lower = config.geography.lower()
-            if any(loc.lower() in geo_lower for loc in ["miami", "broward", "south florida", "florida"]):
-                query["person_locations"] = self.MIAMI_LOCATIONS
-            else:
-                query["person_locations"] = [config.geography]
-        else:
-            query["person_locations"] = self.MIAMI_LOCATIONS
-        
-        if config.niche:
-            niche_lower = config.niche.lower()
-            keywords = []
-            for key, terms in self.INDUSTRY_KEYWORDS.items():
-                if key in niche_lower:
-                    keywords.extend(terms)
-            
-            if keywords:
-                query["q_organization_keyword_tags"] = keywords
-            else:
-                query["q_keywords"] = config.niche
-        
-        if config.min_company_size or config.max_company_size:
-            min_size = config.min_company_size or 1
-            max_size = config.max_company_size or 500
-            query["organization_num_employees_ranges"] = [f"{min_size},{max_size}"]
-        else:
-            query["organization_num_employees_ranges"] = ["1,50", "51,200"]
-        
-        return query
 
 
 class SearchApiLeadSourceProvider(LeadSourceProvider):
@@ -424,35 +371,77 @@ class SearchApiLeadSourceProvider(LeadSourceProvider):
         return " ".join(parts)
 
 
-def get_lead_source_provider() -> LeadSourceProvider:
+_cached_lead_source: Optional[str] = None
+
+def set_lead_source_preference(source: str) -> bool:
+    """
+    Set preferred lead source. Stored in memory for current session.
+    
+    Args:
+        source: "apollo", "dummy", or "auto"
+        
+    Returns:
+        True if valid source set
+    """
+    global _cached_lead_source
+    if source in ("apollo", "dummy", "auto"):
+        _cached_lead_source = source
+        print(f"[LEADS] Lead source preference set to: {source}")
+        return True
+    return False
+
+
+def get_lead_source_preference() -> str:
+    """Get current lead source preference."""
+    global _cached_lead_source
+    return _cached_lead_source or "auto"
+
+
+def get_lead_source_provider(force_fallback: bool = False) -> LeadSourceProvider:
     """
     Factory function to get the appropriate lead source provider.
     
-    Provider selection depends on RELEASE_MODE:
-    - SANDBOX: Always uses DummySeedLeadSourceProvider
-    - PRODUCTION: Priority order:
-        1. Apollo.io if APOLLO_API_KEY is set
-        2. Generic SearchApi if LEAD_SEARCH_API_URL + LEAD_SEARCH_API_KEY are set
-        3. Falls back to DummySeedLeadSourceProvider with warning
+    Provider selection:
+    - If preference is "dummy": Always use DummySeed
+    - If preference is "apollo": Try Apollo, fallback to DummySeed if error
+    - If preference is "auto" (default):
+        - SANDBOX mode: DummySeed
+        - PRODUCTION mode: Apollo > SearchApi > DummySeed
     
-    This ensures safe behavior - production resources are only used when
-    explicitly opted into via RELEASE_MODE=PRODUCTION.
+    Auto-fallback: If Apollo quota is exceeded or errors, falls back to DummySeed
     """
+    global _cached_lead_source
+    preference = _cached_lead_source or "auto"
     release_mode = get_release_mode()
     
-    if release_mode == ReleaseMode.SANDBOX:
+    if force_fallback or preference == "dummy":
+        print("[LEADS][STARTUP] Using DummySeed provider (forced/preference)")
+        return DummySeedLeadSourceProvider()
+    
+    if release_mode == ReleaseMode.SANDBOX and preference == "auto":
         print("[LEADS][STARTUP] Using DummySeed provider (sandbox mode)")
         return DummySeedLeadSourceProvider()
     
-    if os.getenv("APOLLO_API_KEY"):
-        print("[LEADS][STARTUP] Using Apollo.io provider (production mode)")
-        return ApolloLeadSourceProvider()
+    if preference == "apollo" or preference == "auto":
+        try:
+            from apollo_integration import get_apollo_status
+            status = get_apollo_status()
+            
+            if status.get("connected") or os.getenv("APOLLO_API_KEY"):
+                if status.get("rate_limit_ok", True):
+                    print(f"[LEADS][STARTUP] Using Apollo.io provider (production mode, {status.get('calls_today', 0)}/100 calls today)")
+                    return ApolloLeadSourceProvider()
+                else:
+                    print(f"[LEADS][STARTUP][WARNING] Apollo quota exceeded - using DummySeed fallback")
+                    return DummySeedLeadSourceProvider()
+        except ImportError:
+            pass
     
     if os.getenv("LEAD_SEARCH_API_URL") and os.getenv("LEAD_SEARCH_API_KEY"):
         print("[LEADS][STARTUP] Using SearchApi provider (production mode)")
         return SearchApiLeadSourceProvider()
     
-    print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no lead API configured - using DummySeed fallback")
+    print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no LEAD_SEARCH_API_KEY - using DummySeed fallback")
     return DummySeedLeadSourceProvider()
 
 
@@ -465,8 +454,16 @@ def get_lead_source_status() -> Dict[str, Any]:
     config = get_lead_source_config()
     provider = get_lead_source_provider()
     release_status = get_release_mode_status()
+    preference = get_lead_source_preference()
     
     is_real_provider = isinstance(provider, (ApolloLeadSourceProvider, SearchApiLeadSourceProvider))
+    
+    apollo_status = {}
+    try:
+        from apollo_integration import get_apollo_status
+        apollo_status = get_apollo_status()
+    except ImportError:
+        apollo_status = {"connected": False, "error": "Module not loaded"}
     
     status = {
         "niche": config.niche,
@@ -478,6 +475,8 @@ def get_lead_source_status() -> Dict[str, Any]:
         "provider_configured": is_real_provider,
         "release_mode": release_status["mode"],
         "release_mode_message": release_status["message"],
+        "preference": preference,
+        "apollo": apollo_status,
         "last_status": "ok",
         "last_error": None
     }
@@ -485,5 +484,7 @@ def get_lead_source_status() -> Dict[str, Any]:
     if is_real_provider:
         status["last_status"] = getattr(provider, "last_status", "unknown")
         status["last_error"] = getattr(provider, "last_error", None)
+        if hasattr(provider, "fallback_triggered"):
+            status["fallback_triggered"] = provider.fallback_triggered
     
     return status

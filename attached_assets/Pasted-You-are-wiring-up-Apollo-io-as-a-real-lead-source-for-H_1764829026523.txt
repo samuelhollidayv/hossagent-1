@@ -1,0 +1,56 @@
+You are wiring up Apollo.io as a real lead source for HossAgent.
+
+Objective:
+Let HossAgent ingest real, live leads from Apollo.io automatically — no manual portal steps required after initial configuration.
+
+Do NOT require the user to go to Apollo and paste an API key manually. Do it the Hoss way:
+- Let the user authorize via OAuth (if supported), or…
+- Provide a one-click UI route to generate the key from within the HossAgent admin console
+- Fallback to vault-based storage only if absolutely necessary
+
+Here’s what I want you to do:
+
+1. **Check Apollo.io’s API auth options:**
+   - Does Apollo support OAuth2? If so, use it.
+   - If not, create a secure UI flow that guides the user to create a key *inside* the HossAgent admin portal, with clear instructions and copy-paste auto-detection.
+
+2. **Integrate Apollo into `lead_sources.py`:**
+   - Add Apollo as a class or module implementing `LeadSource` interface
+   - Inputs:
+     - Niche filters (e.g. med spa, HVAC, roofing, immigration law)
+     - Geo filters (e.g. South Florida, Miami, zip code radius)
+     - Employee count filters (e.g. 1–200)
+   - Outputs:
+     - JSON array of real leads: name, company, email, title, industry, Apollo URL
+
+3. **Add a toggle to switch from DummySeed → ApolloLive:**
+   - In Settings or Admin view, add a dropdown: `Lead Source: [DummySeed] / [Apollo.io]`
+   - When Apollo is selected and auth is configured, system will use Apollo on next Autopilot cycle
+
+4. **Store the API key securely:**
+   - If user chooses manual key, store it in encrypted secrets vault
+   - Key name: `APOLLO_API_KEY`
+   - Warn if invalid key returns 403 or quota limit
+
+5. **Limit request rate to avoid API blocks:**
+   - Max 100 calls/day per user during test phase
+   - Log fetches in `apollo_fetch.log` with timestamp and query params
+
+6. **Test plan:**
+   - Run `fetch_leads(location="Miami", niche="HVAC", size="1-200")`
+   - Log first 5 leads to console with full metadata
+   - Confirm no dummy data is returned when Apollo is active
+
+Confirm back once:
+- Apollo is wired in as a real-time lead source
+- Admin/Settings screen includes toggle between DummySeed and Apollo
+- The system can rotate or fallback automatically if Apollo quota is hit
+
+Let’s do this Hoss-style:
+- No friction  
+- No portals  
+- No copy-paste keys from third-party dashboards  
+
+Just plug in, switch on, and start hunting.
+
+This system is live. We’re pulling **real leads** from **real signals** starting **right now.**
