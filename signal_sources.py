@@ -1050,6 +1050,7 @@ def create_lead_event_from_signal(
     above the LEADEVENT_SCORE_THRESHOLD. It includes duplicate checking,
     company/domain extraction, and proper enrichment status handling.
     
+    Extracts contact info from signal metadata (URLs, emails, phones extracted at source).
     Auto-assigns to the primary active customer if no company_id is specified.
     
     Args:
@@ -1105,12 +1106,29 @@ def create_lead_event_from_signal(
     company_name = _extract_company_from_context(parsed.context_summary)
     domain = _extract_domain_from_context(parsed.context_summary, parsed.raw_payload)
     
+    lead_email = None
+    contact_info = getattr(parsed, 'extracted_contact_info', {}) or {}
+    extracted_urls = contact_info.get('extracted_urls', [])
+    extracted_emails = contact_info.get('extracted_emails', [])
+    
+    if extracted_urls and not domain:
+        from lead_enrichment import extract_domain_from_url
+        domain = extract_domain_from_url(extracted_urls[0])
+    
+    if extracted_emails:
+        lead_email = extracted_emails[0]
+        enrichment_status = ENRICHMENT_STATUS_ENRICHED
+    
     recommended_action = _generate_recommended_action(category, parsed.context_summary)
     
     event = LeadEvent(
         company_id=assigned_company_id,
         lead_id=parsed.lead_id,
         signal_id=signal.id if signal else None,
+        lead_email=lead_email,
+        lead_domain=domain,
+        lead_name=None,
+        lead_company=company_name,
         summary=parsed.context_summary,
         category=category,
         urgency_score=scored_signal.score,
@@ -1118,10 +1136,6 @@ def create_lead_event_from_signal(
         recommended_action=recommended_action,
         enrichment_status=enrichment_status,
         enriched_company_name=company_name,
-        lead_name=None,
-        lead_email=None,
-        lead_company=company_name,
-        lead_domain=domain,
     )
     
     session.add(event)
@@ -1441,6 +1455,9 @@ class SignalPipeline:
     
     def _persist_signal(self, parsed: ParsedSignal, source_name: str) -> Signal:
         """Persist a parsed signal to the database with structured logging."""
+        contact_info_obj = getattr(parsed, 'extracted_contact_info', None)
+        contact_info_json = json.dumps(contact_info_obj) if contact_info_obj else None
+        
         signal = Signal(
             company_id=parsed.company_id,
             lead_id=parsed.lead_id,
@@ -1448,6 +1465,7 @@ class SignalPipeline:
             raw_payload=parsed.raw_payload,
             context_summary=parsed.context_summary,
             geography=parsed.geography,
+            extracted_contact_info=contact_info_json,
         )
         self.session.add(signal)
         self.session.commit()
@@ -2318,10 +2336,14 @@ class NewsSearchSignalSource(SignalSource):
         return None
     
     def parse(self, raw: RawSignal) -> ParsedSignal:
-        """Parse news signal into standardized format."""
+        """Parse news signal into standardized format and extract contact info."""
+        import re
+        
         title = raw.raw_data.get("title", "News article")
         query = raw.raw_data.get("query", "")
         source = raw.raw_data.get("source", "Unknown")
+        link = raw.raw_data.get("link", "")
+        full_text = f"{title} {query} {source} {link}"
         
         category = self._infer_category(title, query)
         niche = self._infer_niche(title, query)
@@ -2330,7 +2352,30 @@ class NewsSearchSignalSource(SignalSource):
         if source:
             context = f"{context} (via {source})"
         
-        return ParsedSignal(
+        extracted_urls = []
+        extracted_emails = []
+        extracted_phones = []
+        
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+        urls = re.findall(url_pattern, full_text)
+        extracted_urls = list(set([u.rstrip('.,;:)') for u in urls if u]))[:5]
+        
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        emails = re.findall(email_pattern, full_text)
+        extracted_emails = list(set([e.lower() for e in emails if '@' in e]))[:3]
+        
+        phone_pattern = r'(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+        phones = re.findall(phone_pattern, full_text)
+        extracted_phones = list(set(phones))[:2]
+        
+        metadata = {
+            "extracted_urls": extracted_urls,
+            "extracted_emails": extracted_emails,
+            "extracted_phones": extracted_phones,
+            "source_confidence": 0.85 if extracted_urls or extracted_emails else 0.5,
+        }
+        
+        parsed = ParsedSignal(
             source_type="news",
             raw_payload=json.dumps(raw.raw_data),
             context_summary=context[:500],
@@ -2338,6 +2383,9 @@ class NewsSearchSignalSource(SignalSource):
             category_hint=category,
             niche_hint=niche,
         )
+        parsed.extracted_contact_info = metadata
+        
+        return parsed
 
 
 class RedditSignalSource(SignalSource):

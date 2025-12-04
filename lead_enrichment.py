@@ -821,7 +821,8 @@ async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> Enrichme
     """
     Main entry point for enriching a LeadEvent with contact information.
     
-    Uses smart domain extraction to find real company domains (not news sites).
+    Email-first approach: If lead_email is already set from signal extraction, skip scraping.
+    Otherwise, uses smart domain extraction to find real company domains (not news sites).
     Then tries enrichment sources in order:
     1. Web scraping (always available, no API key needed)
     2. Hunter.io (if API key set)
@@ -835,7 +836,17 @@ async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> Enrichme
         EnrichmentResult with status and data
     """
     log_enrichment("start", lead_event_id=lead_event.id,
-                   details={"company": lead_event.lead_company, "domain": lead_event.lead_domain})
+                   details={"company": lead_event.lead_company, "domain": lead_event.lead_domain, 
+                             "has_email": bool(lead_event.lead_email)})
+    
+    if lead_event.lead_email:
+        log_enrichment("email_first", lead_event_id=lead_event.id,
+                       details={"email": lead_event.lead_email, "source": "signal"})
+        return EnrichmentResult(
+            success=True,
+            source="signal",
+            email=lead_event.lead_email
+        )
     
     domain = _get_domain_for_enrichment(lead_event, session)
     

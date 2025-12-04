@@ -1,0 +1,204 @@
+This is exactly right: we built a whole telescope and then closed the lens cap.
+
+You just articulated the core bug in 3 sentences:
+
+The signal already has the contact info.
+We strip it down to just the name.
+Then we complain we “don’t know how to reach them.”
+
+So let’s do the thing we always end up doing: turn your rant into a clean, atomic, feedable spell for Melissa.
+
+Below is the MagicBox-ready prompt that tells her exactly how to fix the Signal → LeadEvent → Enrichment chain so we stop throwing away gold and start emailing real humans.
+
+No extra commentary, you can paste this 1:1.
+
+⸻
+
+🔮 MAGICBOX PROMPT — FIX SIGNAL → LEAD CONTACT PIPELINE
+
+You are working on my HossAgent app.
+
+Right now, SignalNet finds articles like:
+
+“Miami Best Roofing Announces Expansion to Three New Locations”
+
+The article already contains:
+	•	a website URL (e.g. https://miamiroofing.com)
+	•	a phone number
+	•	sometimes an email
+	•	clear geo context
+
+But the current pipeline:
+	•	extracts only company_name = "Miami Best Roofing"
+	•	throws away URLs/phones/emails
+	•	creates a LeadEvent with lead_domain = null, lead_email = null
+	•	then the enrichment pipeline refuses to run because it “needs a domain”
+
+Result: 0 real outbound, dead pipeline.
+
+Your task is to fix the signal-to-contact pipeline end-to-end so we keep and propagate contact info from the moment we see it.
+
+⸻
+
+1. Extend the Signal model with metadata
+
+In the Signal model (whatever file defines it), add a flexible metadata field that can store extracted contact info:
+	•	metadata (JSON/dict) containing at least:
+	•	extracted_urls: List[str]
+	•	extracted_phones: List[str]
+	•	extracted_emails: List[str]
+	•	source_confidence: float (0–1, optional)
+
+Example structure:
+
+{
+  "extracted_urls": ["https://miamiroofing.com", "https://www.facebook.com/miamiroofing"],
+  "extracted_phones": ["(305) 555-0147"],
+  "extracted_emails": ["info@miamiroofing.com"],
+  "source_confidence": 0.9
+}
+
+If a Signal model or table already exists, write a migration to add this metadata field (JSON/text column).
+
+⸻
+
+2. Update news_search (and similar) signal sources
+
+For the news / article–based Signal sources (e.g. news_search, RSS, press releases):
+	1.	After fetching article HTML or text, implement a helper:
+
+def extract_contact_from_article(text: str) -> Dict[str, List[str]]:
+    return {
+        "urls": find_urls(text),
+        "phones": PHONE_REGEX.findall(text),
+        "emails": EMAIL_REGEX.findall(text),
+    }
+
+Where:
+	•	find_urls uses a robust URL regex, e.g.:
+https?://[^\s<>"{}|\\^\\[\\]]+
+	•	PHONE_REGEX is whatever existing phone pattern we use (or add a sane one)
+	•	EMAIL_REGEX is our existing email regex
+
+	2.	When creating a Signal from a news article:
+
+	•	Set signal.metadata["extracted_urls"] to the URLs
+	•	Set signal.metadata["extracted_phones"] to the phones
+	•	Set signal.metadata["extracted_emails"] to the emails
+	•	Optionally set source_confidence if you can score how good the match is
+
+Important: Do NOT throw this data away. Store it on the Signal object.
+
+⸻
+
+3. Use Signal metadata when creating LeadEvents
+
+Wherever we create LeadEvent objects from Signal objects (e.g. in a create_lead_event_from_signal function or equivalent):
+	1.	Pull contact info from signal.metadata:
+
+metadata = signal.metadata or {}
+urls = metadata.get("extracted_urls", [])
+emails = metadata.get("extracted_emails", [])
+phones = metadata.get("extracted_phones", [])
+
+	2.	Implement helpers:
+
+	•	extract_clean_domain(url: str) -> Optional[str]
+	•	Strip protocol, path, query, www.
+	•	Return just the root domain like miamiroofing.com.
+	•	validate_and_clean_email(email: str) -> Optional[str]
+	•	Lowercase, trim whitespace, basic format validation.
+
+	3.	When instantiating a LeadEvent:
+
+	•	lead_domain = extract_clean_domain(urls[0]) if urls else None
+	•	lead_email = validate_and_clean_email(emails[0]) if emails else None
+	•	lead_phone = phones[0] if phones else None (optional, if model supports it)
+
+Do NOT overwrite existing values if they’re already set from other sources; only populate when they’re null.
+
+⸻
+
+4. Update enrichment pipeline to respect pre-populated contact info
+
+In the enrichment / lead enrichment pipeline:
+	1.	If lead_email is already set and valid:
+
+	•	Do not block on missing domain.
+	•	Mark the event as enriched (or at least “ready for BizDev”).
+	•	Optionally run a quick verification step if we already have a helper for that.
+	•	Skip unnecessary scraping/domain guessing.
+
+	2.	If lead_domain is set but lead_email is not:
+
+	•	Run the existing domain-based scraping logic (contact page crawl, etc.).
+	•	Fill lead_email if found.
+
+	3.	If neither domain nor email is available even after reading Signal metadata:
+
+	•	Optionally fall back to existing company-enrichment API (Apollo etc.), if configured.
+	•	If still nothing: mark enrichment_status = FAILED or similar, and log clearly.
+
+Key behavior change:
+	•	No more “no domain, skip enrichment, skip BizDev” when we already have an email in the original signal.
+
+⸻
+
+5. Use email-first when possible
+
+For BizDev outbound:
+	•	If lead_email is present and valid, use it as the outbound target.
+	•	If only lead_domain is present, follow current logic (e.g. find contact emails via enrichment).
+	•	Do NOT create BizDev outbound for signals that refer to the customer’s own business; those are internal/insight signals, not leads.
+
+This ensures:
+	•	Many LeadEvents will arrive already ready-to-email.
+	•	The pipeline no longer dies at the “no domain” step when the article already gave us an email.
+
+⸻
+
+6. Admin / Debug visibility
+
+Update the Admin Console Signals / LeadEvents views to show:
+	•	For each Signal:
+	•	extracted_urls
+	•	extracted_emails
+	•	extracted_phones
+	•	For each LeadEvent:
+	•	lead_domain
+	•	lead_email
+	•	reference back to signal_id
+
+This is for debugging and trust: I should be able to click from a LeadEvent back to the Signal and see exactly where the domain/email came from.
+
+⸻
+
+7. Success criteria
+
+After implementing:
+	1.	Create a test news article/fixture that clearly includes:
+	•	company name
+	•	URL
+	•	phone
+	•	email
+	2.	Run SignalNet → LeadEvent → Enrichment.
+	3.	Confirm in the database / admin console that:
+
+	•	Signal.metadata has URLs/emails/phones.
+	•	LeadEvent created with:
+	•	company_name correctly populated
+	•	lead_domain set from the article URL
+	•	lead_email set from the article email
+	•	Enrichment does not skip purely due to missing domain if email is already present.
+	•	BizDev sees a LeadEvent with a usable lead_email and is able to generate outbound.
+
+Log any assumptions inline in comments.
+
+Do NOT change business logic around scoring or geo/niche filtering.
+This task is ONLY about: stop throwing away contact information at the signal stage, and propagate it cleanly through LeadEvents into enrichment and BizDev.
+
+⸻
+
+Drop that into Melissa and let her wire it.
+
+You just fixed the part where we were reading the obituary and then forgetting the address.

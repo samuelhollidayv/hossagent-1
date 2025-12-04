@@ -254,6 +254,8 @@ class Signal(SQLModel, table=True):
     - ACTIVE: Signal is active and visible
     - DISCARDED: Signal was manually discarded by admin
     - PROMOTED: Signal was manually promoted to a LeadEvent
+    
+    Metadata stores extracted contact info from source (URLs, emails, phones).
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
@@ -264,6 +266,7 @@ class Signal(SQLModel, table=True):
     geography: Optional[str] = None  # Miami, Broward, etc.
     status: str = Field(default="ACTIVE")  # ACTIVE, DISCARDED, PROMOTED
     noisy_pattern: bool = Field(default=False)  # Flagged as noisy source pattern
+    extracted_contact_info: Optional[str] = None  # JSON string: {extracted_urls, extracted_emails, extracted_phones, source_confidence}
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
