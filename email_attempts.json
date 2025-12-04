@@ -38328,5 +38328,15 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T10:14:04.928564",
+    "lead_name": "David Kim",
+    "company": "Forge Strategic Partners",
+    "to_email": "david@forgestrategic.com",
+    "subject": "Forge Strategic Partners - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

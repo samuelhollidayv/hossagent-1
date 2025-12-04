@@ -110,13 +110,14 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - `EMAIL_MODE=SENDGRID`: Requires SENDGRID_API_KEY
 - `EMAIL_MODE=DRY_RUN`: Logs emails without sending (testing only)
 
-**Lead Source System:** Apollo.io is the ONLY lead source. No fallbacks.
-- If Apollo is not connected, lead generation PAUSES (does not fall back)
-- If daily quota (100 calls) is exceeded, lead generation PAUSES until midnight UTC
-- **Frictionless connection**: Set `APOLLO_API_KEY` in Secrets tab, auto-connects on restart - no forms/buttons needed
+**Lead Source System:** SignalNet is the PRIMARY lead generator. Apollo is metadata-only.
+- SignalNet monitors real-world signals (news, weather, social) and auto-creates LeadEvents for scores >= 60
+- Apollo is used ONLY for company metadata enrichment (free tier) - People Search API disabled
+- Lead enrichment pipeline uses free-tier services: Hunter.io, Clearbit, web scraping
+- Autopilot pipeline: `SignalNet → Score → LeadEvents → Enrich → BizDev → Email`
 
 **Required Secrets for Production:**
-- `APOLLO_API_KEY`: Apollo.io API key (REQUIRED - get from apollo.io/settings/api-keys)
+- `APOLLO_API_KEY`: Apollo.io API key (metadata only - get from apollo.io/settings/api-keys)
 - `STRIPE_API_KEY`: Stripe secret API key for payment processing
 - `STRIPE_WEBHOOK_SECRET`: Webhook signing secret
 - `SMTP_HOST`: SMTP server hostname (e.g., smtp.gmail.com)
@@ -127,7 +128,11 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 
 **Optional Secrets for SignalNet:**
 - `OPENWEATHER_API_KEY`: OpenWeatherMap API key for weather alerts (free tier available)
-- `SIGNAL_MODE`: Set to `PRODUCTION` to enable LeadEvent creation from signals (default: SANDBOX)
+- `SIGNAL_MODE`: Set to `PRODUCTION` to enable LeadEvent creation from signals (default: PRODUCTION)
+
+**Optional Secrets for Lead Enrichment (free tiers available):**
+- `HUNTER_API_KEY`: Hunter.io API key for email discovery (25 free requests/month)
+- `CLEARBIT_API_KEY`: Clearbit API key for company enrichment (free tier available)
 
 **Production Cleanup:** Admin console has "PURGE TEST DATA" button to remove old test data.
 
