@@ -33,7 +33,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select, func
 from database import create_db_and_tables, get_session, engine
-from models import Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity, Signal, LeadEvent, PasswordResetToken, PendingOutbound, BusinessProfile, Report
+from models import (
+    Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity, 
+    Signal, LeadEvent, PasswordResetToken, PendingOutbound, BusinessProfile, Report,
+    Thread, Message, Suppression, ConversationMetrics,
+    THREAD_STATUS_OPEN, THREAD_STATUS_HUMAN_OWNED, THREAD_STATUS_AUTO, THREAD_STATUS_CLOSED,
+    MESSAGE_DIRECTION_INBOUND, MESSAGE_DIRECTION_OUTBOUND,
+    MESSAGE_STATUS_QUEUED, MESSAGE_STATUS_SENT, MESSAGE_STATUS_DRAFT, MESSAGE_STATUS_FAILED, MESSAGE_STATUS_APPROVED,
+    MESSAGE_GENERATED_AI, MESSAGE_GENERATED_HUMAN, MESSAGE_GENERATED_SYSTEM
+)
 from agents import (
     run_bizdev_cycle,
     run_onboarding_cycle,
@@ -2260,6 +2268,356 @@ def admin_regenerate_payment_links(
 
 
 # ============================================================================
+# CONVERSATION ENGINE ENDPOINTS
+# ============================================================================
+
+
+from conversation_engine import (
+    validate_inbound_secret, parse_sendgrid_inbound, process_inbound_email,
+    send_queued_messages, approve_draft, edit_and_approve_draft, discard_draft,
+    set_thread_status, get_thread_summary, get_customer_threads, calculate_customer_metrics,
+    THREAD_STATUS_OPEN, THREAD_STATUS_HUMAN_OWNED, THREAD_STATUS_AUTO, THREAD_STATUS_CLOSED,
+    InboundEmailData
+)
+
+
+@app.post("/email/inbound")
+async def inbound_email_webhook(request: Request, session: Session = Depends(get_session)):
+    """
+    Handle inbound email from SendGrid Inbound Parse webhook.
+    
+    Parses incoming email, matches to thread/customer, stores message,
+    generates AI draft reply if applicable.
+    
+    Requires INBOUND_EMAIL_SECRET env var for validation (optional but recommended).
+    """
+    try:
+        form_data = await request.form()
+        request_data = {key: value for key, value in form_data.items()}
+        
+        provided_secret = request.headers.get("X-Inbound-Secret", "")
+        if not provided_secret:
+            provided_secret = request_data.get("secret", "")
+        
+        if not validate_inbound_secret(provided_secret):
+            print("[INBOUND][WEBHOOK] Invalid secret")
+            raise HTTPException(status_code=401, detail="Invalid secret")
+        
+        email_data = parse_sendgrid_inbound(request_data)
+        
+        print(f"[INBOUND][WEBHOOK] Received from {email_data.from_email} to {email_data.to_email}")
+        print(f"[INBOUND][WEBHOOK] Subject: {email_data.subject}")
+        
+        result = process_inbound_email(session, email_data)
+        
+        if result["success"]:
+            print(f"[INBOUND][WEBHOOK] Processed: thread={result['thread_id']}, message={result['message_id']}, actions={result['actions']}")
+            return JSONResponse({
+                "status": "processed",
+                "thread_id": result["thread_id"],
+                "message_id": result["message_id"],
+                "actions": result["actions"]
+            })
+        else:
+            print(f"[INBOUND][WEBHOOK] Failed: {result['error']}")
+            return JSONResponse({
+                "status": "failed",
+                "error": result["error"],
+                "actions": result.get("actions", [])
+            }, status_code=200)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[INBOUND][WEBHOOK] Error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "error": str(e)
+        }, status_code=500)
+
+
+@app.get("/api/conversations/threads")
+def api_get_threads(
+    request: Request,
+    customer_id: int = Query(None),
+    status: str = Query(None),
+    limit: int = Query(50),
+    session: Session = Depends(get_session)
+):
+    """Get conversation threads, optionally filtered by customer and status."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if customer and not is_admin:
+        customer_id = customer.id
+    
+    if customer_id:
+        threads = get_customer_threads(session, customer_id, status, limit)
+    else:
+        query = select(Thread).order_by(Thread.updated_at.desc()).limit(limit)
+        if status:
+            query = query.where(Thread.status == status)
+        all_threads = session.exec(query).all()
+        threads = [
+            {
+                "id": t.id,
+                "customer_id": t.customer_id,
+                "lead_email": t.lead_email,
+                "lead_name": t.lead_name,
+                "status": t.status,
+                "message_count": t.message_count,
+                "last_message_at": t.last_message_at.isoformat() if t.last_message_at else None,
+                "last_direction": t.last_direction,
+                "last_summary": t.last_summary
+            }
+            for t in all_threads
+        ]
+    
+    return {"threads": threads, "count": len(threads)}
+
+
+@app.get("/api/conversations/thread/{thread_id}")
+def api_get_thread(request: Request, thread_id: int, session: Session = Depends(get_session)):
+    """Get thread details with all messages."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    summary = get_thread_summary(session, thread_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    
+    if customer and not is_admin and summary.get("customer_id") != customer.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return summary
+
+
+@app.post("/api/conversations/thread/{thread_id}/status")
+def api_set_thread_status(
+    request: Request,
+    thread_id: int,
+    status: str = Query(..., description="OPEN, HUMAN_OWNED, AUTO, or CLOSED"),
+    session: Session = Depends(get_session)
+):
+    """Update thread status."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if status not in [THREAD_STATUS_OPEN, THREAD_STATUS_HUMAN_OWNED, THREAD_STATUS_AUTO, THREAD_STATUS_CLOSED]:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+    
+    thread = session.exec(select(Thread).where(Thread.id == thread_id)).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    
+    if customer and not is_admin and thread.customer_id != customer.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    success = set_thread_status(session, thread_id, status)
+    if not success:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    
+    return {"status": "updated", "thread_id": thread_id, "new_status": status}
+
+
+@app.get("/api/conversations/drafts")
+def api_get_drafts(
+    request: Request,
+    customer_id: int = Query(None),
+    limit: int = Query(50),
+    session: Session = Depends(get_session)
+):
+    """Get pending draft messages awaiting approval."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if customer and not is_admin:
+        customer_id = customer.id
+    
+    query = select(Message).where(Message.status == MESSAGE_STATUS_DRAFT)
+    if customer_id:
+        query = query.where(Message.customer_id == customer_id)
+    query = query.order_by(Message.created_at.desc()).limit(limit)
+    
+    drafts = session.exec(query).all()
+    
+    return {
+        "drafts": [
+            {
+                "id": m.id,
+                "thread_id": m.thread_id,
+                "customer_id": m.customer_id,
+                "to_email": m.to_email,
+                "subject": m.subject,
+                "body_text": m.body_text,
+                "generated_by": m.generated_by,
+                "guardrail_flags": json.loads(m.guardrail_flags) if m.guardrail_flags else None,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            }
+            for m in drafts
+        ],
+        "count": len(drafts)
+    }
+
+
+@app.post("/api/conversations/draft/{message_id}/approve")
+def api_approve_draft(request: Request, message_id: int, session: Session = Depends(get_session)):
+    """Approve a draft message for sending."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    msg = session.exec(select(Message).where(Message.id == message_id)).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    if customer and not is_admin and msg.customer_id != customer.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    success = approve_draft(session, message_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Draft not found or already processed")
+    return {"status": "approved", "message_id": message_id}
+
+
+@app.post("/api/conversations/draft/{message_id}/edit")
+def api_edit_draft(
+    request: Request,
+    message_id: int,
+    body_text: str = Form(...),
+    subject: str = Form(None),
+    session: Session = Depends(get_session)
+):
+    """Edit and approve a draft message."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    msg = session.exec(select(Message).where(Message.id == message_id)).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    if customer and not is_admin and msg.customer_id != customer.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    success = edit_and_approve_draft(session, message_id, body_text, subject)
+    if not success:
+        raise HTTPException(status_code=404, detail="Draft not found or already processed")
+    return {"status": "edited_and_approved", "message_id": message_id}
+
+
+@app.post("/api/conversations/draft/{message_id}/discard")
+def api_discard_draft(request: Request, message_id: int, session: Session = Depends(get_session)):
+    """Discard a draft message."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    msg = session.exec(select(Message).where(Message.id == message_id)).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    if customer and not is_admin and msg.customer_id != customer.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    success = discard_draft(session, message_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Draft not found or already processed")
+    return {"status": "discarded", "message_id": message_id}
+
+
+@app.post("/api/conversations/send-queued")
+def api_send_queued(
+    request: Request,
+    max_messages: int = Query(10),
+    session: Session = Depends(get_session)
+):
+    """Send queued messages (admin only)."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    results = send_queued_messages(session, max_messages)
+    return {
+        "sent": len([r for r in results if r.get("status") == "sent"]),
+        "failed": len([r for r in results if r.get("status") == "failed"]),
+        "results": results
+    }
+
+
+@app.get("/api/conversations/metrics/{customer_id}")
+def api_get_metrics(request: Request, customer_id: int, session: Session = Depends(get_session)):
+    """Get conversation metrics for a customer."""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token) if session_token else None
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    is_admin = verify_admin_session(admin_token) if admin_token else False
+    
+    if not customer and not is_admin:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if customer and not is_admin and customer.id != customer_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    metrics = calculate_customer_metrics(session, customer_id)
+    return {
+        "customer_id": customer_id,
+        "total_lead_events": metrics.total_lead_events,
+        "total_threads": metrics.total_threads,
+        "leads_contacted": metrics.leads_contacted,
+        "leads_replied": metrics.leads_replied,
+        "reply_rate_pct": round(metrics.reply_rate_pct, 1),
+        "avg_response_time_seconds": metrics.avg_response_time_seconds,
+        "total_outbound": metrics.total_outbound,
+        "total_inbound": metrics.total_inbound,
+        "messages_ai_drafted": metrics.messages_ai_drafted,
+        "messages_human_sent": metrics.messages_human_sent,
+        "avg_thread_depth": round(metrics.avg_thread_depth, 1),
+        "last_calculated_at": metrics.last_calculated_at.isoformat() if metrics.last_calculated_at else None
+    }
+
+
+# ============================================================================
 # STRIPE WEBHOOK
 # ============================================================================
 
@@ -3184,6 +3542,131 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     elif query_params.get("reactivated") == "true":
         payment_banner = '<div class="payment-success">Your subscription has been reactivated. Thank you for staying with us!</div>'
     
+    threads = session.exec(
+        select(Thread).where(Thread.customer_id == customer.id)
+        .order_by(Thread.updated_at.desc()).limit(20)
+    ).all()
+    
+    draft_messages = session.exec(
+        select(Message).where(
+            Message.customer_id == customer.id,
+            Message.status == MESSAGE_STATUS_DRAFT
+        ).order_by(Message.created_at.desc()).limit(10)
+    ).all()
+    
+    if threads or draft_messages:
+        import html as html_module
+        
+        drafts_html = ""
+        if draft_messages:
+            for msg in draft_messages:
+                guardrails = []
+                if msg.guardrail_flags:
+                    try:
+                        guardrails = json.loads(msg.guardrail_flags)
+                    except:
+                        pass
+                
+                guardrail_warning = ""
+                if guardrails:
+                    guardrail_warning = f'<div style="background: rgba(245, 158, 11, 0.15); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent-orange);">Guardrails triggered: {", ".join(guardrails)} - Review carefully before sending</div>'
+                
+                drafts_html += f"""
+                <div class="outreach-card">
+                    <div class="outreach-header">
+                        <div class="outreach-to">Draft reply to {html_module.escape(msg.to_email)}</div>
+                        <div class="outreach-date">{msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else "-"}</div>
+                    </div>
+                    {guardrail_warning}
+                    <div class="outreach-subject"><strong>Subject:</strong> {html_module.escape(msg.subject or "")}</div>
+                    <div class="outreach-context" style="white-space: pre-wrap; max-height: 150px; overflow-y: auto;">{html_module.escape(msg.body_text[:500] if msg.body_text else "")}</div>
+                    <div class="outreach-actions">
+                        <button class="outreach-btn approve" onclick="handleDraft({msg.id}, 'approve')">Approve &amp; Send</button>
+                        <button class="outreach-btn skip" onclick="handleDraft({msg.id}, 'discard')">Discard</button>
+                    </div>
+                </div>
+                """
+        
+        threads_html = ""
+        for thread in threads[:10]:
+            status_class = "pending" if thread.status == "OPEN" else "running" if thread.status == "HUMAN_OWNED" else "done" if thread.status == "CLOSED" else ""
+            direction_icon = "&larr;" if thread.last_direction == "INBOUND" else "&rarr;"
+            threads_html += f"""
+            <tr>
+                <td>{html_module.escape(thread.lead_email or "-")}</td>
+                <td>{html_module.escape(thread.lead_company or "-")}</td>
+                <td><span class="status-badge {status_class}">{thread.status}</span></td>
+                <td>{thread.message_count}</td>
+                <td>{direction_icon} {html_module.escape(thread.last_summary[:50] if thread.last_summary else "-")}{"..." if thread.last_summary and len(thread.last_summary) > 50 else ""}</td>
+                <td>{thread.updated_at.strftime("%m/%d %H:%M") if thread.updated_at else "-"}</td>
+            </tr>
+            """
+        if not threads_html:
+            threads_html = '<tr><td colspan="6" class="empty">No conversations yet.</td></tr>'
+        
+        conversations_section = f"""
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">Conversations</div>
+            </div>
+            {"<div style='margin-bottom: 1.5rem;'><h4 style='font-size: 0.9rem; color: var(--accent-orange); margin-bottom: 0.75rem;'>AI Draft Replies ({len(draft_messages)})</h4>" + drafts_html + "</div>" if drafts_html else ""}
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lead Email</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th>Msgs</th>
+                            <th>Last Message</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {threads_html}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <script>
+        async function handleDraft(draftId, action) {{
+            if (action === 'approve') {{
+                if (!confirm('Send this AI-drafted reply?')) return;
+                try {{
+                    const response = await fetch('/api/conversations/draft/' + draftId + '/approve', {{
+                        method: 'POST'
+                    }});
+                    if (response.ok) {{
+                        alert('Draft approved and queued for sending!');
+                        window.location.reload();
+                    }} else {{
+                        alert('Failed to approve draft');
+                    }}
+                }} catch (e) {{
+                    alert('Error: ' + e.message);
+                }}
+            }} else if (action === 'discard') {{
+                if (!confirm('Discard this draft reply?')) return;
+                try {{
+                    const response = await fetch('/api/conversations/draft/' + draftId + '/discard', {{
+                        method: 'POST'
+                    }});
+                    if (response.ok) {{
+                        alert('Draft discarded');
+                        window.location.reload();
+                    }} else {{
+                        alert('Failed to discard draft');
+                    }}
+                }} catch (e) {{
+                    alert('Error: ' + e.message);
+                }}
+            }}
+        }}
+        </script>
+        """
+    else:
+        conversations_section = ""
+    
     html = template.format(
         customer_id=customer.id,
         tasks_rows=tasks_rows,
@@ -3192,7 +3675,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         payment_message=payment_banner,
         opportunities_section=opportunities_section,
         pending_outreach_section=pending_outreach_section,
-        reports_section=reports_section
+        reports_section=reports_section,
+        conversations_section=conversations_section
     )
     
     return HTMLResponse(content=html)
@@ -4346,6 +4830,130 @@ def flag_signal_noisy(
         "signal_id": signal_id,
         "source_type": signal.source_type
     }
+
+
+# ============================================================================
+# CONVERSATION ENGINE ADMIN API ENDPOINTS
+# ============================================================================
+
+
+@app.get("/api/admin/conversations/summary")
+def get_conversations_summary(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get conversation engine summary for admin console.
+    
+    Returns:
+    - total_threads: Total conversation threads across all customers
+    - threads_by_status: Count of threads by status (OPEN, HUMAN_OWNED, AUTO, CLOSED)
+    - pending_drafts: Number of AI draft messages awaiting approval
+    - recent_threads: Last 20 threads with key details
+    - metrics: Aggregate conversation metrics
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    total_threads = session.exec(select(func.count(Thread.id))).one()
+    
+    threads_by_status = {}
+    for status in ["OPEN", "HUMAN_OWNED", "AUTO", "CLOSED"]:
+        count = session.exec(
+            select(func.count(Thread.id)).where(Thread.status == status)
+        ).one()
+        threads_by_status[status] = count
+    
+    pending_drafts = session.exec(
+        select(func.count(Message.id)).where(Message.status == MESSAGE_STATUS_DRAFT)
+    ).one()
+    
+    recent_threads = session.exec(
+        select(Thread).order_by(Thread.updated_at.desc()).limit(20)
+    ).all()
+    
+    threads_list = []
+    for thread in recent_threads:
+        customer = session.exec(
+            select(Customer).where(Customer.id == thread.customer_id)
+        ).first()
+        
+        threads_list.append({
+            "id": thread.id,
+            "lead_email": thread.lead_email,
+            "lead_name": thread.lead_name,
+            "lead_company": thread.lead_company,
+            "customer_id": thread.customer_id,
+            "customer_company": customer.company if customer else None,
+            "status": thread.status,
+            "message_count": thread.message_count,
+            "last_direction": thread.last_direction,
+            "last_summary": thread.last_summary[:80] if thread.last_summary else None,
+            "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
+            "created_at": thread.created_at.isoformat() if thread.created_at else None
+        })
+    
+    total_messages = session.exec(select(func.count(Message.id))).one()
+    inbound_count = session.exec(
+        select(func.count(Message.id)).where(Message.direction == "INBOUND")
+    ).one()
+    outbound_count = session.exec(
+        select(func.count(Message.id)).where(Message.direction == "OUTBOUND")
+    ).one()
+    
+    return {
+        "total_threads": total_threads,
+        "threads_by_status": threads_by_status,
+        "pending_drafts": pending_drafts,
+        "recent_threads": threads_list,
+        "total_messages": total_messages,
+        "inbound_count": inbound_count,
+        "outbound_count": outbound_count
+    }
+
+
+@app.get("/api/admin/conversations/drafts")
+def get_admin_drafts(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Get all pending draft messages for admin review."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    drafts = session.exec(
+        select(Message).where(Message.status == MESSAGE_STATUS_DRAFT)
+        .order_by(Message.created_at.desc()).limit(50)
+    ).all()
+    
+    drafts_list = []
+    for msg in drafts:
+        customer = session.exec(
+            select(Customer).where(Customer.id == msg.customer_id)
+        ).first()
+        
+        guardrails = []
+        if msg.guardrail_flags:
+            try:
+                guardrails = json.loads(msg.guardrail_flags)
+            except:
+                pass
+        
+        drafts_list.append({
+            "id": msg.id,
+            "thread_id": msg.thread_id,
+            "to_email": msg.to_email,
+            "subject": msg.subject,
+            "body_preview": msg.body_text[:200] if msg.body_text else None,
+            "customer_id": msg.customer_id,
+            "customer_company": customer.company if customer else None,
+            "guardrails": guardrails,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None
+        })
+    
+    return {"drafts": drafts_list, "count": len(drafts_list)}
 
 
 if __name__ == "__main__":
