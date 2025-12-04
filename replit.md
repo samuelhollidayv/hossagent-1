@@ -65,7 +65,7 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - **Email Infrastructure:** Supports SendGrid/SMTP with CC/Reply-To, do-not-contact enforcement, and a DRY_RUN mode.
 - **Lead Generation:** Configurable sourcing with domain-based deduplication.
 - **Stripe Integration:** Manages subscription checkout, payment links, billing portal, and webhook processing.
-- **Autopilot:** Automates lead generation, BizDev, Onboarding, Ops, and Billing cycles every 5 minutes (paid plans only).
+- **Autopilot:** Automates lead generation, BizDev, Onboarding, Ops, and Billing cycles every 15 minutes (paid plans only). Customers can enable/disable autopilot from their portal settings (`customer.autopilot_enabled`), and admins can control the global autopilot via `/admin/autopilot` endpoint.
 
 **Subscription Model:**
 - **Trial Plan (7 days):** Soft caps (15 tasks, 20 leads), DRY_RUN email mode only, no billing/autopilot.
