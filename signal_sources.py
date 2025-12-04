@@ -75,7 +75,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, Type
 from sqlmodel import Session, select
 
-from models import Signal, LeadEvent, SignalLog, ENRICHMENT_STATUS_UNENRICHED, ENRICHMENT_STATUS_ENRICHED
+from models import Signal, LeadEvent, SignalLog, Customer, BusinessProfile, ENRICHMENT_STATUS_UNENRICHED, ENRICHMENT_STATUS_ENRICHED
 
 
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
@@ -894,6 +894,36 @@ def is_self_signal(parsed_signal: ParsedSignal, session: Session) -> Tuple[bool,
     return False, None
 
 
+def _get_primary_customer(session: Session) -> Optional[int]:
+    """
+    Get the primary active customer to assign new LeadEvents to.
+    
+    Priority:
+    1. First paid customer (subscription_status='active')
+    2. First customer with autopilot enabled
+    3. First customer overall (fallback for demos)
+    
+    Returns customer_id or None if no customers exist.
+    """
+    paid = session.exec(
+        select(Customer).where(Customer.subscription_status == "active").limit(1)
+    ).first()
+    if paid:
+        return paid.id
+    
+    autopilot = session.exec(
+        select(Customer).where(Customer.autopilot_enabled == True).limit(1)
+    ).first()
+    if autopilot:
+        return autopilot.id
+    
+    first = session.exec(select(Customer).limit(1)).first()
+    if first:
+        return first.id
+    
+    return None
+
+
 def create_lead_event_from_signal(
     scored_signal: ScoredSignal,
     session: Session,
@@ -905,6 +935,8 @@ def create_lead_event_from_signal(
     This function handles the creation of LeadEvents from signals that score
     above the LEADEVENT_SCORE_THRESHOLD. It includes duplicate checking,
     company/domain extraction, and proper enrichment status handling.
+    
+    Auto-assigns to the primary active customer if no company_id is specified.
     
     Args:
         scored_signal: The scored signal containing parsed data and score
@@ -942,8 +974,12 @@ def create_lead_event_from_signal(
     
     recommended_action = _generate_recommended_action(category, parsed.context_summary)
     
+    assigned_company_id = parsed.company_id
+    if not assigned_company_id:
+        assigned_company_id = _get_primary_customer(session)
+    
     event = LeadEvent(
-        company_id=parsed.company_id,
+        company_id=assigned_company_id,
         lead_id=parsed.lead_id,
         signal_id=signal.id if signal else None,
         summary=parsed.context_summary,

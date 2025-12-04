@@ -525,8 +525,16 @@ def _generate_synthetic_fallback_signals(session: Session, max_signals: int = 10
             
             recommended_action = generate_recommended_action(category, signal.context_summary)
             
+            primary_customer = session.exec(
+                select(Customer).where(Customer.autopilot_enabled == True).limit(1)
+            ).first()
+            assigned_company_id = primary_customer.id if primary_customer else None
+            if not assigned_company_id:
+                first_customer = session.exec(select(Customer).limit(1)).first()
+                assigned_company_id = first_customer.id if first_customer else None
+            
             event = LeadEvent(
-                company_id=None,
+                company_id=assigned_company_id,
                 lead_id=company["id"] if company["type"] == "lead" else None,
                 signal_id=signal.id,
                 summary=f"[SYNTHETIC] {signal.context_summary}",
