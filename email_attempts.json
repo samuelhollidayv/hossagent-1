@@ -38338,5 +38338,15 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T12:04:20.340508",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

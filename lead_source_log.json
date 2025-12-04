@@ -440,8 +440,35 @@
       "candidates_fetched": 0,
       "leads_created": 0,
       "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-04T12:02:57.046273",
+      "provider": "Apollo",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-04T12:07:45.252050",
+      "provider": "Apollo",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-04T12:08:21.901191",
+      "provider": "Apollo",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
     }
   ],
-  "last_run": "2025-12-04T10:12:43.083103",
+  "last_run": "2025-12-04T12:08:21.901191",
   "last_created_count": 0
 }

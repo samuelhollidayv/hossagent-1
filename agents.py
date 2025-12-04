@@ -548,6 +548,14 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
         cc_email = None
         reply_to = None
         
+        contact_email = event.lead_email or event.enriched_email
+        contact_name = event.lead_name or event.enriched_contact_name
+        company_name = event.lead_company or event.enriched_company_name or "Your company"
+        
+        if not contact_email:
+            print(f"[EVENT-BIZDEV] Event {event.id}: No lead email found, skipping (lead_email required)")
+            continue
+        
         if event.company_id:
             customer = session.exec(
                 select(Customer).where(Customer.id == event.company_id)
@@ -557,30 +565,12 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
                 business_profile = get_business_profile(session, customer.id)
                 if business_profile:
                     do_not_contact_list = business_profile.do_not_contact_list
-                    if business_profile.primary_contact_email:
-                        cc_email = business_profile.primary_contact_email
-                        reply_to = business_profile.primary_contact_email
-        
-        if event.lead_id:
-            lead = session.exec(
-                select(Lead).where(Lead.id == event.lead_id)
-            ).first()
-            if lead:
-                contact_email = lead.email
-                contact_name = lead.name
-                company_name = lead.company
-                niche = lead.niche or niche
-        
-        if event.company_id and not lead:
-            if customer:
-                contact_email = customer.contact_email
-                contact_name = customer.contact_name or customer.company
-                company_name = customer.company
+                cc_email = customer.contact_email
+                reply_to = customer.contact_email
+                if business_profile and business_profile.primary_contact_email:
+                    cc_email = business_profile.primary_contact_email
+                    reply_to = business_profile.primary_contact_email
                 niche = customer.niche or niche
-        
-        if not contact_email or not company_name:
-            print(f"[EVENT-BIZDEV] Event {event.id}: No contact found, skipping")
-            continue
         
         if check_do_not_contact(contact_email, do_not_contact_list):
             events_blocked += 1

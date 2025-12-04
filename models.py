@@ -296,6 +296,10 @@ class LeadEvent(SQLModel, table=True):
     company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
     lead_id: Optional[int] = Field(default=None, foreign_key="lead.id")
     signal_id: Optional[int] = Field(default=None, foreign_key="signal.id")
+    lead_name: Optional[str] = None
+    lead_email: Optional[str] = None
+    lead_company: Optional[str] = None
+    lead_domain: Optional[str] = None
     summary: str  # Human-readable opportunity description
     category: str  # growth, risk, competitor_move, opportunity, hurricane_season, bilingual_opportunity
     urgency_score: int = Field(default=50)  # 0-100, higher = more urgent
