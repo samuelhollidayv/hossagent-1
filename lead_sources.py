@@ -3,15 +3,22 @@ Lead Source System for HossAgent.
 Provides pluggable lead generation from various sources.
 
 Configuration via environment variables:
+  RELEASE_MODE - SANDBOX (default) or PRODUCTION
+    - SANDBOX: Uses DummySeedLeadSourceProvider for dev/demo
+    - PRODUCTION: Uses real lead sources if configured
+  
   LEAD_NICHE - Target ICP description (e.g., "small B2B marketing agencies")
   LEAD_GEOGRAPHY - Optional region constraint (e.g., "US & Canada")
   LEAD_MIN_COMPANY_SIZE - Optional minimum employee count
   LEAD_MAX_COMPANY_SIZE - Optional maximum employee count
   MAX_NEW_LEADS_PER_CYCLE - Cap on leads generated per cycle (default: 10)
 
-Provider selection:
+Provider selection (when RELEASE_MODE=PRODUCTION):
   If LEAD_SEARCH_API_URL + LEAD_SEARCH_API_KEY are set → SearchApiLeadSourceProvider
-  Otherwise → DummySeedLeadSourceProvider (for dev/demo)
+  Otherwise → Falls back to DummySeedLeadSourceProvider with warning
+
+When RELEASE_MODE=SANDBOX (default):
+  Always uses DummySeedLeadSourceProvider regardless of API credentials
 """
 import os
 import json
@@ -20,6 +27,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
+
+from release_mode import ReleaseMode, get_release_mode, get_release_mode_status
 
 
 class LeadSourceConfig(BaseModel):
@@ -262,12 +271,28 @@ def get_lead_source_provider() -> LeadSourceProvider:
     """
     Factory function to get the appropriate lead source provider.
     
-    Returns SearchApiLeadSourceProvider if API credentials are configured,
-    otherwise returns DummySeedLeadSourceProvider for dev/demo.
+    Provider selection depends on RELEASE_MODE:
+    - SANDBOX: Always uses DummySeedLeadSourceProvider
+    - PRODUCTION: Uses SearchApiLeadSourceProvider if configured,
+                  otherwise falls back to DummySeedLeadSourceProvider with warning
+    
+    This ensures safe behavior - production resources are only used when
+    explicitly opted into via RELEASE_MODE=PRODUCTION.
     """
+    release_mode = get_release_mode()
+    
+    # SANDBOX mode always uses dummy leads regardless of API credentials
+    if release_mode == ReleaseMode.SANDBOX:
+        print("[LEADS][STARTUP] Using DummySeed provider (sandbox mode)")
+        return DummySeedLeadSourceProvider()
+    
+    # PRODUCTION mode - try to use real provider if configured
     if os.getenv("LEAD_SEARCH_API_URL") and os.getenv("LEAD_SEARCH_API_KEY"):
+        print("[LEADS][STARTUP] Using SearchApi provider (production mode)")
         return SearchApiLeadSourceProvider()
     else:
+        # Production mode but no API configured - use dummy with warning
+        print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no lead API configured - using DummySeed fallback")
         return DummySeedLeadSourceProvider()
 
 
@@ -275,10 +300,11 @@ def get_lead_source_status() -> Dict[str, Any]:
     """
     Get current lead source configuration status for admin display.
     
-    Returns dict with config values, provider info, and last run status.
+    Returns dict with config values, provider info, release mode, and last run status.
     """
     config = get_lead_source_config()
     provider = get_lead_source_provider()
+    release_status = get_release_mode_status()
     
     status = {
         "niche": config.niche,
@@ -288,6 +314,8 @@ def get_lead_source_status() -> Dict[str, Any]:
         "max_new_leads_per_cycle": config.max_new_leads_per_cycle,
         "provider": provider.name,
         "provider_configured": isinstance(provider, SearchApiLeadSourceProvider),
+        "release_mode": release_status["mode"],
+        "release_mode_message": release_status["message"],
         "last_status": "ok",
         "last_error": None
     }

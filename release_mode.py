@@ -4,38 +4,44 @@ Release Mode Configuration for HossAgent.
 Provides environment-driven safety rails for production deployment.
 
 Environment Variables:
-    RELEASE_MODE = PRODUCTION | STAGING | DEVELOPMENT (default: DEVELOPMENT)
+    RELEASE_MODE = PRODUCTION | SANDBOX (default: SANDBOX)
+    
+    Aliases:
+    - SANDBOX, DEVELOPMENT, FALSE -> SANDBOX mode
+    - PRODUCTION, TRUE -> PRODUCTION mode
     
 PRODUCTION mode:
     - Startup banner: [RELEASE_MODE][PRODUCTION]
+    - Uses real lead sources (SearchApi if configured)
+    - Sends real emails (if EMAIL_MODE=SMTP or SENDGRID)
     - Strict validation of all credentials
     - Warnings for high-volume email settings
     - Enforces DRY_RUN fallback for missing credentials
-    - All safety limits at production values
 
-STAGING mode:
-    - Startup banner: [RELEASE_MODE][STAGING]
-    - Semi-strict validation (warnings but continues)
-    - Lower throttle limits for testing
-    - Good for pre-production testing
-
-DEVELOPMENT mode (default):
-    - Startup banner: [RELEASE_MODE][DEVELOPMENT]
+SANDBOX mode (default):
+    - Startup banner: [RELEASE_MODE][SANDBOX]
+    - Always uses DummySeed lead provider
+    - Safe for testing - must explicitly opt into production
     - Lenient configuration (DRY_RUN acceptable)
     - No high-volume warnings
-    - Allows DummySeed providers
+
+To change modes, update env vars in Replit Secrets:
+    RELEASE_MODE=PRODUCTION  # Enable real lead sources + full pipeline
+    EMAIL_MODE=SMTP          # Enable real email sending
 """
 import os
 from enum import Enum
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from datetime import datetime, timedelta
 
 
 class ReleaseMode(Enum):
     """Release mode enum for HossAgent deployment modes."""
     PRODUCTION = "PRODUCTION"
-    STAGING = "STAGING"
-    DEVELOPMENT = "DEVELOPMENT"
+    SANDBOX = "SANDBOX"
+    # Legacy aliases - map to SANDBOX
+    STAGING = "SANDBOX"
+    DEVELOPMENT = "SANDBOX"
 
 
 def get_release_mode() -> ReleaseMode:
@@ -44,17 +50,17 @@ def get_release_mode() -> ReleaseMode:
     
     Checks RELEASE_MODE env var:
     - PRODUCTION or TRUE -> ReleaseMode.PRODUCTION
-    - STAGING -> ReleaseMode.STAGING
-    - Anything else -> ReleaseMode.DEVELOPMENT
+    - SANDBOX, DEVELOPMENT, or anything else -> ReleaseMode.SANDBOX (safe default)
+    
+    SANDBOX is the default to ensure safe behavior - must explicitly opt into PRODUCTION.
     """
-    mode_str = os.getenv("RELEASE_MODE", "DEVELOPMENT").upper().strip()
+    mode_str = os.getenv("RELEASE_MODE", "SANDBOX").upper().strip()
     
     if mode_str in ("PRODUCTION", "TRUE"):
         return ReleaseMode.PRODUCTION
-    elif mode_str == "STAGING":
-        return ReleaseMode.STAGING
     else:
-        return ReleaseMode.DEVELOPMENT
+        # Default to SANDBOX for safety
+        return ReleaseMode.SANDBOX
 
 
 def is_release_mode() -> bool:
@@ -72,23 +78,41 @@ def is_production() -> bool:
     return get_release_mode() == ReleaseMode.PRODUCTION
 
 
+def is_sandbox() -> bool:
+    """Explicit check for SANDBOX mode."""
+    return get_release_mode() == ReleaseMode.SANDBOX
+
+
+# Legacy aliases for backward compatibility
 def is_staging() -> bool:
-    """Explicit check for STAGING mode."""
-    return get_release_mode() == ReleaseMode.STAGING
+    """Legacy alias - maps to SANDBOX."""
+    return is_sandbox()
 
 
 def is_development() -> bool:
-    """Explicit check for DEVELOPMENT mode."""
-    return get_release_mode() == ReleaseMode.DEVELOPMENT
+    """Legacy alias - maps to SANDBOX."""
+    return is_sandbox()
 
 
 def get_release_mode_status() -> Dict[str, Any]:
-    """Get current release mode configuration status."""
+    """
+    Get current release mode configuration status for admin display.
+    
+    Returns comprehensive status including mode, email config, and any warnings/errors.
+    """
     mode = get_release_mode()
     email_mode = os.getenv("EMAIL_MODE", "DRY_RUN").upper()
     enable_stripe = os.getenv("ENABLE_STRIPE", "FALSE").upper() == "TRUE"
     max_emails_hour = int(os.getenv("MAX_EMAILS_PER_HOUR", "50"))
     lead_api_configured = bool(os.getenv("LEAD_SEARCH_API_KEY"))
+    
+    # SMTP credential check
+    smtp_configured = bool(
+        os.getenv("SMTP_HOST") and 
+        os.getenv("SMTP_USERNAME") and 
+        os.getenv("SMTP_PASSWORD") and
+        os.getenv("SMTP_FROM_EMAIL")
+    )
     
     warnings = []
     errors = []
@@ -106,25 +130,34 @@ def get_release_mode_status() -> Dict[str, Any]:
         if not lead_api_configured:
             warnings.append("PRODUCTION mode but no LEAD_SEARCH_API_KEY - using DummySeed")
         
-        if email_mode in ["SENDGRID", "SMTP"]:
-            if email_mode == "SENDGRID" and not os.getenv("SENDGRID_API_KEY"):
-                errors.append("SENDGRID mode configured but SENDGRID_API_KEY not set")
-            elif email_mode == "SMTP" and not (os.getenv("SMTP_HOST") and os.getenv("SMTP_USERNAME")):
-                errors.append("SMTP mode configured but credentials incomplete")
+        if email_mode == "SENDGRID" and not os.getenv("SENDGRID_API_KEY"):
+            errors.append("SENDGRID mode configured but SENDGRID_API_KEY not set - will fallback to DRY_RUN")
+        elif email_mode == "SMTP" and not smtp_configured:
+            missing = []
+            if not os.getenv("SMTP_HOST"): missing.append("SMTP_HOST")
+            if not os.getenv("SMTP_USERNAME"): missing.append("SMTP_USERNAME")
+            if not os.getenv("SMTP_PASSWORD"): missing.append("SMTP_PASSWORD")
+            if not os.getenv("SMTP_FROM_EMAIL"): missing.append("SMTP_FROM_EMAIL")
+            errors.append(f"SMTP mode configured but missing: {', '.join(missing)} - will fallback to DRY_RUN")
     
-    elif mode == ReleaseMode.STAGING:
+    elif mode == ReleaseMode.SANDBOX:
         if email_mode not in ["DRY_RUN", "SENDGRID", "SMTP"]:
             warnings.append(f"Unrecognized EMAIL_MODE: {email_mode}")
-        
-        if max_emails_hour > 50:
-            warnings.append(f"MAX_EMAILS_PER_HOUR={max_emails_hour} - consider lower for staging")
+    
+    # Determine effective email mode (accounting for fallbacks)
+    effective_email_mode = email_mode
+    if email_mode == "SMTP" and not smtp_configured:
+        effective_email_mode = "DRY_RUN (fallback)"
+    elif email_mode == "SENDGRID" and not os.getenv("SENDGRID_API_KEY"):
+        effective_email_mode = "DRY_RUN (fallback)"
     
     return {
         "release_mode": mode.value,
         "is_production": mode == ReleaseMode.PRODUCTION,
-        "is_staging": mode == ReleaseMode.STAGING,
-        "is_development": mode == ReleaseMode.DEVELOPMENT,
+        "is_sandbox": mode == ReleaseMode.SANDBOX,
         "email_mode": email_mode,
+        "effective_email_mode": effective_email_mode,
+        "smtp_configured": smtp_configured,
         "stripe_enabled": enable_stripe,
         "max_emails_per_hour": max_emails_hour,
         "lead_api_configured": lead_api_configured,
@@ -141,35 +174,48 @@ def print_startup_banners() -> None:
         print("=" * 60)
         print("[RELEASE_MODE][PRODUCTION] HossAgent running in PRODUCTION mode")
         print("=" * 60)
-    elif mode == ReleaseMode.STAGING:
-        print("-" * 60)
-        print("[RELEASE_MODE][STAGING] HossAgent running in STAGING mode")
-        print("-" * 60)
     else:
-        print("[RELEASE_MODE][DEVELOPMENT] HossAgent running in DEVELOPMENT mode")
+        print("[RELEASE_MODE][SANDBOX] HossAgent running in SANDBOX mode")
     
     email_mode = os.getenv("EMAIL_MODE", "DRY_RUN").upper()
     print(f"[EMAIL][STARTUP] Mode: {email_mode}")
+    
+    # Check SMTP credentials
+    smtp_configured = bool(
+        os.getenv("SMTP_HOST") and 
+        os.getenv("SMTP_USERNAME") and 
+        os.getenv("SMTP_PASSWORD") and
+        os.getenv("SMTP_FROM_EMAIL")
+    )
     
     max_emails_hour = int(os.getenv("MAX_EMAILS_PER_HOUR", "50"))
     if mode == ReleaseMode.PRODUCTION and max_emails_hour > 100:
         print(f"[PRODUCTION][HIGH_VOLUME_WARNING] MAX_EMAILS_PER_HOUR={max_emails_hour} - consider lower values for warm-up")
     
-    if email_mode in ["SENDGRID", "SMTP"]:
-        if email_mode == "SENDGRID":
-            if not os.getenv("SENDGRID_API_KEY"):
-                print("[DRY_RUN_FALLBACK] SENDGRID_API_KEY not set - will use DRY_RUN")
-        elif email_mode == "SMTP":
-            if not os.getenv("SMTP_HOST") or not os.getenv("SMTP_USERNAME"):
-                print("[DRY_RUN_FALLBACK] SMTP credentials incomplete - will use DRY_RUN")
+    if email_mode == "SENDGRID":
+        if not os.getenv("SENDGRID_API_KEY"):
+            print("[DRY_RUN_FALLBACK] SENDGRID_API_KEY not set - will use DRY_RUN")
+        else:
+            print("[EMAIL][STARTUP] SendGrid configured and ready")
+    elif email_mode == "SMTP":
+        if not smtp_configured:
+            missing = []
+            if not os.getenv("SMTP_HOST"): missing.append("SMTP_HOST")
+            if not os.getenv("SMTP_USERNAME"): missing.append("SMTP_USERNAME")
+            if not os.getenv("SMTP_PASSWORD"): missing.append("SMTP_PASSWORD")
+            if not os.getenv("SMTP_FROM_EMAIL"): missing.append("SMTP_FROM_EMAIL")
+            print(f"[DRY_RUN_FALLBACK] SMTP missing: {', '.join(missing)} - will use DRY_RUN")
+        else:
+            print("[EMAIL][STARTUP] SMTP configured and ready")
     
     lead_api = os.getenv("LEAD_SEARCH_API_KEY")
-    if mode == ReleaseMode.PRODUCTION and not lead_api:
-        print("[PRODUCTION][WARNING] No LEAD_SEARCH_API_KEY - using DummySeed provider")
-    elif lead_api:
-        print("[LEADS][STARTUP] SearchApi configured")
+    if mode == ReleaseMode.PRODUCTION:
+        if lead_api:
+            print("[LEADS][STARTUP] SearchApi configured (production mode)")
+        else:
+            print("[LEADS][STARTUP][WARNING] PRODUCTION mode but no LEAD_SEARCH_API_KEY - using DummySeed fallback")
     else:
-        print("[LEADS][STARTUP] Using DummySeed provider (dev mode)")
+        print("[LEADS][STARTUP] Using DummySeed provider (sandbox mode)")
 
 
 def get_throttle_defaults() -> Dict[str, int]:

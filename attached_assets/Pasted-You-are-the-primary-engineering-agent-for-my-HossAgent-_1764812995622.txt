@@ -1,0 +1,64 @@
+You are the primary engineering agent for my HossAgent app on Replit. I want to go LIVE with real email sending and real leads. Implement everything below without breaking existing functionality:
+	1.	Email provider + DRY_RUN switch
+
+	•	Implement Option 2: SMTP for production email sending.
+	•	Assume the following environment variables will be set in the Replit Secrets panel (do NOT hard-code values):
+	•	EMAIL_MODE (DRY_RUN | SMTP)
+	•	SMTP_HOST
+	•	SMTP_PORT
+	•	SMTP_USERNAME
+	•	SMTP_PASSWORD
+	•	SMTP_FROM_EMAIL
+	•	SMTP_FROM_NAME
+	•	Update the email sending layer so that:
+	•	When EMAIL_MODE=DRY_RUN: behave exactly as today (log only, no sends).
+	•	When EMAIL_MODE=SMTP: send real emails using the above SMTP settings.
+	•	Add basic error handling + logging for failed sends, but do NOT spam logs with full message bodies.
+
+	2.	Config switch for production
+
+	•	Add a RELEASE_MODE env var with two values:
+	•	SANDBOX (current behavior with dummy data / fake leads)
+	•	PRODUCTION (real lead sources, real outreach)
+	•	Thread RELEASE_MODE through wherever we currently differentiate between fake/dummy signals and real ones.
+	•	For now:
+	•	SANDBOX should continue to use any existing test fixtures or dummy signals.
+	•	PRODUCTION should run the real Signals / LeadEvent pipeline that uses the Miami/Broward settings (LEAD_GEOGRAPHY, LEAD_NICHE etc.).
+	•	Default to RELEASE_MODE=SANDBOX if not set, so nothing breaks.
+
+	3.	Admin controls
+
+	•	In the admin console, add a small config panel (or section) that:
+	•	Shows current EMAIL_MODE and RELEASE_MODE.
+	•	Clearly labels them, e.g.:
+	•	“Email mode: DRY_RUN | SMTP”
+	•	“Release mode: SANDBOX | PRODUCTION”
+	•	These are read-only indicators in the UI; changing the actual values still happens via environment variables. Add a short note like: “To change these, update env vars in Replit Secrets.”
+	•	Make sure this panel is visible near the top of the admin dashboard so I can quickly sanity-check what mode production is in.
+
+	4.	Safety checks
+
+	•	Add a simple guard so that if EMAIL_MODE=SMTP but any of the SMTP env vars are missing, the system:
+	•	Logs a clear warning.
+	•	Falls back to DRY_RUN behavior for that send (no email actually goes out).
+	•	Similarly, if RELEASE_MODE=PRODUCTION and something required for real lead sources is missing, log a clear message and don’t crash.
+
+	5.	What I’ll do manually
+
+	•	Assume I will:
+	•	Set EMAIL_MODE=SMTP only when my SMTP credentials are ready.
+	•	Set RELEASE_MODE=PRODUCTION when I’m ready for real leads.
+	•	Your job is to wire the code so the switches behave correctly when I flip those env vars.
+
+After making these changes:
+	•	Run the app in preview with:
+	•	EMAIL_MODE=DRY_RUN
+	•	RELEASE_MODE=SANDBOX
+	•	Trigger a sample Signals → LeadEvent → outbound flow and verify:
+	•	DRY_RUN still logs instead of sending.
+	•	Admin console shows the correct modes.
+	•	Then (still in preview), temporarily set EMAIL_MODE=SMTP with fake or local SMTP settings and confirm that:
+	•	The SMTP branch runs.
+	•	Errors are handled gracefully if creds are wrong.
+
+Document any assumptions or TODOs in comments near the email + release mode logic so I can review later.
