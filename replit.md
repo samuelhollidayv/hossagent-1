@@ -51,6 +51,17 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - **Business Profile:** `BusinessProfile` model stores detailed customer preferences including services, ideal customer, voice/tone, contact details, and do-not-contact lists.
 - **Pending Outreach:** `PendingOutbound` model queues emails for customer approval in REVIEW mode, displayed in the portal with Approve/Edit/Skip options.
 - **Do-Not-Contact Enforcement:** Checks against email addresses and domain patterns before any email is sent.
+- **Outbound Email Direction (Critical):**
+  - **TO**: Lead email (LeadEvent.lead_email or enriched_email) - the prospect
+  - **CC**: Customer email - for visibility and audit trail
+  - **Reply-To**: Customer email - prospects reply directly to customer
+  - Events without lead_email are skipped (never fall back to customer as recipient)
+  - Self-signal detection prevents creating LeadEvents for customer's own company
+- **LeadEvent Identity Fields:**
+  - lead_name: Name of the lead/prospect
+  - lead_email: Email of the lead (required for outbound)
+  - lead_company: Company name of the lead
+  - lead_domain: Domain for enrichment lookup
 
 **Core Features:**
 - **Autonomous Agents:**

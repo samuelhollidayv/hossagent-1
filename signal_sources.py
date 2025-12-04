@@ -885,8 +885,8 @@ def is_self_signal(parsed_signal: ParsedSignal, session: Session) -> Tuple[bool,
             select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
         ).first()
         if profile:
-            if profile.company_name and profile.company_name.lower() in context:
-                company_mentioned = profile.company_name
+            if profile.short_description and customer.company and customer.company.lower() in context:
+                company_mentioned = customer.company
                 break
     
     if company_mentioned:
