@@ -10,11 +10,12 @@ SIGNAL_MODE CONFIGURATION
 ============================================================================
 Environment variable SIGNAL_MODE controls signal pipeline behavior:
 
-  PRODUCTION: Run real sources, create LeadEvents for high-scoring signals
+  PRODUCTION: Run real sources, create LeadEvents for high-scoring signals (default)
   SANDBOX: Run sources and score signals, but don't create LeadEvents
   OFF: Skip signal ingestion entirely
 
-Default: SANDBOX (safe mode for development)
+Default: PRODUCTION (creates LeadEvents for signals scoring >= 60)
+Threshold: LEADEVENT_SCORE_THRESHOLD = 60
 
 ============================================================================
 DRY_RUN MODE
@@ -74,14 +75,14 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, Type
 from sqlmodel import Session, select
 
-from models import Signal, LeadEvent, SignalLog
+from models import Signal, LeadEvent, SignalLog, ENRICHMENT_STATUS_UNENRICHED, ENRICHMENT_STATUS_ENRICHED
 
 
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
 
 
-SIGNAL_MODE = os.environ.get("SIGNAL_MODE", "SANDBOX").upper()
+SIGNAL_MODE = os.environ.get("SIGNAL_MODE", "PRODUCTION").upper()  # Changed from SANDBOX
 SIGNAL_DRY_RUN = os.environ.get("SIGNAL_DRY_RUN", "false").lower() in ("true", "1", "yes")
 LEAD_GEOGRAPHY = os.environ.get("LEAD_GEOGRAPHY", "Miami, Broward, South Florida")
 LEAD_NICHE = os.environ.get("LEAD_NICHE", "HVAC, Roofing, Med Spa, Immigration Attorney")
@@ -89,7 +90,7 @@ LEAD_NICHE = os.environ.get("LEAD_NICHE", "HVAC, Roofing, Med Spa, Immigration A
 LEAD_GEOGRAPHY_LIST = [g.strip().lower() for g in LEAD_GEOGRAPHY.split(",")]
 LEAD_NICHE_LIST = [n.strip().lower() for n in LEAD_NICHE.split(",")]
 
-LEADEVENT_SCORE_THRESHOLD = 65
+LEADEVENT_SCORE_THRESHOLD = 60  # Changed from 65
 MAX_CONSECUTIVE_ERRORS = 5
 
 URGENCY_CATEGORY_WEIGHTS = {
@@ -177,7 +178,7 @@ def get_log_session() -> Optional[Session]:
     return _log_session
 
 
-print(f"{_get_dry_run_prefix()}[SIGNALNET][STARTUP] Mode: {SIGNAL_MODE}, DRY_RUN: {SIGNAL_DRY_RUN}, Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
+print(f"{_get_dry_run_prefix()}[SIGNALNET][STARTUP] Mode: {SIGNAL_MODE} (default: PRODUCTION), Threshold: {LEADEVENT_SCORE_THRESHOLD}, DRY_RUN: {SIGNAL_DRY_RUN}, Geography: {LEAD_GEOGRAPHY}, Niche: {LEAD_NICHE}")
 
 
 @dataclass
@@ -778,6 +779,168 @@ def _generate_recommended_action(category: str, context: str) -> str:
     return actions.get(category.upper(), "Prepare contextual outreach based on signal")
 
 
+def _extract_company_from_context(context_summary: str) -> Optional[str]:
+    """
+    Extract company name from signal context_summary.
+    
+    Looks for common patterns like "Company X is...", "for Company X", etc.
+    Returns None if no company name can be extracted.
+    """
+    if not context_summary:
+        return None
+    
+    import re
+    patterns = [
+        r"(?:for|at|from|by)\s+([A-Z][a-zA-Z0-9\s&'.-]+?)(?:\s+is|\s+in|\s+has|,|\.|\s+-)",
+        r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:is|has|updated|launched|added|posted|hiring)",
+        r"competitor\s+(?:of\s+)?([A-Z][a-zA-Z0-9\s&'.-]+)",
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, context_summary)
+        if match:
+            company = match.group(1).strip()
+            if len(company) > 2 and len(company) < 100:
+                return company
+    
+    return None
+
+
+def _extract_domain_from_context(context_summary: str, raw_payload: str) -> Optional[str]:
+    """
+    Extract domain from signal context or raw payload.
+    
+    Looks for URLs or domain patterns in the signal data.
+    Returns None if no domain can be extracted.
+    """
+    import re
+    
+    url_pattern = r'https?://(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+)'
+    domain_pattern = r'(?:www\.)?([a-zA-Z0-9-]+\.(?:com|io|net|org|co|biz|info))'
+    
+    for text in [context_summary, raw_payload]:
+        if not text:
+            continue
+        
+        url_match = re.search(url_pattern, text)
+        if url_match:
+            return url_match.group(1)
+        
+        domain_match = re.search(domain_pattern, text.lower())
+        if domain_match:
+            return domain_match.group(1)
+    
+    return None
+
+
+def _has_contact_info(context_summary: str, raw_payload: str) -> bool:
+    """
+    Check if signal contains contact information (email, phone).
+    
+    Returns True if contact info is detected, False otherwise.
+    """
+    import re
+    
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    phone_pattern = r'(?:\+1)?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}'
+    
+    for text in [context_summary, raw_payload]:
+        if not text:
+            continue
+        
+        if re.search(email_pattern, text):
+            return True
+        if re.search(phone_pattern, text):
+            return True
+    
+    return False
+
+
+def create_lead_event_from_signal(
+    scored_signal: ScoredSignal,
+    session: Session,
+    signal: Optional[Signal] = None
+) -> Optional[LeadEvent]:
+    """
+    Create a LeadEvent from a high-scoring signal.
+    
+    This function handles the creation of LeadEvents from signals that score
+    above the LEADEVENT_SCORE_THRESHOLD. It includes duplicate checking,
+    company/domain extraction, and proper enrichment status handling.
+    
+    Args:
+        scored_signal: The scored signal containing parsed data and score
+        session: Database session for persistence
+        signal: Optional persisted Signal object (if already created)
+        
+    Returns:
+        LeadEvent if created successfully, None if duplicate or error
+    """
+    parsed = scored_signal.parsed_signal
+    
+    if signal and signal.id:
+        existing = session.exec(
+            select(LeadEvent).where(LeadEvent.signal_id == signal.id)
+        ).first()
+        if existing:
+            log_signal_activity(
+                "pipeline",
+                "skip_duplicate",
+                {"signal_id": signal.id, "existing_event_id": existing.id},
+                session=session
+            )
+            return None
+    
+    category = parsed.category_hint or _infer_category(
+        parsed.source_type,
+        parsed.context_summary
+    )
+    
+    has_contact = _has_contact_info(parsed.context_summary, parsed.raw_payload)
+    enrichment_status = ENRICHMENT_STATUS_ENRICHED if has_contact else ENRICHMENT_STATUS_UNENRICHED
+    
+    company_name = _extract_company_from_context(parsed.context_summary)
+    domain = _extract_domain_from_context(parsed.context_summary, parsed.raw_payload)
+    
+    recommended_action = _generate_recommended_action(category, parsed.context_summary)
+    
+    event = LeadEvent(
+        company_id=parsed.company_id,
+        lead_id=parsed.lead_id,
+        signal_id=signal.id if signal else None,
+        summary=parsed.context_summary,
+        category=category,
+        urgency_score=scored_signal.score,
+        status="NEW",
+        recommended_action=recommended_action,
+        enrichment_status=enrichment_status,
+        enriched_company_name=company_name,
+    )
+    
+    session.add(event)
+    session.commit()
+    session.refresh(event)
+    
+    print(f"[SIGNALNET][LEADEVENT] Created event {event.id} from signal (score={scored_signal.score})")
+    
+    log_signal_activity(
+        "pipeline",
+        "create_event",
+        {
+            "event_id": event.id,
+            "signal_id": signal.id if signal else None,
+            "category": category,
+            "urgency_score": scored_signal.score,
+            "enrichment_status": enrichment_status,
+            "company_name": company_name,
+            "domain": domain,
+        },
+        session=session
+    )
+    
+    return event
+
+
 class SignalPipeline:
     """
     Orchestrates the signal ingestion pipeline with structured logging.
@@ -788,7 +951,7 @@ class SignalPipeline:
       3. Parse raw signals into standardized format
       4. Score each signal
       5. Persist signals to database
-      6. Generate LeadEvents for signals scoring >= 65 (PRODUCTION mode only)
+      6. Generate LeadEvents for signals scoring >= 60 (PRODUCTION mode only)
     
     Mode behavior (via SIGNAL_MODE env var):
       - PRODUCTION: Full pipeline including LeadEvent creation
@@ -959,14 +1122,15 @@ class SignalPipeline:
                     signal = self._persist_signal(parsed, source.name)
                     result["persisted"] += 1
                     
-                    if scored.should_create_event and self.mode == "PRODUCTION":
-                        self._create_lead_event(signal, scored, source.name)
-                        result["events_created"] += 1
-                    elif scored.should_create_event and self.mode == "SANDBOX":
+                    if scored.score >= LEADEVENT_SCORE_THRESHOLD and self.mode == "PRODUCTION":
+                        lead_event = create_lead_event_from_signal(scored, self.session, signal)
+                        if lead_event:
+                            result["events_created"] += 1
+                    elif scored.score >= LEADEVENT_SCORE_THRESHOLD and self.mode == "SANDBOX":
                         log_signal_activity(
                             source.name,
                             "sandbox_skip_event",
-                            {"score": scored.score, "reason": "SANDBOX mode"},
+                            {"score": scored.score, "threshold": LEADEVENT_SCORE_THRESHOLD, "reason": "SANDBOX mode"},
                             session=self.session
                         )
                     
@@ -1086,43 +1250,17 @@ class SignalPipeline:
         
         return signal
     
-    def _create_lead_event(self, signal: Signal, scored: ScoredSignal, source_name: str) -> LeadEvent:
-        """Create a LeadEvent from a high-scoring signal with structured logging."""
-        parsed = scored.parsed_signal
-        category = parsed.category_hint or _infer_category(
-            parsed.source_type,
-            parsed.context_summary
-        )
+    def _create_lead_event(self, signal: Signal, scored: ScoredSignal, source_name: str) -> Optional[LeadEvent]:
+        """
+        Create a LeadEvent from a high-scoring signal with structured logging.
         
-        recommended_action = _generate_recommended_action(category, parsed.context_summary)
+        This method now delegates to create_lead_event_from_signal() for proper
+        duplicate checking and enrichment status handling.
         
-        event = LeadEvent(
-            company_id=signal.company_id,
-            lead_id=signal.lead_id,
-            signal_id=signal.id,
-            summary=parsed.context_summary,
-            category=category,
-            urgency_score=scored.score,
-            status="NEW",
-            recommended_action=recommended_action,
-        )
-        self.session.add(event)
-        self.session.commit()
-        self.session.refresh(event)
-        
-        log_signal_activity(
-            source_name,
-            "create_event",
-            {
-                "event_id": event.id,
-                "signal_id": signal.id,
-                "category": category,
-                "urgency_score": scored.score,
-            },
-            session=self.session
-        )
-        
-        return event
+        Returns:
+            LeadEvent if created, None if duplicate or error
+        """
+        return create_lead_event_from_signal(scored, self.session, signal)
 
 
 _global_registry = SignalRegistry()

@@ -4,9 +4,9 @@
   "access_token": null,
   "refresh_token": null,
   "token_expires_at": null,
-  "calls_today": 2,
+  "calls_today": 22,
   "last_reset_date": "2025-12-04",
-  "last_error": "API error 403: {\"error\":\"api/v1/mixed_people/search is not accessible with this api_key on a free plan. Please upgrade your plan from https://app.apollo.io/.\",\"error_code\":\"API_INACCESSIBLE\"}",
-  "last_fetch_at": "2025-12-04T09:22:53.248610",
+  "last_error": null,
+  "last_fetch_at": "2025-12-04T09:58:45.278283",
   "total_leads_fetched": 0
 }

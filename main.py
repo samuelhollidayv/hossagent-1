@@ -516,22 +516,29 @@ async def autopilot_loop():
     Background task: Runs agent cycles automatically when autopilot is enabled.
     
     Checks SystemSettings.autopilot_enabled every 15 minutes (production cycle).
-    If enabled, runs the full pipeline:
-      1. Lead Generation - Fetch new leads from configured source (capped by MAX_NEW_LEADS_PER_CYCLE)
-      2. Signals Agent - Generate contextual intelligence from external signals
-      3. BizDev - Send outreach emails to NEW leads (capped by MAX_EMAILS_PER_CYCLE)
-      4. Event-Driven BizDev - Process LeadEvents for contextual outreach
-      5. Onboarding - Convert qualified leads to customers
-      6. Ops - Execute pending tasks and generate reports
-      7. Billing - Generate invoices for completed work
+    If enabled, runs the full SignalNet-first pipeline:
+      1. Lead Generation - Fetch new leads from configured source
+      2. SignalNet Pipeline - Fetch signals, score, convert to LeadEvents
+      3. Enrichment - Enrich unenriched LeadEvents with contact data
+      4. BizDev - Send outreach emails to NEW leads
+      5. Event-Driven BizDev - Process ENRICHED LeadEvents for contextual outreach
+      6. Onboarding - Convert qualified leads to customers
+      7. Ops - Execute pending tasks and generate reports
+      8. Billing - Generate invoices for completed work
+    
+    Pipeline: SignalNet → Score → LeadEvents → Enrich → BizDev → Email
     
     Per-customer autopilot settings override global behavior.
     Safe: Catches and logs exceptions without crashing the loop.
     Idempotent: Prevents duplicate LeadEvents, outbound, and reports.
     """
+    # Allow the server to fully start before running the first cycle
+    await asyncio.sleep(5)
+    
     # Log email mode at startup
     from email_utils import get_email_status
     email_status = get_email_status()
+    print("[AUTOPILOT][STARTUP] Pipeline: SignalNet → Score → LeadEvents → Enrich → BizDev → Email")
     print(f"[AUTOPILOT][STARTUP] Email mode: {email_status['mode']} (configured: {email_status['configured_mode']})")
     if not email_status['is_valid']:
         print(f"[AUTOPILOT][STARTUP] Email fallback reason: {email_status['message']}")
@@ -549,12 +556,28 @@ async def autopilot_loop():
                     # Bootstrap business profiles for customers without them
                     bootstrap_business_profiles(session)
                     
+                    # Step 1: Generate new leads from configured source
                     generate_new_leads_from_source(session)
                     
+                    # Step 2-3: Run SignalNet pipeline (fetches, scores, converts to LeadEvents)
                     run_signals_agent(session)
                     
+                    # Step 4: Enrich unenriched LeadEvents (batch of up to 15 per cycle)
+                    try:
+                        from lead_enrichment import run_enrichment_pipeline
+                        enrichment_results = await run_enrichment_pipeline(session)
+                        pending_info = f", Pending: {enrichment_results.get('pending', 0)}" if enrichment_results.get('pending', 0) > 0 else ""
+                        print(f"[ENRICHMENT] Processed: {enrichment_results.get('processed', 0)}, "
+                              f"Enriched: {enrichment_results.get('enriched', 0)}, "
+                              f"Failed: {enrichment_results.get('failed', 0)}{pending_info}")
+                    except Exception as e:
+                        print(f"[ENRICHMENT][ERROR] {e}")
+                    
+                    # Step 5-6: BizDev outreach (now prefers enriched LeadEvents)
                     await run_bizdev_cycle(session)
                     await run_event_driven_bizdev_cycle(session)
+                    
+                    # Step 7: Onboarding, Ops, and Billing
                     await run_onboarding_cycle(session)
                     await run_ops_cycle(session)
                     await run_billing_cycle(session)
@@ -3482,6 +3505,8 @@ def get_kpis(request: Request, session: Session = Depends(get_session)):
         - outbound_sent_today: Count of outbound with APPROVED/SENT status updated today
         - reports_delivered_today: Count of reports created today
         - errors_failed: Count of pending outbound with FAILED or SKIPPED status
+        - enrichment_pending: Count of lead events pending enrichment
+        - enrichment_complete_today: Count of lead events enriched today
     """
     admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
     if not verify_admin_session(admin_token):
@@ -3514,12 +3539,29 @@ def get_kpis(request: Request, session: Session = Depends(get_session)):
         )
     ).one()
     
+    enrichment_pending = session.exec(
+        select(func.count()).select_from(LeadEvent).where(
+            (LeadEvent.enrichment_status == None) | 
+            (LeadEvent.enrichment_status.in_(["UNENRICHED", "ENRICHING"]))
+        )
+    ).one()
+    
+    enrichment_complete_today = session.exec(
+        select(func.count()).select_from(LeadEvent).where(
+            (LeadEvent.enrichment_status.in_(["ENRICHED", "OUTBOUND_READY"])) &
+            (LeadEvent.enriched_at != None) &
+            (LeadEvent.enriched_at >= today_start)
+        )
+    ).one()
+    
     return {
         "signals_today": signals_today,
         "lead_events_today": lead_events_today,
         "outbound_sent_today": outbound_sent_today,
         "reports_delivered_today": reports_delivered_today,
-        "errors_failed": errors_failed
+        "errors_failed": errors_failed,
+        "enrichment_pending": enrichment_pending,
+        "enrichment_complete_today": enrichment_complete_today
     }
 
 
@@ -3569,6 +3611,7 @@ def get_lead_events_detailed(
             "category": e.category,
             "urgency_score": e.urgency_score,
             "status": e.status,
+            "enrichment_status": e.enrichment_status or "UNENRICHED",
             "has_outbound": has_outbound,
             "has_report": has_report,
             "company": company,

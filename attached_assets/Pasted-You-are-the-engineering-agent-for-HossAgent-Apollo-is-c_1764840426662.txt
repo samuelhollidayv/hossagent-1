@@ -1,0 +1,102 @@
+You are the engineering agent for HossAgent. Apollo is connected, but the free plan does NOT allow access to the People Search API. We do NOT want to upgrade Apollo. We do NOT want to depend on Apollo for lead generation.
+
+Your job is to modify the system so that:
+
+===========================================
+1. **SignalNet becomes the PRIMARY lead generator**
+===========================================
+
+Take the existing SignalNet output (currently pulling 35+ real signals from South Florida) and:
+
+- Turn `SIGNAL_MODE=PRODUCTION` ON by default.
+- Automatically convert any scored Signal with score >= 60 into a new LeadEvent.
+- For signals that do not include an obvious email or contact, mark the LeadEvent as `UNENRICHED` and send it to the new enrichment pipeline (see below).
+- Ensure LeadEvents created from SignalNet follow the same lifecycle as leads created from any other source.
+
+===========================================
+2. **Create the Lead Enrichment Layer (free-tier friendly)**
+===========================================
+
+Build a new module `lead_enrichment.py` that handles contact finding without using Apollo’s People Search API.
+
+Use ONLY free-tier friendly enrichment services:
+
+- Hunter.io (domain → email guess + verification)
+- PeopleDataLabs (company → email/name enrichment on free tier)
+- Clearbit free tier (company → domain/name/role)
+- Website scraping for `contact`, `about`, or `team` pages
+- Social link extraction if visible (`facebook.com/pages/...`, `instagram.com/...`)
+
+Pipeline:
+
+1. Input: LeadEvent with missing email/contact.
+2. Try enrichment sources in order (Hunter → PDL → Clearbit → scrape).
+3. If none succeed, leave LeadEvent as `UNENRICHED` but still visible to user.
+4. If enrichment succeeds, update LeadEvent and queue it for BizDev.
+
+All enrichment must:
+- Run asynchronously so it doesn’t block Autopilot
+- Log success/failure
+- Respect rate limits on all free-tier services
+
+===========================================
+3. **Reduce Apollo usage to metadata-only**
+===========================================
+
+Only use Apollo free-tier endpoints for:
+- Company domain
+- Basic firmographics
+- Validation that a business exists
+
+DO NOT use Apollo for:
+- People search
+- Contact discovery
+- Lead generation
+
+Remove any direct dependency on `api/v1/mixed_people/search`.
+
+===========================================
+4. **Update Autopilot to use the new pipeline**
+===========================================
+
+Autopilot must now run the following sequence every cycle:
+
+1. Fetch Signals
+2. Score Signals
+3. Convert high-scoring Signals → LeadEvents
+4. Enrich LeadEvents via lead_enrichment.py
+5. Generate outbound via BizDev agent
+6. Send emails (respect EMAIL_MODE)
+7. Log everything
+
+There must be NO remaining code paths using DummySeed.
+
+===========================================
+5. **Admin + Portal Updates**
+===========================================
+
+Add a new “Lead Enrichment Status” field in the Portal:
+- UNENRICHED
+- ENRICHING
+- ENRICHED
+- OUTBOUND_READY
+
+Add a new Admin toggle under Lead Sources:
+- SignalNet (default)
+- Apollo Metadata Only
+- (No DummySeed option)
+
+===========================================
+6. Final Confirmation
+===========================================
+
+When complete, Magicbox must confirm:
+
+- SignalNet → LeadEvent creation is fully automated.
+- Apollo is used ONLY as metadata.
+- Lead enrichment works using free-tier services.
+- Autopilot is running the full pipeline without dummy data.
+- No paid Apollo endpoints are called.
+- System can generate real leads WITHOUT Apollo paid plan.
+
+Execute all code and migrations needed. No further questions.

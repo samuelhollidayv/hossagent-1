@@ -1,5 +1,5 @@
 """
-Apollo.io Integration Module - Hoss Style
+Apollo.io Integration Module - Hoss Style (METADATA ONLY)
 
 Provides seamless Apollo.io integration with:
 - OAuth 2.0 flow (one-click connect)
@@ -7,8 +7,15 @@ Provides seamless Apollo.io integration with:
 - Rate limiting (100 calls/day)
 - Detailed fetch logging
 
-Apollo is the ONLY lead source. No fallbacks.
-If not connected or quota exceeded, lead generation pauses.
+MODE: METADATA ONLY
+- People Search API is DISABLED (requires paid tier)
+- Only company/organization enrichment endpoints are used
+- Lead generation uses SignalNet instead of Apollo People Search
+- Free tier friendly endpoints only
+
+Metadata endpoints used:
+- /v1/organizations/enrich (company data)
+- /v1/auth/health (connection validation)
 """
 
 import os
@@ -122,6 +129,8 @@ def get_apollo_status() -> Dict[str, Any]:
     
     return {
         "connected": is_connected,
+        "mode": "metadata_only",
+        "people_search_enabled": False,
         "auth_method": auth_method,
         "connection_source": connection_source,
         "calls_today": state.calls_today,
@@ -138,6 +147,9 @@ def get_apollo_status() -> Dict[str, Any]:
 def connect_apollo_with_key(api_key: str) -> Dict[str, Any]:
     """
     Connect Apollo using API key (validates before saving).
+    
+    NOTE: Metadata-only mode - validates using health endpoint only.
+    Does NOT test People Search API (disabled for free tier).
     
     Args:
         api_key: Apollo.io API key
@@ -163,36 +175,17 @@ def connect_apollo_with_key(api_key: str) -> Dict[str, Any]:
             state.connected = True
             state.last_error = None
             _save_state(state)
-            print(f"[APOLLO] Connected successfully with API key")
-            return {"success": True, "connected": True, "message": "Apollo connected successfully"}
+            print(f"[APOLLO] Connected successfully with API key (metadata-only mode)")
+            return {"success": True, "connected": True, "message": "Apollo connected (metadata-only mode)"}
         elif response.status_code == 401 or response.status_code == 403:
             state.last_error = "Invalid API key"
             _save_state(state)
             return {"success": False, "connected": False, "error": "Invalid API key - check your key at apollo.io/settings/api-keys"}
         else:
-            test_response = requests.post(
-                f"{APOLLO_API_BASE}/mixed_people/search",
-                headers={
-                    "Content-Type": "application/json",
-                    "Cache-Control": "no-cache",
-                    "X-Api-Key": api_key
-                },
-                json={"page": 1, "per_page": 1},
-                timeout=10
-            )
-            
-            if test_response.status_code == 200:
-                state.api_key = api_key
-                state.connected = True
-                state.last_error = None
-                _save_state(state)
-                print(f"[APOLLO] Connected successfully with API key (via search test)")
-                return {"success": True, "connected": True, "message": "Apollo connected successfully"}
-            else:
-                error_msg = f"API returned {test_response.status_code}"
-                state.last_error = error_msg
-                _save_state(state)
-                return {"success": False, "connected": False, "error": error_msg}
+            error_msg = f"API health check returned {response.status_code}"
+            state.last_error = error_msg
+            _save_state(state)
+            return {"success": False, "connected": False, "error": error_msg}
                 
     except requests.Timeout:
         state.last_error = "Connection timeout"
@@ -263,7 +256,10 @@ def fetch_leads_from_apollo(
     limit: int = 10
 ) -> Dict[str, Any]:
     """
-    Fetch real leads from Apollo.io.
+    Fetch leads from Apollo.io - DISABLED (People Search requires paid tier).
+    
+    This function is now a stub that returns empty results.
+    Lead generation now uses SignalNet instead of Apollo People Search.
     
     Args:
         location: Target city/region (default: Miami)
@@ -273,179 +269,26 @@ def fetch_leads_from_apollo(
         limit: Max leads to return
         
     Returns:
-        Dict with leads array and metadata
+        Dict with empty leads array and disabled status
     """
-    state = _load_state()
+    print("[APOLLO] People Search disabled - using SignalNet for leads")
+    print(f"[APOLLO] Request for {location}/{niche} ignored (metadata-only mode)")
     
-    api_key = state.api_key or os.getenv("APOLLO_API_KEY", "")
-    if not api_key and not state.access_token:
-        return {
-            "success": False,
-            "error": "Apollo not connected - lead generation PAUSED",
-            "leads": [],
-            "paused": True
-        }
+    _log_fetch(
+        {"location": location, "niche": niche, "reason": "people_search_disabled"},
+        0,
+        True,
+        "People Search API disabled - metadata only mode"
+    )
     
-    allowed, rate_msg = _check_rate_limit(state)
-    if not allowed:
-        return {
-            "success": False,
-            "error": rate_msg,
-            "leads": [],
-            "quota_exceeded": True,
-            "paused": True
-        }
-    
-    MIAMI_LOCATIONS = [
-        "Miami, FL", "Fort Lauderdale, FL", "Boca Raton, FL", 
-        "West Palm Beach, FL", "Coral Gables, FL", "Miami Beach, FL",
-        "Doral, FL", "Hialeah, FL", "Hollywood, FL", "Aventura, FL"
-    ]
-    
-    NICHE_KEYWORDS = {
-        "hvac": ["hvac", "heating", "cooling", "air conditioning"],
-        "med spa": ["medical spa", "medspa", "aesthetics", "cosmetic"],
-        "realtor": ["real estate", "realtor", "property", "brokerage"],
-        "roofing": ["roofing", "roof", "construction"],
-        "immigration": ["immigration", "law firm", "attorney"],
-        "marketing": ["marketing", "advertising", "digital agency"]
+    return {
+        "success": True,
+        "leads": [],
+        "total_available": 0,
+        "calls_remaining": DAILY_LIMIT,
+        "people_search_disabled": True,
+        "message": "People Search disabled - using SignalNet for leads"
     }
-    
-    query = {
-        "page": 1,
-        "per_page": min(limit, 25),
-        "person_titles": [
-            "Owner", "CEO", "Founder", "President", "Director",
-            "General Manager", "Managing Partner", "Principal"
-        ],
-        "organization_num_employees_ranges": [f"{min_size},{max_size}"]
-    }
-    
-    if "miami" in location.lower() or "florida" in location.lower():
-        query["person_locations"] = MIAMI_LOCATIONS
-    else:
-        query["person_locations"] = [location]
-    
-    niche_lower = niche.lower()
-    keywords = []
-    for key, terms in NICHE_KEYWORDS.items():
-        if key in niche_lower:
-            keywords.extend(terms)
-    
-    if keywords:
-        query["q_organization_keyword_tags"] = keywords
-    else:
-        query["q_keywords"] = niche
-    
-    try:
-        headers = {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache"
-        }
-        
-        if state.access_token:
-            headers["Authorization"] = f"Bearer {state.access_token}"
-        else:
-            headers["X-Api-Key"] = api_key
-        
-        response = requests.post(
-            f"{APOLLO_API_BASE}/mixed_people/search",
-            headers=headers,
-            json=query,
-            timeout=30
-        )
-        
-        state.calls_today += 1
-        state.last_fetch_at = datetime.utcnow().isoformat()
-        
-        if response.status_code != 200:
-            error_msg = f"API error {response.status_code}: {response.text[:200]}"
-            state.last_error = error_msg
-            _save_state(state)
-            _log_fetch(query, 0, False, error_msg)
-            
-            if response.status_code == 429:
-                return {
-                    "success": False,
-                    "error": "Rate limit exceeded by Apollo API",
-                    "leads": [],
-                    "quota_exceeded": True,
-                    "paused": True
-                }
-            
-            return {
-                "success": False,
-                "error": error_msg,
-                "leads": [],
-                "paused": True
-            }
-        
-        data = response.json()
-        people = data.get("people", [])
-        
-        leads = []
-        for person in people:
-            email = person.get("email")
-            if not email:
-                continue
-            
-            org = person.get("organization", {}) or {}
-            
-            lead = {
-                "name": person.get("name") or f"{person.get('first_name', '')} {person.get('last_name', '')}".strip(),
-                "company": org.get("name") or person.get("organization_name", "Unknown"),
-                "email": email,
-                "title": person.get("title", ""),
-                "industry": org.get("industry", niche),
-                "website": org.get("website_url") or org.get("primary_domain", ""),
-                "linkedin": person.get("linkedin_url", ""),
-                "city": person.get("city", ""),
-                "state": person.get("state", ""),
-                "employee_count": org.get("estimated_num_employees"),
-                "apollo_id": person.get("id"),
-                "apollo_url": f"https://app.apollo.io/#/people/{person.get('id')}" if person.get('id') else None
-            }
-            leads.append(lead)
-        
-        state.total_leads_fetched += len(leads)
-        state.last_error = None
-        _save_state(state)
-        _log_fetch(query, len(leads), True)
-        
-        print(f"[APOLLO] Fetched {len(leads)} leads from Apollo.io (location={location}, niche={niche})")
-        
-        if leads:
-            print(f"[APOLLO] Sample leads:")
-            for lead in leads[:5]:
-                print(f"  - {lead['name']} @ {lead['company']} ({lead['email']})")
-        
-        return {
-            "success": True,
-            "leads": leads,
-            "total_available": data.get("pagination", {}).get("total_entries", len(leads)),
-            "calls_remaining": DAILY_LIMIT - state.calls_today
-        }
-        
-    except requests.Timeout:
-        state.last_error = "Request timeout"
-        _save_state(state)
-        _log_fetch(query, 0, False, "timeout")
-        return {
-            "success": False,
-            "error": "Request timeout - Apollo API not responding",
-            "leads": [],
-            "paused": True
-        }
-    except Exception as e:
-        state.last_error = str(e)
-        _save_state(state)
-        _log_fetch(query, 0, False, str(e))
-        return {
-            "success": False,
-            "error": str(e),
-            "leads": [],
-            "paused": True
-        }
 
 
 def get_fetch_log(limit: int = 50) -> List[Dict]:
@@ -465,34 +308,160 @@ def get_fetch_log(limit: int = 50) -> List[Dict]:
     return entries
 
 
+def get_apollo_company_metadata(domain: str) -> Optional[dict]:
+    """
+    Get company metadata from Apollo (free tier friendly).
+    Does NOT use People Search API.
+    
+    Uses the /v1/organizations/enrich endpoint which is available
+    on free tier for company/organization data only.
+    
+    Args:
+        domain: Company domain (e.g., "acme.com")
+        
+    Returns:
+        Dict with company name, industry, size, or None if not found
+    """
+    state = _load_state()
+    api_key = state.api_key or os.getenv("APOLLO_API_KEY", "")
+    
+    if not api_key and not state.access_token:
+        print(f"[APOLLO] Cannot enrich {domain} - not connected")
+        return None
+    
+    allowed, rate_msg = _check_rate_limit(state)
+    if not allowed:
+        print(f"[APOLLO] Cannot enrich {domain} - {rate_msg}")
+        return None
+    
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache"
+        }
+        
+        if state.access_token:
+            headers["Authorization"] = f"Bearer {state.access_token}"
+        else:
+            headers["X-Api-Key"] = api_key
+        
+        response = requests.get(
+            f"{APOLLO_API_BASE}/organizations/enrich",
+            headers=headers,
+            params={"domain": domain},
+            timeout=15
+        )
+        
+        state.calls_today += 1
+        state.last_fetch_at = datetime.utcnow().isoformat()
+        
+        if response.status_code != 200:
+            print(f"[APOLLO] Organization enrich failed for {domain}: {response.status_code}")
+            _save_state(state)
+            return None
+        
+        data = response.json()
+        org = data.get("organization", {})
+        
+        if not org:
+            print(f"[APOLLO] No organization data for {domain}")
+            _save_state(state)
+            return None
+        
+        metadata = {
+            "name": org.get("name"),
+            "domain": org.get("primary_domain") or domain,
+            "industry": org.get("industry"),
+            "employee_count": org.get("estimated_num_employees"),
+            "employee_range": org.get("employee_range"),
+            "founded_year": org.get("founded_year"),
+            "linkedin_url": org.get("linkedin_url"),
+            "website_url": org.get("website_url"),
+            "city": org.get("city"),
+            "state": org.get("state"),
+            "country": org.get("country"),
+            "short_description": org.get("short_description"),
+            "keywords": org.get("keywords", []),
+            "apollo_id": org.get("id")
+        }
+        
+        state.last_error = None
+        _save_state(state)
+        
+        print(f"[APOLLO] Enriched {domain}: {metadata.get('name')} ({metadata.get('industry')})")
+        
+        return metadata
+        
+    except requests.Timeout:
+        print(f"[APOLLO] Timeout enriching {domain}")
+        state.last_error = "Request timeout"
+        _save_state(state)
+        return None
+    except Exception as e:
+        print(f"[APOLLO] Error enriching {domain}: {e}")
+        state.last_error = str(e)
+        _save_state(state)
+        return None
+
+
 def test_apollo_connection() -> Dict[str, Any]:
     """
-    Test Apollo connection by fetching sample leads.
-    This DOES count against quota (1 API call).
-    """
-    result = fetch_leads_from_apollo(
-        location="Miami",
-        niche="HVAC", 
-        min_size=1,
-        max_size=200,
-        limit=5
-    )
+    Test Apollo connection using health endpoint.
     
-    if result.get("success") and result.get("leads"):
-        return {
-            "success": True,
-            "message": f"Connection verified - found {len(result['leads'])} real leads",
-            "leads": result["leads"],
-            "calls_remaining": result.get("calls_remaining")
-        }
-    elif result.get("paused"):
-        return {
-            "success": False,
-            "error": result.get("error", "Lead generation paused"),
-            "paused": True
-        }
-    else:
+    NOTE: Metadata-only mode - does NOT test People Search.
+    Tests connection validity without consuming paid API credits.
+    """
+    state = _load_state()
+    api_key = state.api_key or os.getenv("APOLLO_API_KEY", "")
+    
+    if not api_key and not state.access_token:
         return {
             "success": False,
-            "error": result.get("error", "No leads found - check your Apollo search criteria")
+            "error": "Apollo not connected - add APOLLO_API_KEY to secrets",
+            "mode": "metadata_only"
+        }
+    
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache"
+        }
+        
+        if state.access_token:
+            headers["Authorization"] = f"Bearer {state.access_token}"
+        else:
+            headers["X-Api-Key"] = api_key
+        
+        response = requests.get(
+            f"{APOLLO_API_BASE}/auth/health",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "message": "Connection verified (metadata-only mode)",
+                "mode": "metadata_only",
+                "people_search_enabled": False,
+                "note": "People Search disabled - using SignalNet for leads"
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Health check failed: {response.status_code}",
+                "mode": "metadata_only"
+            }
+            
+    except requests.Timeout:
+        return {
+            "success": False,
+            "error": "Connection timeout",
+            "mode": "metadata_only"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "mode": "metadata_only"
         }

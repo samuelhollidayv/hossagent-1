@@ -120,7 +120,7 @@
 
         .kpi-bar {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(7, 1fr);
             gap: 1rem;
             margin-bottom: 2rem;
         }
@@ -707,7 +707,7 @@
 
         @media (max-width: 1200px) {
             .kpi-bar {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 
@@ -836,6 +836,103 @@
         .apollo-stat-value {
             color: var(--text-primary);
             font-weight: 500;
+        }
+
+        .lead-sources-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .lead-sources-panel h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .source-toggle {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .source-toggle label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .source-toggle label:hover {
+            border-color: var(--border-medium);
+            color: var(--text-primary);
+        }
+
+        .source-toggle label:has(input:checked) {
+            border-color: var(--accent-green);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .source-toggle input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-green);
+        }
+
+        .source-status {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-sm);
+            border-left: 3px solid var(--accent-green);
+        }
+
+        .enrichment-badge {
+            display: inline-block;
+            padding: 0.25rem 0.625rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .enrichment-badge.pending {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+        }
+
+        .enrichment-badge.enriching {
+            background: rgba(249, 115, 22, 0.15);
+            color: var(--accent-orange);
+        }
+
+        .enrichment-badge.enriched {
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+        }
+
+        .enrichment-badge.ready {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+
+        .enrichment-badge.failed {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
         }
 
         .apollo-connect-form {
@@ -1353,6 +1450,14 @@
             <div class="kpi-value" id="kpi-reports">-</div>
             <div class="kpi-label">Reports Delivered</div>
         </div>
+        <div class="kpi-item">
+            <div class="kpi-value" id="enrichment-pending">-</div>
+            <div class="kpi-label">Pending Enrichment</div>
+        </div>
+        <div class="kpi-item">
+            <div class="kpi-value" id="enrichment-complete">-</div>
+            <div class="kpi-label">Enriched Today</div>
+        </div>
         <div class="kpi-item error">
             <div class="kpi-value" id="kpi-errors">-</div>
             <div class="kpi-label">Errors / Failed</div>
@@ -1396,29 +1501,44 @@
         <div class="log-entry">Ready.</div>
     </div>
 
+    <div class="lead-sources-panel" id="lead-sources-panel">
+        <h3>LEAD SOURCES</h3>
+        <div class="source-toggle">
+            <label>
+                <input type="radio" name="lead_source" value="signalnet" checked>
+                SignalNet (Primary - Recommended)
+            </label>
+            <label>
+                <input type="radio" name="lead_source" value="apollo_metadata">
+                Apollo Metadata Only
+            </label>
+        </div>
+        <p class="source-status" id="lead-source-status">Current: SignalNet generating leads from real-time signals</p>
+    </div>
+
     <div class="apollo-panel" id="apollo-panel">
         <div class="apollo-header">
-            <div class="apollo-title">APOLLO.IO LEAD SOURCE</div>
+            <div class="apollo-title">APOLLO.IO STATUS</div>
             <div class="apollo-status">
                 <div class="apollo-dot" id="apollo-dot"></div>
-                <span id="apollo-status-text">Checking...</span>
+                <span id="apollo-status-text">Metadata Only</span>
             </div>
         </div>
-        <div id="apollo-message" style="margin-bottom: 1rem; font-size: 0.75rem; color: var(--text-secondary); padding: 0.75rem; background: var(--bg-primary); border-radius: var(--radius-sm); border-left: 3px solid var(--border-medium);">
-            Checking connection status...
+        <div id="apollo-message" style="margin-bottom: 1rem; font-size: 0.75rem; color: var(--text-secondary); padding: 0.75rem; background: var(--bg-primary); border-radius: var(--radius-sm); border-left: 3px solid var(--accent-green);">
+            <span style="color: var(--accent-green);">✓ Metadata Only</span> — Company enrichment active. People Search disabled, using SignalNet for leads.
         </div>
         <div class="apollo-stats">
             <div class="apollo-stat">
-                <span>Provider:</span>
-                <span class="apollo-stat-value" id="apollo-provider">-</span>
+                <span>Mode:</span>
+                <span class="apollo-stat-value" id="apollo-provider">Metadata Only</span>
             </div>
             <div class="apollo-stat">
                 <span>Calls Today:</span>
                 <span class="apollo-stat-value" id="apollo-calls">-/100</span>
             </div>
             <div class="apollo-stat">
-                <span>Total Leads:</span>
-                <span class="apollo-stat-value" id="apollo-total">-</span>
+                <span>Enrichment Status:</span>
+                <span class="apollo-stat-value" id="apollo-total">Active</span>
             </div>
         </div>
     </div>
@@ -1501,6 +1621,7 @@
                             <th>Category</th>
                             <th>Urgency</th>
                             <th>Status</th>
+                            <th>Enrichment</th>
                             <th>Outbound</th>
                             <th>Report</th>
                             <th>Company</th>
@@ -1508,7 +1629,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td colspan="8" class="empty-row">Loading...</td></tr>
+                        <tr><td colspan="9" class="empty-row">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1801,10 +1922,25 @@
                 document.getElementById('kpi-events').textContent = data.lead_events_today || 0;
                 document.getElementById('kpi-outbound').textContent = data.outbound_sent_today || 0;
                 document.getElementById('kpi-reports').textContent = data.reports_delivered_today || 0;
+                document.getElementById('enrichment-pending').textContent = data.enrichment_pending || 0;
+                document.getElementById('enrichment-complete').textContent = data.enrichment_complete_today || 0;
                 document.getElementById('kpi-errors').textContent = data.errors_failed || 0;
             } catch (e) {
                 console.error('KPI refresh error:', e);
             }
+        }
+
+        function getEnrichmentBadge(status) {
+            const statusMap = {
+                'UNENRICHED': { class: 'pending', text: 'Pending' },
+                'ENRICHING': { class: 'enriching', text: 'Enriching...' },
+                'ENRICHED': { class: 'enriched', text: 'Enriched' },
+                'OUTBOUND_READY': { class: 'ready', text: 'Ready' },
+                'FAILED': { class: 'failed', text: 'Failed' },
+                'SKIPPED': { class: 'pending', text: 'Skipped' }
+            };
+            const info = statusMap[status] || statusMap['UNENRICHED'];
+            return `<span class="enrichment-badge ${info.class}">${info.text}</span>`;
         }
 
         async function refreshLeadEvents() {
@@ -1814,7 +1950,7 @@
                 const tbody = document.getElementById('lead-events-table').querySelector('tbody');
                 
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No lead events yet</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-row">No lead events yet</td></tr>';
                     return;
                 }
                 
@@ -1822,19 +1958,21 @@
                     const summary = (e.summary || '').length > 50 ? e.summary.substring(0, 50) + '...' : e.summary;
                     const statusClass = (e.status || '').toLowerCase();
                     const created = e.created_at ? new Date(e.created_at).toLocaleString() : '-';
+                    const enrichmentBadge = getEnrichmentBadge(e.enrichment_status || 'UNENRICHED');
                     return `
                         <tr class="clickable" data-event-id="${e.id}" onclick="toggleEventDetail(this, ${e.id})">
                             <td class="summary-truncate">${summary}</td>
                             <td>${e.category || '-'}</td>
                             <td>${e.urgency_score || 0}</td>
                             <td><span class="status-badge ${statusClass}">${e.status || '-'}</span></td>
+                            <td>${enrichmentBadge}</td>
                             <td><span class="bool-indicator ${e.has_outbound ? 'yes' : 'no'}"></span></td>
                             <td><span class="bool-indicator ${e.has_report ? 'yes' : 'no'}"></span></td>
                             <td>${e.company || '-'}</td>
                             <td>${created}</td>
                         </tr>
                         <tr class="detail-row" id="detail-row-${e.id}">
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="detail-content" id="detail-content-${e.id}">
                                     <div class="no-data">Loading...</div>
                                 </div>
@@ -2344,13 +2482,13 @@
                         messageBox.style.borderLeftColor = 'var(--accent-orange)';
                         messageBox.innerHTML = 'Daily API quota exceeded. Resets at midnight UTC.';
                     } else {
-                        statusText.textContent = 'Connected';
+                        statusText.textContent = 'Metadata Only';
                         statusText.style.color = 'var(--accent-green)';
                         messageBox.style.borderLeftColor = 'var(--accent-green)';
                         if (status.connection_source === 'environment_secret') {
-                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Connected via environment secret</span> — Lead generation active.';
+                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Connected via environment secret (Metadata Only)</span> — Company enrichment active. People Search disabled, using SignalNet for leads.';
                         } else {
-                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Connected</span> — Lead generation active.';
+                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Metadata Only</span> — Company enrichment active. People Search disabled, using SignalNet for leads.';
                         }
                     }
                 } else {
@@ -2358,7 +2496,7 @@
                     statusText.textContent = 'Not Connected';
                     statusText.style.color = 'var(--accent-red)';
                     messageBox.style.borderLeftColor = 'var(--accent-red)';
-                    messageBox.innerHTML = '<span style="color: var(--accent-orange);">Lead generation paused.</span> Set <code style="background: var(--bg-tertiary); padding: 0.15rem 0.4rem; border-radius: 3px;">APOLLO_API_KEY</code> in Secrets tab to enable.';
+                    messageBox.innerHTML = '<span style="color: var(--accent-orange);">Metadata enrichment paused.</span> Set <code style="background: var(--bg-tertiary); padding: 0.15rem 0.4rem; border-radius: 3px;">APOLLO_API_KEY</code> in Secrets tab to enable company data enrichment.';
                 }
                 
                 provider.textContent = 'Apollo.io';

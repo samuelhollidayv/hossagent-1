@@ -177,6 +177,48 @@ def _run_sqlite_migrations():
         except sqlite3.OperationalError:
             pass
     
+    if 'enrichment_attempts' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN enrichment_attempts INTEGER DEFAULT 0')
+            print("[MIGRATION] Added 'enrichment_attempts' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'last_enrichment_at' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN last_enrichment_at TEXT')
+            print("[MIGRATION] Added 'last_enrichment_at' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'social_facebook' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN social_facebook TEXT')
+            print("[MIGRATION] Added 'social_facebook' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'social_instagram' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN social_instagram TEXT')
+            print("[MIGRATION] Added 'social_instagram' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'social_linkedin' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN social_linkedin TEXT')
+            print("[MIGRATION] Added 'social_linkedin' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
+    if 'social_twitter' not in leadevent_columns:
+        try:
+            cursor.execute('ALTER TABLE leadevent ADD COLUMN social_twitter TEXT')
+            print("[MIGRATION] Added 'social_twitter' column to leadevent table")
+        except sqlite3.OperationalError:
+            pass
+    
     cursor.execute("PRAGMA table_info(invoice)")
     invoice_columns = {row[1] for row in cursor.fetchall()}
     

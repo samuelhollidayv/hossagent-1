@@ -22,7 +22,8 @@ from models import (
     TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT,
     OUTREACH_MODE_AUTO, OUTREACH_MODE_REVIEW,
     LEAD_STATUS_NEW, LEAD_STATUS_CONTACTED,
-    NEXT_STEP_OWNER_AGENT, NEXT_STEP_OWNER_CUSTOMER
+    NEXT_STEP_OWNER_AGENT, NEXT_STEP_OWNER_CUSTOMER,
+    ENRICHMENT_STATUS_ENRICHED, ENRICHMENT_STATUS_OUTBOUND_READY, ENRICHMENT_STATUS_UNENRICHED
 )
 from email_utils import (
     send_email,
@@ -480,34 +481,49 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     Event-Driven BizDev Cycle: Send contextual outreach based on LeadEvents from Signals Engine.
     
     This is a moment-aware outreach system that:
-    1. Selects LeadEvents with status='new' ordered by urgency_score (highest first)
-    2. Checks customer's outreach_mode and do_not_contact list
-    3. Generates Miami-style contextual emails based on event.summary and event.recommended_action
-    4. If AUTO mode: sends email immediately
-    5. If REVIEW mode: creates PendingOutbound for customer approval
-    6. Gets CC/Reply-To from BusinessProfile.primary_contact_email
-    7. Updates event status to 'contacted' and stores the outbound_message
+    1. Selects LeadEvents with status='new' AND enrichment_status in (ENRICHED, OUTBOUND_READY)
+    2. Skips UNENRICHED events (wait for enrichment pipeline to process them)
+    3. Checks customer's outreach_mode and do_not_contact list
+    4. Generates Miami-style contextual emails based on event.summary and event.recommended_action
+    5. If AUTO mode: sends email immediately
+    6. If REVIEW mode: creates PendingOutbound for customer approval
+    7. Gets CC/Reply-To from BusinessProfile.primary_contact_email
+    8. Updates event status to 'contacted' and stores the outbound_message
     
     Miami-Style Template Language:
     - Lead with the observed moment (the signal)
     - Tie to Miami context (local relevance, bilingual, hurricane season, etc.)
     - Offer clarity and next step
     
-    Safe to call repeatedly - only processes events with status='new'.
+    Safe to call repeatedly - only processes enriched events with status='new'.
     """
     max_events = get_max_emails_per_cycle()
     email_status = get_email_status()
     effective_mode = email_status["mode"]
     
+    # Only process LeadEvents that have been enriched (ENRICHED or OUTBOUND_READY)
+    # Skip UNENRICHED events - wait for enrichment pipeline to process them
     new_events = session.exec(
         select(LeadEvent)
         .where(LeadEvent.status == "new")
+        .where(LeadEvent.enrichment_status.in_([ENRICHMENT_STATUS_ENRICHED, ENRICHMENT_STATUS_OUTBOUND_READY]))
         .order_by(LeadEvent.urgency_score.desc())
         .limit(max_events)
     ).all()
     
+    # Count unenriched events for logging
+    unenriched_count = session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.status == "new")
+        .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_UNENRICHED)
+    ).all()
+    unenriched_count = len(unenriched_count)
+    
     if not new_events:
-        msg = "Event-Driven BizDev: No new lead events to process."
+        if unenriched_count > 0:
+            msg = f"Event-Driven BizDev: No enriched events to process. {unenriched_count} events awaiting enrichment."
+        else:
+            msg = "Event-Driven BizDev: No new lead events to process."
         print(f"[CYCLE] {msg}")
         return msg
     
@@ -640,7 +656,8 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     
     queued_info = f", Queued: {events_queued}" if events_queued > 0 else ""
     blocked_info = f", Blocked: {events_blocked}" if events_blocked > 0 else ""
-    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}{queued_info}{blocked_info}. Mode: {effective_mode}. Companies: {summaries_str}"
+    unenriched_info = f", Awaiting enrichment: {unenriched_count}" if unenriched_count > 0 else ""
+    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}{queued_info}{blocked_info}{unenriched_info}. Mode: {effective_mode}. Companies: {summaries_str}"
     print(f"[CYCLE] {msg}")
     return msg
 

@@ -37918,5 +37918,415 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:04.020117",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:06.752231",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:12.812362",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:16.265843",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:19.639682",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:23.904891",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:34:26.255697",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:36:24.699714",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:36:43.051305",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:36:46.984107",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:36:51.316962",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:36:56.775719",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:36:59.704240",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:37:02.767802",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:37:08.344617",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:37:11.899192",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:37:15.526200",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:12.636155",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:15.473768",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:20.548385",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:25.033833",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:30.887859",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:35.482749",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T09:42:35.776015",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:42:35.993440",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:42:36.204838",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:42:36.386499",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:30.116570",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:30.350854",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:30.580625",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "Vanguard Consulting Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:30.726604",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:30.978787",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:31.117236",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:31.318913",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:31.451658",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:31.649589",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T09:47:31.838153",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T10:07:32.290097",
+    "lead_name": "David Kim",
+    "company": "Forge Strategic Partners",
+    "to_email": "david@forgestrategic.com",
+    "subject": "Forge Strategic Partners - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T10:11:55.670313",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T10:11:58.296012",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Momentum Marketing - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T10:12:03.114167",
+    "lead_name": "Victoria Nash",
+    "company": "Quantum Lead Systems",
+    "to_email": "victoria@quantumleads.com",
+    "subject": "Quantum Lead Systems - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

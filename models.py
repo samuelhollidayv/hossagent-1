@@ -266,6 +266,15 @@ class Signal(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+# Enrichment status constants
+ENRICHMENT_STATUS_UNENRICHED = "UNENRICHED"
+ENRICHMENT_STATUS_ENRICHING = "ENRICHING"
+ENRICHMENT_STATUS_ENRICHED = "ENRICHED"
+ENRICHMENT_STATUS_OUTBOUND_READY = "OUTBOUND_READY"
+ENRICHMENT_STATUS_FAILED = "FAILED"
+ENRICHMENT_STATUS_SKIPPED = "SKIPPED"
+
+
 class LeadEvent(SQLModel, table=True):
     """
     Signals Engine: Actionable opportunities derived from Signals.
@@ -274,6 +283,14 @@ class LeadEvent(SQLModel, table=True):
     Categories are Miami-tuned: HURRICANE_SEASON, COMPETITOR_SHIFT, GROWTH_SIGNAL, etc.
     
     Lifecycle tracking mirrors Lead lifecycle for consistency.
+    
+    Enrichment Status:
+    - UNENRICHED: Not yet processed by enrichment pipeline
+    - ENRICHING: Currently being enriched
+    - ENRICHED: Successfully enriched with contact data
+    - OUTBOUND_READY: Enriched and ready for outbound
+    - FAILED: Enrichment attempted but failed
+    - SKIPPED: Skipped (e.g., no domain available)
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
@@ -285,6 +302,21 @@ class LeadEvent(SQLModel, table=True):
     status: str = "NEW"  # NEW, CONTACTED, RESPONDED, QUALIFIED, CLOSED_WON, CLOSED_LOST, ON_HOLD
     recommended_action: Optional[str] = None  # What the system suggests
     outbound_message: Optional[str] = None  # Generated email if contacted
+    
+    enrichment_status: Optional[str] = Field(default="UNENRICHED")  # UNENRICHED, ENRICHING, ENRICHED, OUTBOUND_READY, FAILED, SKIPPED
+    enrichment_source: Optional[str] = None  # hunter, clearbit, scrape, signal, manual
+    enrichment_attempts: int = Field(default=0)
+    last_enrichment_at: Optional[datetime] = None
+    enriched_email: Optional[str] = None
+    enriched_phone: Optional[str] = None
+    enriched_contact_name: Optional[str] = None
+    enriched_company_name: Optional[str] = None
+    enriched_social_links: Optional[str] = None  # JSON string of social links (legacy)
+    enriched_at: Optional[datetime] = None
+    social_facebook: Optional[str] = None
+    social_instagram: Optional[str] = None
+    social_linkedin: Optional[str] = None
+    social_twitter: Optional[str] = None
     
     last_contact_at: Optional[datetime] = None
     last_contact_summary: Optional[str] = None

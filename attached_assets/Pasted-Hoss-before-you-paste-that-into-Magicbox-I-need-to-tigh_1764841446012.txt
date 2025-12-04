@@ -1,0 +1,135 @@
+Hoss — before you paste that into Magicbox, I need to tighten it just a hair so it definitively works and doesn’t accidentally cause downstream regressions.
+
+Here is the final, clean, unambiguous, Magicbox-ready version.
+Copy/paste this exact block, nothing added, nothing removed:
+
+⸻
+
+✅ MAGICBOX PROMPT — FIX OUTBOUND DIRECTION + KILL DUMMY DATA
+
+Your task is to fix the outbound email direction pipeline so HossAgent behaves correctly as a “set it and forget it” autonomous outbound engine.
+
+Implement ALL of the following changes without breaking existing functionality:
+
+⸻
+
+1. Correct outbound email target
+
+HossAgent must send outbound emails TO THE LEAD (prospect), never to the customer.
+	•	Use the email in LeadEvent.lead_email
+	•	Do NOT fall back to customer.email
+	•	Do NOT send outbound-style messages to the customer about themselves
+
+⸻
+
+2. CC the customer on all outbound email
+	•	cc = customer.email
+	•	This gives visibility and establishes audit trails
+	•	Customer is NOT the primary recipient
+
+⸻
+
+3. Set Reply-To to the customer
+	•	reply_to = customer.email
+	•	Ensures prospects reply directly to the customer, not HossAgent
+
+⸻
+
+4. Remove all BI-style “observation emails” sent to customers
+	•	Delete or disable any logic that sends messages like
+“Here’s what I noticed about your business…”
+	•	This system is NOT a BI alert system; it is strictly outbound→prospect
+
+⸻
+
+5. Ensure outbound email content references the LEAD, not the customer
+
+Outbound messages must be generated with:
+	•	The lead as the subject of the context
+	•	The signal that triggered the LeadEvent
+	•	The customer’s value proposition
+
+Do NOT generate recommendations to the customer.
+Focus all email copy toward the prospect.
+
+⸻
+
+6. Ensure LeadEvents ALWAYS include a real prospect identity
+
+Each LeadEvent must contain:
+	•	lead_name
+	•	lead_email
+	•	lead_company
+	•	context summary derived from the originating signal
+If any of these fields are missing, DO NOT generate outbound.
+
+⸻
+
+7. Do NOT create LeadEvents for signals about the CUSTOMER
+
+If a Signal refers to the customer’s own company name, domain, or profile:
+	•	Log it internally
+	•	Mark it as IGNORED_SELF_SIGNAL or similar
+	•	Do NOT generate a LeadEvent
+	•	Do NOT generate outbound
+	•	Do NOT notify the customer
+
+⸻
+
+8. Update admin and portal UI
+
+Reflect correct outbound directionality in:
+	•	Admin console:
+	•	Outbound target (lead)
+	•	CC (customer)
+	•	Reply-To (customer)
+	•	Email preview
+	•	Customer portal:
+	•	Show pending outbound drafts (if review mode)
+	•	Show sent outbound in activity log
+	•	NO messages addressed to the customer as prospect
+
+⸻
+
+9. KILL ALL DUMMY SEED DATA
+
+Remove ALL references to:
+	•	DummySeed provider
+	•	Fake Miami HVAC/Yelp/BBB test signals
+	•	Past development LeadEvents, Tasks, or dummy prospect emails
+	•	Anything that could cause outbound to point at the customer
+
+Clean the database so the system operates ONLY on real signals and real customer configurations.
+
+⸻
+
+10. After implementing changes, verify the pipeline
+
+Run a controlled dry test:
+	1.	Insert one fake LeadEvent with:
+	•	a clearly fictional lead (e.g. “testlead@example.com”)
+	•	NOT matching the customer’s name or domain
+	2.	Trigger outbound in DRY_RUN
+	3.	Verify:
+	•	Outbound email goes TO the lead
+	•	CC includes customer email
+	•	Reply-To is customer email
+	•	No emails are sent to the customer except CC copies
+	•	No “recommendation” emails are generated
+	4.	Then run live mode (EMAIL_MODE=SMTP or SENDGRID)
+	•	Confirm correct behavior end-to-end
+
+Document all code changes and assumptions inline.
+
+⸻
+
+Do not proceed to any further features until outbound direction and dummy data cleanup are fully corrected and verified.
+
+⸻
+
+✔ Copy that directly into Magicbox.
+
+This is the exact corrective surgery HossAgent needs.
+
+When she finishes?
+Outbound finally becomes real, clean, and correct — the way the Hoss intended.
