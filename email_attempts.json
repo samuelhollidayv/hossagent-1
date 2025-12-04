@@ -34158,5 +34158,405 @@
     "mode": "SMTP",
     "result": "throttled",
     "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:48.570027",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:48.683608",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "Sterling Strategy Group - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:48.789438",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:48.912664",
+    "lead_name": "Amanda",
+    "company": "Blackstone Analytics",
+    "to_email": "amanda@blackstoneanalytics.com",
+    "subject": "Blackstone Analytics - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.141949",
+    "lead_name": "Laura White",
+    "company": "Precision Demand Gen",
+    "to_email": "laura@precisiondemand.io",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.262674",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.380804",
+    "lead_name": "Rachel Thompson",
+    "company": "Horizon Brand Studio",
+    "to_email": "rachel@horizonbrand.co",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.545187",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Taking the grunt work off your plate",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.688070",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "Quick idea for Vector Capital Group",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.776565",
+    "lead_name": "Victoria",
+    "company": "Apex Ventures LLC",
+    "to_email": "victoria@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.827493",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.865848",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.902567",
+    "lead_name": "Michael",
+    "company": "Nexus Capital Partners",
+    "to_email": "michael@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:49.951775",
+    "lead_name": "James",
+    "company": "Blackstone Analytics",
+    "to_email": "james@blackstoneanalytics.com",
+    "subject": "Blackstone Analytics - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:50.017153",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:50.073734",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:50.141792",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:50.281558",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:50.362136",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:35:50.452257",
+    "lead_name": "Victoria",
+    "company": "Meridian Solutions Group",
+    "to_email": "victoria@meridiansolutionsgroup.com",
+    "subject": "Meridian Solutions Group - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:38.936832",
+    "lead_name": "Ryan Cooper",
+    "company": "Momentum Marketing",
+    "to_email": "ryan@momentummktg.co",
+    "subject": "Quick idea for Momentum Marketing",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:39.203076",
+    "lead_name": "Daniel Harris",
+    "company": "Sterling Strategy Group",
+    "to_email": "daniel@sterlingstrategy.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:39.424435",
+    "lead_name": "Michael Foster",
+    "company": "Vanguard Consulting Group",
+    "to_email": "michael@vanguardcg.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:39.636409",
+    "lead_name": "Amanda",
+    "company": "Blackstone Analytics",
+    "to_email": "amanda@blackstoneanalytics.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:39.771578",
+    "lead_name": "Laura White",
+    "company": "Precision Demand Gen",
+    "to_email": "laura@precisiondemand.io",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:39.901458",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:40.084520",
+    "lead_name": "Rachel Thompson",
+    "company": "Horizon Brand Studio",
+    "to_email": "rachel@horizonbrand.co",
+    "subject": "Quick idea for Horizon Brand Studio",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:40.416709",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - one less thing to worry about",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:40.657088",
+    "lead_name": "Rachel",
+    "company": "Vector Capital Group",
+    "to_email": "rachel@vectorcapitalgroup.com",
+    "subject": "You + 1 autonomous ops brain",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:40.836874",
+    "lead_name": "Victoria",
+    "company": "Apex Ventures LLC",
+    "to_email": "victoria@apexventuresllc.com",
+    "subject": "Quick idea to de-risk your pipeline",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:40.927405",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:40.994517",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.041459",
+    "lead_name": "Michael",
+    "company": "Nexus Capital Partners",
+    "to_email": "michael@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.105628",
+    "lead_name": "James",
+    "company": "Blackstone Analytics",
+    "to_email": "james@blackstoneanalytics.com",
+    "subject": "Blackstone Analytics - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.236077",
+    "lead_name": "Hoss",
+    "company": "HossInc",
+    "to_email": "noelsdad2@gmail.com",
+    "subject": "HossInc - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.407709",
+    "lead_name": "Lead_3889",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.535249",
+    "lead_name": "David",
+    "company": "Nexus Capital Partners",
+    "to_email": "david@nexuscapitalpartners.com",
+    "subject": "Nexus Capital Partners - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.605068",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.663864",
+    "lead_name": "Lead_1981",
+    "company": "Stratton Industries",
+    "to_email": "contact@strattonindustries.com",
+    "subject": "Stratton Industries - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T02:36:41.717119",
+    "lead_name": "Lead_2448",
+    "company": "Apex Ventures LLC",
+    "to_email": "contact@apexventuresllc.com",
+    "subject": "Apex Ventures LLC - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
   }
 ]
