@@ -37148,5 +37148,305 @@
     "mode": "SMTP",
     "result": "throttled",
     "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:51.908673",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:52.021774",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:52.178106",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:52.421040",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:52.601636",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:52.799346",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:52.921817",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:53.048761",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:53.223529",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:31:53.445712",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:00.199623",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:00.327057",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:00.466184",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:00.660518",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:00.787426",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:00.972811",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:01.104794",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:01.233284",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:01.380950",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:01.517367",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:48.705091",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:48.850209",
+    "lead_name": "Emily Rodriguez",
+    "company": "Catalyst Growth Agency",
+    "to_email": "emily@catalystgrowth.co",
+    "subject": "Catalyst Growth Agency - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:49.013396",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:49.244608",
+    "lead_name": "Alex Morgan",
+    "company": "Atlas Revenue Lab",
+    "to_email": "alex@atlasrevenue.co",
+    "subject": "Atlas Revenue Lab - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:49.367244",
+    "lead_name": "Nicole Baker",
+    "company": "Keystone Advisory",
+    "to_email": "nicole@keystoneadv.com",
+    "subject": "Keystone Advisory - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:49.578002",
+    "lead_name": "Samuel Holliday",
+    "company": "HossAgent",
+    "to_email": "samuel.hollidayv@gmail.com",
+    "subject": "HossAgent - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:49.731304",
+    "lead_name": "Amanda Price",
+    "company": "Summit Digital Solutions",
+    "to_email": "amanda@summitdigital.io",
+    "subject": "Summit Digital Solutions - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:49.885445",
+    "lead_name": "Chris Martinez",
+    "company": "Elevate Agency Group",
+    "to_email": "chris@elevateagency.io",
+    "subject": "Elevate Agency Group - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:50.077470",
+    "lead_name": "Jordan Lee",
+    "company": "Pioneer Growth Co",
+    "to_email": "jordan@pioneergrowth.io",
+    "subject": "Pioneer Growth Co - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
+  },
+  {
+    "timestamp": "2025-12-04T08:35:50.265908",
+    "lead_name": "James Wilson",
+    "company": "Apex Revenue Partners",
+    "to_email": "james@apexrevenue.io",
+    "subject": "Apex Revenue Partners - noticed something",
+    "mode": "SMTP",
+    "result": "throttled",
+    "error": "Hourly limit reached: 50/50"
   }
 ]

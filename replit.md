@@ -54,11 +54,35 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 
 **Core Features:**
 - **Autonomous Agents:**
-    - **Signals Agent:** Monitors external signals (job postings, reviews, competitor updates) to generate contextual `LeadEvents`.
+    - **Signals Agent (SignalNet):** 24/7 signal ingestion network that monitors real-world business signals from multiple sources.
     - **BizDev Cycle:** Prospects new leads via email, adhering to outreach modes and Miami-tuned templates.
     - **Onboarding Cycle:** Converts qualified leads and initiates tasks.
     - **Ops Cycle:** Executes tasks, calculates reward/cost/profit, and auto-generates reports.
     - **Billing Cycle:** Generates invoices and integrates with Stripe.
+
+**SignalNet System:** 24/7 autonomous signal ingestion network that detects real-world business context.
+- **Architecture**: Pluggable `SignalSource` framework with registry, scoring, and pipeline orchestration
+- **Signal Sources**:
+  - `weather_openweather`: Weather API for hurricane/heatwave alerts (requires OPENWEATHER_API_KEY)
+  - `news_search`: Google News RSS for business news, openings, expansions (no API key needed)
+  - `reddit_local`: Reddit posts from South Florida subreddits (may be rate-limited)
+  - `synthetic_demo`: Demo signals for testing/development
+- **Signal Scoring (0-100)**: Weighted composite of:
+  - Category urgency (30%): HURRICANE=95, GROWTH_SIGNAL=80, REVIEW=70, etc.
+  - Recency decay (25%): Newer signals score higher
+  - Geography match (25%): +25 for Miami/Broward/South Florida
+  - Niche match (20%): +20 for configured niche (HVAC, roofing, etc.)
+- **LeadEvent Generation**: Signals scoring >= 65 automatically create LeadEvents
+- **SIGNAL_MODE** environment variable:
+  - `PRODUCTION`: Full pipeline, creates LeadEvents
+  - `SANDBOX`: Runs sources but skips LeadEvent creation (default)
+  - `OFF`: Disables signal ingestion entirely
+- **Admin Panel**: SignalNet Intelligence panel in admin console shows:
+  - Mode status, last run, total signals
+  - Per-source status (enabled, last run, errors)
+  - Recent signal stream with scores
+  - Controls: Run Now, Change Mode, Clear Old Signals
+
 - **Signals Engine ("Ethical Briefcase System"):** Transforms generic lead generation into context-aware intelligence. Categorizes `LeadEvents` (e.g., HURRICANE_SEASON, COMPETITOR_SHIFT) with urgency scoring (0-100) and Miami-tuned heuristics.
 - **Reports System:** Auto-generated from completed tasks, viewable in the customer portal.
 - **Data Models:** Comprehensive models for `SystemSettings`, `Lead`, `Customer`, `Task`, `Invoice`, `TrialIdentity`, `Signal`, `LeadEvent`, `BusinessProfile`, `Report`, `PendingOutbound`, `PasswordResetToken`.
@@ -96,6 +120,10 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - `SMTP_PASSWORD`: SMTP password or app password
 - `SMTP_FROM_EMAIL`: From email address
 - `ADMIN_PASSWORD`: Admin console password
+
+**Optional Secrets for SignalNet:**
+- `OPENWEATHER_API_KEY`: OpenWeatherMap API key for weather alerts (free tier available)
+- `SIGNAL_MODE`: Set to `PRODUCTION` to enable LeadEvent creation from signals (default: SANDBOX)
 
 **Production Cleanup:** Admin console has "PURGE TEST DATA" button to remove old test data.
 

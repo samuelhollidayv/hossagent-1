@@ -1317,10 +1317,14 @@ class RedditSignalSource(SignalSource):
     - Business-related discussions
     - "Looking for" and "need help with" posts
     
-    No API key required - uses public .json endpoints.
+    Note: Reddit may block automated requests (403 errors). The source
+    auto-disables after repeated failures to avoid noisy logs.
     """
     
     SUBREDDITS = ["Miami", "FortLauderdale", "southflorida"]
+    
+    _blocked = False
+    _consecutive_failures = 0
     
     SERVICE_KEYWORDS = [
         "recommend", "recommendation", "looking for",
@@ -1342,6 +1346,8 @@ class RedditSignalSource(SignalSource):
     
     @property
     def enabled(self) -> bool:
+        if RedditSignalSource._blocked:
+            return False
         return SIGNAL_MODE in ("SANDBOX", "PRODUCTION")
     
     @property
@@ -1354,7 +1360,12 @@ class RedditSignalSource(SignalSource):
     
     def fetch(self) -> List[RawSignal]:
         """Fetch relevant posts from South Florida subreddits."""
+        if RedditSignalSource._blocked:
+            print("[SIGNALNET][REDDIT] Source auto-disabled due to API blocking (403)")
+            return []
+        
         signals = []
+        blocked_count = 0
         
         for subreddit in self.SUBREDDITS:
             try:
@@ -1381,36 +1392,50 @@ class RedditSignalSource(SignalSource):
                 
                 time.sleep(2)
                 
+            except requests.HTTPError as e:
+                if e.response is not None and e.response.status_code == 403:
+                    blocked_count += 1
+                    print(f"[SIGNALNET][REDDIT] Blocked by Reddit (403) for r/{subreddit}")
+                else:
+                    print(f"[SIGNALNET][REDDIT] HTTP error for r/{subreddit}: {e}")
+                continue
             except Exception as e:
                 print(f"[SIGNALNET][REDDIT] Error fetching r/{subreddit}: {e}")
                 continue
+        
+        if blocked_count >= len(self.SUBREDDITS):
+            RedditSignalSource._blocked = True
+            RedditSignalSource._consecutive_failures += 1
+            print(f"[SIGNALNET][REDDIT] All subreddits blocked - source auto-disabled")
+        else:
+            RedditSignalSource._consecutive_failures = 0
         
         print(f"[SIGNALNET][REDDIT] Fetched {len(signals)} relevant posts from {len(self.SUBREDDITS)} subreddits")
         return signals
     
     def _fetch_subreddit_posts(self, subreddit: str, limit: int = 50) -> List[Dict]:
         """Fetch recent posts from a subreddit using public JSON API."""
-        try:
-            url = f"{self.REDDIT_BASE_URL}/r/{subreddit}/new.json"
-            params = {"limit": limit}
-            headers = {
-                "User-Agent": "HossAgent/1.0 (Business Signal Detection; +https://hossagent.com)"
-            }
-            
-            response = requests.get(url, params=params, headers=headers, timeout=15)
-            response.raise_for_status()
-            
-            data = response.json()
-            posts = []
-            
-            for child in data.get("data", {}).get("children", []):
-                posts.append(child.get("data", {}))
-            
-            return posts
-            
-        except requests.RequestException as e:
-            print(f"[SIGNALNET][REDDIT] API error for r/{subreddit}: {e}")
-            return []
+        url = f"{self.REDDIT_BASE_URL}/r/{subreddit}/new.json"
+        params = {"limit": limit}
+        headers = {
+            "User-Agent": "HossAgent/1.0 (Business Signal Detection; +https://hossagent.com)"
+        }
+        
+        response = requests.get(url, params=params, headers=headers, timeout=15)
+        
+        if response.status_code == 403:
+            print(f"[SIGNALNET][REDDIT] Blocked by Reddit (403) for r/{subreddit}")
+            raise requests.HTTPError("403 Blocked", response=response)
+        
+        response.raise_for_status()
+        
+        data = response.json()
+        posts = []
+        
+        for child in data.get("data", {}).get("children", []):
+            posts.append(child.get("data", {}))
+        
+        return posts
     
     def _is_relevant_post(self, post: Dict) -> bool:
         """Check if a post is relevant for business signals."""
