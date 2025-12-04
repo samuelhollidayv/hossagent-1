@@ -981,6 +981,8 @@ def portal_settings_get(request: Request, session: Session = Depends(get_session
         primary_contact_email=profile.primary_contact_email or customer.contact_email or "" if profile else customer.contact_email or "",
         outreach_mode_auto='selected="selected"' if customer.outreach_mode == "AUTO" else "",
         outreach_mode_review='selected="selected"' if customer.outreach_mode == "REVIEW" else "",
+        autopilot_enabled_true='selected="selected"' if customer.autopilot_enabled else "",
+        autopilot_enabled_false='selected="selected"' if not customer.autopilot_enabled else "",
         do_not_contact_list=profile.do_not_contact_list or "" if profile else ""
     )
     
@@ -1001,6 +1003,7 @@ def portal_settings_post(
     primary_contact_name: str = Form(""),
     primary_contact_email: str = Form(""),
     outreach_mode: str = Form("AUTO"),
+    autopilot_enabled: str = Form("true"),
     do_not_contact_list: str = Form(""),
     session: Session = Depends(get_session)
 ):
@@ -1032,12 +1035,13 @@ def portal_settings_post(
     profile.updated_at = datetime.utcnow()
     
     customer.outreach_mode = outreach_mode if outreach_mode in ["AUTO", "REVIEW"] else "AUTO"
+    customer.autopilot_enabled = autopilot_enabled.lower() == "true"
     
     session.add(profile)
     session.add(customer)
     session.commit()
     
-    print(f"[PORTAL] Settings saved for customer {customer.id}: {customer.company}")
+    print(f"[PORTAL] Settings saved for customer {customer.id}: {customer.company} (autopilot={'ON' if customer.autopilot_enabled else 'OFF'})")
     
     with open("templates/portal_settings.html", "r") as f:
         template = f.read()
@@ -1066,6 +1070,8 @@ def portal_settings_post(
         primary_contact_email=profile.primary_contact_email or "",
         outreach_mode_auto='selected="selected"' if customer.outreach_mode == "AUTO" else "",
         outreach_mode_review='selected="selected"' if customer.outreach_mode == "REVIEW" else "",
+        autopilot_enabled_true='selected="selected"' if customer.autopilot_enabled else "",
+        autopilot_enabled_false='selected="selected"' if not customer.autopilot_enabled else "",
         do_not_contact_list=profile.do_not_contact_list or ""
     )
     

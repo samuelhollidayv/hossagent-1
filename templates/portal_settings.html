@@ -451,6 +451,15 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Autopilot</label>
+                    <select name="autopilot_enabled">
+                        <option value="true" {autopilot_enabled_true}>Enabled - System automatically finds opportunities</option>
+                        <option value="false" {autopilot_enabled_false}>Disabled - Pause automated outreach</option>
+                    </select>
+                    <div class="hint">When enabled, HossAgent will automatically monitor signals and create opportunities for your business</div>
+                </div>
+                
+                <div class="form-group">
                     <label>Do Not Contact List</label>
                     <textarea name="do_not_contact_list" placeholder="Emails or domains to never contact, one per line">{do_not_contact_list}</textarea>
                     <div class="hint">Enter email addresses or domains (e.g., @competitor.com)</div>
