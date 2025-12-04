@@ -72,6 +72,30 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - **Paid Plan ($99/month):** Full access, unlimited tasks/leads, real email sending, full billing/autopilot.
 - **Customer Flows:** Defined flows for signup (with abuse prevention), upgrade (via Stripe Checkout), and cancellation (with period-end access).
 
+## Production Configuration
+
+**RELEASE_MODE System:** Controls sandbox vs production behavior.
+- `RELEASE_MODE=SANDBOX` (default): Uses DummySeed lead provider, safe for testing
+- `RELEASE_MODE=PRODUCTION`: Enables real lead sources (if configured), production behavior
+
+**EMAIL_MODE System:** Controls email sending behavior.
+- `EMAIL_MODE=DRY_RUN` (default): Logs emails without sending
+- `EMAIL_MODE=SMTP`: Requires SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL
+- `EMAIL_MODE=SENDGRID`: Requires SENDGRID_API_KEY
+- **Fallback Behavior:** If credentials are missing, system falls back to DRY_RUN with warning
+
+**Required Secrets for Production:**
+- `STRIPE_SECRET_KEY`: Valid Stripe API key (CURRENTLY INVALID - needs update)
+- `STRIPE_WEBHOOK_SECRET`: Webhook signing secret
+- `SMTP_HOST`: SMTP server hostname (e.g., smtp.gmail.com)
+- `SMTP_USERNAME`: SMTP username/email
+- `SMTP_PASSWORD`: SMTP password or app password
+- `SMTP_FROM_EMAIL`: From email address
+- `ADMIN_PASSWORD`: Admin console password
+- `LEAD_SEARCH_API_KEY` (optional): For real lead sourcing API
+
+**Production Cleanup:** Admin console has "PURGE TEST DATA" button to remove sandbox data before going live.
+
 ## External Dependencies
 - **FastAPI**: Primary web framework for the backend.
 - **SQLModel**: ORM for data modeling and interaction.
