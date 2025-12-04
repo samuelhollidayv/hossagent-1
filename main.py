@@ -783,7 +783,7 @@ def forgot_password_post(
         session.commit()
         
         host = request.headers.get("host", "localhost:5000")
-        scheme = "https" if "https" in request.url.scheme or host.endswith(".repl.co") or host.endswith(".replit.dev") else "http"
+        scheme = "https" if "https" in request.url.scheme or host.endswith(".repl.co") or host.endswith(".replit.dev") or host.endswith(".replit.app") else "http"
         reset_url = f"{scheme}://{host}/reset-password?token={token}"
         
         reset_email_subject = "Reset Your HossAgent Password"
