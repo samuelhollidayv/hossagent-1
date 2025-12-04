@@ -55,14 +55,16 @@ RATE_LIMIT_DELAY = 1.0
 MAX_RETRIES = 2
 
 CONTACT_PAGE_PATHS = [
-    "/contact", "/contact-us", "/contact_us", "/contactus",
-    "/about", "/about-us", "/about_us", "/aboutus",
-    "/team", "/our-team", "/our_team", "/ourteam",
-    "/connect", "/get-in-touch", "/reach-us", "/reach-out",
-    "/support", "/help", "/inquiries", "/inquiry",
-    "/locations", "/location", "/offices", "/office",
-    "/staff", "/leadership", "/management", "/people",
-    "/company", "/who-we-are", "/meet-the-team",
+    "/contact", "/contact-us", "/contact_us", "/contactus", "/contact-page",
+    "/about", "/about-us", "/about_us", "/aboutus", "/about-page",
+    "/team", "/our-team", "/our_team", "/ourteam", "/team-page", "/meet-team",
+    "/connect", "/get-in-touch", "/reach-us", "/reach-out", "/lets-talk",
+    "/support", "/help", "/inquiries", "/inquiry", "/help-center",
+    "/locations", "/location", "/offices", "/office", "/service-areas",
+    "/staff", "/leadership", "/management", "/people", "/careers",
+    "/company", "/who-we-are", "/meet-the-team", "/about-company",
+    "/business", "/services", "/contact-information", "/footer",
+    "/agents", "/partners", "/testimonials", "/newsletter",
 ]
 
 MAILTO_REGEX = re.compile(r'href=["\']mailto:([^"\'?]+)', re.IGNORECASE)
@@ -79,6 +81,12 @@ EMAIL_REGEX = re.compile(
     r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
     re.IGNORECASE
 )
+
+EMAIL_PATTERNS = [
+    re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
+    re.compile(r'(?:email|mail|contact|reach|hello):\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', re.IGNORECASE),
+    re.compile(r'(?:info|contact|hello|support|sales)@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', re.IGNORECASE),
+]
 
 PHONE_REGEX = re.compile(
     r"(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}",
@@ -428,7 +436,7 @@ def extract_social_links(html: str) -> dict:
 
 def _extract_emails_from_html(html: str, domain: str) -> List[str]:
     """
-    Extract email addresses from HTML, prioritizing domain matches.
+    Extract email addresses from HTML using multiple patterns, prioritizing domain matches.
     
     Args:
         html: Raw HTML content
@@ -440,13 +448,21 @@ def _extract_emails_from_html(html: str, domain: str) -> List[str]:
     if not html:
         return []
     
-    emails = EMAIL_REGEX.findall(html)
+    emails = set()
     
-    emails = list(set(emails))
+    for pattern in EMAIL_PATTERNS:
+        matches = pattern.findall(html)
+        for match in matches:
+            if isinstance(match, tuple):
+                match = match[1] if len(match) > 1 else match[0]
+            emails.add(match)
+    
+    emails = list(emails)
     
     skip_patterns = ["example.com", "domain.com", "email.com", "yoursite.com", 
-                     "placeholder", "test@", "noreply", "no-reply", ".png", ".jpg", ".gif"]
-    emails = [e for e in emails if not any(skip in e.lower() for skip in skip_patterns)]
+                     "placeholder", "test@", "noreply", "no-reply", ".png", ".jpg", ".gif",
+                     "facebook.com", "instagram.com", "twitter.com", "linkedin.com"]
+    emails = [e for e in emails if not any(skip in e.lower() for skip in skip_patterns) and "@" in e]
     
     domain_emails = [e for e in emails if domain in e.lower()]
     other_emails = [e for e in emails if domain not in e.lower()]
@@ -498,6 +514,32 @@ def _extract_mailto_emails(html: str) -> List[str]:
         return []
     matches = MAILTO_REGEX.findall(html)
     return list(set(matches))
+
+
+def _guess_domain_emails(domain: str) -> List[str]:
+    """
+    Generate common domain-based email guesses.
+    
+    Common patterns: info@, contact@, hello@, support@, sales@, admin@, etc.
+    
+    Args:
+        domain: Target domain
+        
+    Returns:
+        List of guessed email addresses
+    """
+    domain_clean = domain.replace("www.", "")
+    prefixes = [
+        "info", "contact", "hello", "support", "sales", "admin",
+        "office", "team", "inquiry", "inquiries", "business", "hr",
+        "marketing", "partnerships", "press", "feedback", "hello"
+    ]
+    
+    guessed = []
+    for prefix in prefixes:
+        guessed.append(f"{prefix}@{domain_clean}")
+    
+    return guessed
 
 
 def _discover_contact_links(html: str, base_url: str) -> List[str]:
@@ -665,6 +707,13 @@ def scrape_contact_page(domain: str) -> Optional[dict]:
     all_emails = all_emails[:5]
     
     all_phones = list(dict.fromkeys(all_phones))[:3]
+    
+    if not all_emails:
+        guessed_emails = _guess_domain_emails(domain)
+        if guessed_emails:
+            log_enrichment("guessed_emails", domain=domain, source="scrape",
+                           details={"guessed": guessed_emails[:3]})
+            all_emails = guessed_emails[:3]
     
     if not all_emails and not all_phones and not all_social:
         log_enrichment("no_data", domain=domain, source="scrape",
