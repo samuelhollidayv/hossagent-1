@@ -476,16 +476,56 @@ def _extract_phones_from_html(html: str) -> List[str]:
     return phones[:5]
 
 
+def _fetch_page(url: str, timeout: int = REQUEST_TIMEOUT) -> Optional[str]:
+    """Fetch a page with browser headers, return HTML or None."""
+    try:
+        response = requests.get(
+            url,
+            headers=BROWSER_HEADERS,
+            timeout=timeout,
+            allow_redirects=True
+        )
+        if response.status_code == 200:
+            return response.text
+    except Exception:
+        pass
+    return None
+
+
+def _extract_mailto_emails(html: str) -> List[str]:
+    """Extract emails from mailto: links - these are high confidence."""
+    if not html:
+        return []
+    matches = MAILTO_REGEX.findall(html)
+    return list(set(matches))
+
+
+def _discover_contact_links(html: str, base_url: str) -> List[str]:
+    """Find links on a page that look like they lead to contact info."""
+    discovered = set()
+    for pattern in CONTACT_LINK_PATTERNS:
+        matches = re.findall(pattern, html, re.IGNORECASE)
+        for match in matches:
+            if match.startswith("http"):
+                discovered.add(match)
+            elif match.startswith("/"):
+                discovered.add(urljoin(base_url, match))
+            elif not match.startswith("#") and not match.startswith("javascript"):
+                discovered.add(urljoin(base_url, "/" + match))
+    return list(discovered)[:10]
+
+
 def scrape_contact_page(domain: str) -> Optional[dict]:
     """
-    Scrape website contact/about/team pages for contact info.
+    AGGRESSIVE web scraper to find contact info from company websites.
     
-    Fetches common contact pages and extracts:
-    - Email addresses (regex)
-    - Phone numbers (regex)
-    - Social media links
-    
-    Uses browser-like headers to avoid blocks.
+    Strategy (tenacious multi-phase approach):
+    1. Fetch homepage - extract mailto: links (highest confidence)
+    2. Try common contact page paths (expanded list)
+    3. Discover contact links from homepage and follow them
+    4. Extract from footer sections
+    5. Try both www and non-www versions
+    6. Parse any emails found in page body
     
     Args:
         domain: Target domain to scrape
@@ -495,40 +535,73 @@ def scrape_contact_page(domain: str) -> Optional[dict]:
     """
     if ENRICHMENT_DRY_RUN:
         log_enrichment("dry_run", domain=domain, source="scrape",
-                       details={"would_fetch": CONTACT_PAGE_PATHS})
+                       details={"strategy": "aggressive_multi_phase"})
         return {
             "email": f"info@{domain}",
             "phone": "(555) 123-4567",
-            "social_links": {
-                "facebook": f"https://facebook.com/{domain.split('.')[0]}",
-            },
+            "social_links": {"facebook": f"https://facebook.com/{domain.split('.')[0]}"},
             "source": "scrape_mock"
         }
     
-    log_enrichment("attempt", domain=domain, source="scrape")
+    log_enrichment("attempt", domain=domain, source="scrape",
+                   details={"strategy": "aggressive"})
     
-    base_url = f"https://{domain}"
     all_emails = []
     all_phones = []
     all_social = {}
     pages_tried = 0
     pages_success = 0
+    discovered_links = []
     
-    for path in CONTACT_PAGE_PATHS:
-        url = urljoin(base_url, path)
+    base_urls = [f"https://{domain}", f"https://www.{domain}"]
+    if domain.startswith("www."):
+        base_urls = [f"https://{domain}", f"https://{domain[4:]}"]
+    
+    homepage_html = None
+    working_base = None
+    
+    for base_url in base_urls:
+        html = _fetch_page(base_url)
         pages_tried += 1
-        
-        try:
-            response = requests.get(
-                url,
-                headers=BROWSER_HEADERS,
-                timeout=REQUEST_TIMEOUT,
-                allow_redirects=True
-            )
+        if html:
+            homepage_html = html
+            working_base = base_url
+            pages_success += 1
             
-            if response.status_code == 200:
+            mailto_emails = _extract_mailto_emails(html)
+            if mailto_emails:
+                all_emails.extend(mailto_emails)
+                log_enrichment("mailto_found", domain=domain, source="scrape",
+                               details={"count": len(mailto_emails), "source": "homepage"})
+            
+            discovered_links = _discover_contact_links(html, base_url)
+            
+            social = extract_social_links(html)
+            all_social.update(social)
+            
+            emails = _extract_emails_from_html(html, domain)
+            all_emails.extend(emails)
+            
+            phones = _extract_phones_from_html(html)
+            all_phones.extend(phones)
+            
+            break
+        time.sleep(0.3)
+    
+    if not working_base:
+        working_base = base_urls[0]
+    
+    if not all_emails:
+        for path in CONTACT_PAGE_PATHS:
+            url = urljoin(working_base, path)
+            pages_tried += 1
+            
+            html = _fetch_page(url)
+            if html:
                 pages_success += 1
-                html = response.text
+                
+                mailto_emails = _extract_mailto_emails(html)
+                all_emails.extend(mailto_emails)
                 
                 emails = _extract_emails_from_html(html, domain)
                 all_emails.extend(emails)
@@ -538,53 +611,68 @@ def scrape_contact_page(domain: str) -> Optional[dict]:
                 
                 social = extract_social_links(html)
                 all_social.update(social)
+                
+                if all_emails:
+                    log_enrichment("found_on_path", domain=domain, source="scrape",
+                                   details={"path": path, "emails": len(all_emails)})
+                    break
             
-            time.sleep(0.5)
-            
-        except requests.Timeout:
-            log_enrichment("page_timeout", domain=domain, source="scrape",
-                           details={"url": url})
-            continue
-        except requests.RequestException as e:
-            continue
-        except Exception as e:
-            log_enrichment("page_error", domain=domain, source="scrape",
-                           details={"url": url}, error=str(e))
-            continue
+            time.sleep(0.3)
     
-    try:
-        response = requests.get(
-            base_url,
-            headers=BROWSER_HEADERS,
-            timeout=REQUEST_TIMEOUT,
-            allow_redirects=True
-        )
+    if not all_emails and discovered_links:
+        log_enrichment("following_discovered", domain=domain, source="scrape",
+                       details={"links_count": len(discovered_links)})
         
-        if response.status_code == 200:
-            html = response.text
-            
-            if not all_emails:
+        for link_url in discovered_links[:5]:
+            pages_tried += 1
+            html = _fetch_page(link_url)
+            if html:
+                pages_success += 1
+                
+                mailto_emails = _extract_mailto_emails(html)
+                all_emails.extend(mailto_emails)
+                
                 emails = _extract_emails_from_html(html, domain)
                 all_emails.extend(emails)
-            
-            if not all_social:
-                social = extract_social_links(html)
-                all_social.update(social)
                 
-    except Exception:
-        pass
+                phones = _extract_phones_from_html(html)
+                all_phones.extend(phones)
+                
+                if all_emails:
+                    log_enrichment("found_via_discovery", domain=domain, source="scrape",
+                                   details={"url": link_url[:50]})
+                    break
+            
+            time.sleep(0.3)
     
-    all_emails = list(dict.fromkeys(all_emails))[:5]
+    all_emails = list(dict.fromkeys(all_emails))
+    
+    skip_patterns = [
+        "example.com", "domain.com", "email.com", "yoursite.com",
+        "placeholder", "test@", "noreply", "no-reply", 
+        ".png", ".jpg", ".gif", ".svg", ".webp",
+        "wixpress.com", "sentry.io", "cloudflare", "google.com",
+        "facebook.com", "twitter.com", "schema.org"
+    ]
+    all_emails = [e for e in all_emails if not any(skip in e.lower() for skip in skip_patterns)]
+    
+    domain_root = domain.replace("www.", "").split(".")[0].lower()
+    domain_emails = [e for e in all_emails if domain_root in e.lower() or domain in e.lower()]
+    generic_good = [e for e in all_emails if any(p in e.lower() for p in ["info@", "contact@", "hello@", "sales@", "support@", "admin@", "office@", "team@", "mail@", "enquiries@", "inquiries@"])]
+    other_emails = [e for e in all_emails if e not in domain_emails and e not in generic_good]
+    
+    all_emails = domain_emails + generic_good + other_emails
+    all_emails = all_emails[:5]
+    
     all_phones = list(dict.fromkeys(all_phones))[:3]
     
     if not all_emails and not all_phones and not all_social:
         log_enrichment("no_data", domain=domain, source="scrape",
-                       details={"pages_tried": pages_tried, "pages_success": pages_success})
+                       details={"pages_tried": pages_tried, "pages_success": pages_success,
+                                "discovered_links": len(discovered_links)})
         return None
     
-    result: Dict[str, Any] = {
-        "source": "scrape"
-    }
+    result: Dict[str, Any] = {"source": "scrape"}
     
     if all_emails:
         result["email"] = all_emails[0]
@@ -604,22 +692,91 @@ def scrape_contact_page(domain: str) -> Optional[dict]:
                        "emails_found": len(all_emails),
                        "phones_found": len(all_phones),
                        "social_found": len(all_social),
+                       "pages_tried": pages_tried,
                        "pages_success": pages_success
                    })
     
     return result
 
 
+USELESS_DOMAINS = [
+    "news.google.com", "google.com", "reddit.com", "facebook.com",
+    "twitter.com", "x.com", "linkedin.com", "instagram.com",
+    "youtube.com", "tiktok.com", "yelp.com", "bbb.org",
+    "bizjournals.com", "prnewswire.com", "businesswire.com",
+    "globenewswire.com", "reuters.com", "bloomberg.com",
+    "yahoo.com", "msn.com", "cnn.com", "foxnews.com",
+    "local10.com", "wsvn.com", "nbcmiami.com", "cbsmiami.com",
+    "miamiherald.com", "sun-sentinel.com", "palmbeachpost.com",
+]
+
+
+def _extract_company_domain_from_name(company_name: str) -> Optional[str]:
+    """Try to guess a domain from company name."""
+    if not company_name:
+        return None
+    
+    name = company_name.lower().strip()
+    name = re.sub(r'\s+(inc|llc|corp|co|ltd|llp|pllc|pc|pa)\.?$', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'[^a-z0-9\s]', '', name)
+    name = name.strip()
+    
+    if not name or len(name) < 2:
+        return None
+    
+    slug = name.replace(' ', '')
+    
+    return f"{slug}.com"
+
+
+def _get_domain_for_enrichment(lead_event: LeadEvent, session: Session) -> Optional[str]:
+    """
+    Smart domain extraction that avoids news/aggregator sites.
+    
+    Priority:
+    1. lead_domain if it's a real company domain
+    2. Lead.website if linked
+    3. Guess from lead_company name
+    4. Extract from summary text
+    """
+    if lead_event.lead_domain:
+        domain = lead_event.lead_domain.lower().replace("www.", "")
+        if domain and domain not in USELESS_DOMAINS and not any(u in domain for u in USELESS_DOMAINS):
+            return domain
+    
+    if lead_event.lead_id:
+        lead = session.exec(
+            select(Lead).where(Lead.id == lead_event.lead_id)
+        ).first()
+        if lead and lead.website:
+            domain = extract_domain_from_url(lead.website)
+            if domain and domain not in USELESS_DOMAINS:
+                return domain
+    
+    if lead_event.lead_company:
+        guessed = _extract_company_domain_from_name(lead_event.lead_company)
+        if guessed:
+            return guessed
+    
+    if lead_event.summary:
+        url_match = re.search(r"https?://(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+)", lead_event.summary)
+        if url_match:
+            domain = url_match.group(1).lower()
+            if domain not in USELESS_DOMAINS:
+                return domain
+    
+    return None
+
+
 async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> EnrichmentResult:
     """
     Main entry point for enriching a LeadEvent with contact information.
     
-    Tries enrichment sources in order of preference:
-    1. Hunter.io (if API key set)
-    2. Clearbit (if API key set)
-    3. Website scraping (always available)
-    
-    Merges results from multiple sources when beneficial.
+    Uses smart domain extraction to find real company domains (not news sites).
+    Then tries enrichment sources in order:
+    1. Web scraping (always available, no API key needed)
+    2. Hunter.io (if API key set)
+    3. Clearbit (if API key set)
     
     Args:
         lead_event: LeadEvent to enrich
@@ -628,49 +785,55 @@ async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> Enrichme
     Returns:
         EnrichmentResult with status and data
     """
-    log_enrichment("start", lead_event_id=lead_event.id)
+    log_enrichment("start", lead_event_id=lead_event.id,
+                   details={"company": lead_event.lead_company, "domain": lead_event.lead_domain})
     
-    domain = None
-    
-    if lead_event.lead_id:
-        lead = session.exec(
-            select(Lead).where(Lead.id == lead_event.lead_id)
-        ).first()
-        
-        if lead and lead.website:
-            domain = extract_domain_from_url(lead.website)
-    
-    if not domain:
-        summary_lower = lead_event.summary.lower() if lead_event.summary else ""
-        url_match = re.search(r"https?://[^\s]+", summary_lower)
-        if url_match:
-            domain = extract_domain_from_url(url_match.group())
+    domain = _get_domain_for_enrichment(lead_event, session)
     
     if not domain:
         log_enrichment("skip", lead_event_id=lead_event.id,
-                       details={"reason": "No domain available"})
+                       details={"reason": "No usable domain", "lead_domain": lead_event.lead_domain})
         return EnrichmentResult(
             success=False,
             source="none",
-            error="No domain available for enrichment"
+            error="No usable domain available for enrichment"
         )
     
     result = EnrichmentResult(success=False, source="none")
     
-    time.sleep(RATE_LIMIT_DELAY)
+    log_enrichment("scrape_first", domain=domain, lead_event_id=lead_event.id,
+                   details={"strategy": "web_scrape_primary"})
     
-    hunter_data = try_hunter_enrichment(domain)
+    scrape_data = scrape_contact_page(domain)
     
-    if hunter_data and hunter_data.get("email"):
-        result.success = True
-        result.source = "hunter"
-        result.email = hunter_data.get("email")
-        result.contact_name = hunter_data.get("contact_name")
-        result.company_name = hunter_data.get("company_name")
-        if hunter_data.get("social_links"):
-            result.social_links = hunter_data["social_links"]
+    if scrape_data:
+        if scrape_data.get("email"):
+            result.email = scrape_data["email"]
+            result.success = True
+            result.source = "scrape"
+        
+        if scrape_data.get("phone"):
+            result.phone = scrape_data["phone"]
+        
+        if scrape_data.get("social_links"):
+            result.social_links = scrape_data["social_links"]
     
-    if not result.company_name or not result.social_links:
+    if not result.email and HUNTER_API_KEY:
+        time.sleep(RATE_LIMIT_DELAY)
+        hunter_data = try_hunter_enrichment(domain)
+        
+        if hunter_data and hunter_data.get("email"):
+            result.success = True
+            result.source = "hunter"
+            result.email = hunter_data.get("email")
+            result.contact_name = hunter_data.get("contact_name")
+            result.company_name = hunter_data.get("company_name")
+            if hunter_data.get("social_links"):
+                for platform, url in hunter_data["social_links"].items():
+                    if platform not in result.social_links:
+                        result.social_links[platform] = url
+    
+    if (not result.company_name or not result.social_links) and CLEARBIT_API_KEY:
         time.sleep(RATE_LIMIT_DELAY)
         clearbit_data = try_clearbit_enrichment(domain)
         
@@ -679,39 +842,9 @@ async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> Enrichme
                 result.company_name = clearbit_data.get("company_name")
             
             if clearbit_data.get("social_links"):
-                if not result.social_links:
-                    result.social_links = clearbit_data["social_links"]
-                else:
-                    for platform, url in clearbit_data["social_links"].items():
-                        if platform not in result.social_links:
-                            result.social_links[platform] = url
-            
-            if not result.success and (clearbit_data.get("company_name") or clearbit_data.get("social_links")):
-                result.success = True
-                result.source = "clearbit"
-    
-    if not result.email or not result.phone or not result.social_links:
-        time.sleep(RATE_LIMIT_DELAY)
-        scrape_data = scrape_contact_page(domain)
-        
-        if scrape_data:
-            if not result.email:
-                result.email = scrape_data.get("email")
-            
-            if not result.phone:
-                result.phone = scrape_data.get("phone")
-            
-            if scrape_data.get("social_links"):
-                if not result.social_links:
-                    result.social_links = scrape_data["social_links"]
-                else:
-                    for platform, url in scrape_data["social_links"].items():
-                        if platform not in result.social_links:
-                            result.social_links[platform] = url
-            
-            if not result.success and (scrape_data.get("email") or scrape_data.get("phone") or scrape_data.get("social_links")):
-                result.success = True
-                result.source = "scrape"
+                for platform, url in clearbit_data["social_links"].items():
+                    if platform not in result.social_links:
+                        result.social_links[platform] = url
     
     if result.success:
         log_enrichment("complete", domain=domain, lead_event_id=lead_event.id,

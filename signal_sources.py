@@ -783,24 +783,77 @@ def _extract_company_from_context(context_summary: str) -> Optional[str]:
     """
     Extract company name from signal context_summary.
     
-    Looks for common patterns like "Company X is...", "for Company X", etc.
-    Returns None if no company name can be extracted.
+    Aggressively extracts company names from news headlines and signal text.
+    Handles patterns like:
+    - "Miami Best Roofing Announces Expanded..."
+    - "Cool Running Air Expands AC Repair..."
+    - "Sunny Bliss Plumbing & Air Acquires..."
+    - "News: MYSHOP opens Miami headquarters"
     """
     if not context_summary:
         return None
     
     import re
+    
+    text = context_summary.strip()
+    if text.startswith("News: "):
+        text = text[6:]
+    
+    skip_words = [
+        "miami", "florida", "south florida", "fort lauderdale", "broward", 
+        "palm beach", "local", "area", "regional", "downtown", "new",
+        "the", "a", "an", "this", "that", "first", "best", "top",
+        "breaking", "update", "latest", "today", "now", "here",
+        "see", "south", "north", "east", "west", "christmas", "holiday",
+        "business", "businesses", "company", "companies", "firm", "firms",
+        "store", "stores", "opening", "opens", "expands", "expanding",
+        "broke", "ground", "between", "across", "over", "under",
+        "global", "national", "international", "major", "biggest", "largest",
+        "development", "developments", "project", "projects", "site", "sites",
+    ]
+    
     patterns = [
+        r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:Announces?|Opens?|Expands?|Launches?|Acquires?|Hires?|Adds?|Reveals?|Unveils?|Introduces?|Offers?|Receives?|Gets?|Wins?|Reports?)",
+        
+        r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:is|has|to|will)\s+(?:opening|expanding|hiring|acquiring|launching)",
+        
+        r"(?:at|from|by|with)\s+([A-Z][a-zA-Z0-9\s&'.-]+?)(?:\s+(?:is|in|has|to|,|\.))",
+        
         r"(?:for|at|from|by)\s+([A-Z][a-zA-Z0-9\s&'.-]+?)(?:\s+is|\s+in|\s+has|,|\.|\s+-)",
         r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:is|has|updated|launched|added|posted|hiring)",
         r"competitor\s+(?:of\s+)?([A-Z][a-zA-Z0-9\s&'.-]+)",
+        
+        r"^([A-Z][A-Z0-9\s&'.-]+)\s+",
     ]
     
     for pattern in patterns:
-        match = re.search(pattern, context_summary)
+        match = re.search(pattern, text, re.IGNORECASE)
         if match:
             company = match.group(1).strip()
-            if len(company) > 2 and len(company) < 100:
+            company = re.sub(r'^(News|Local|Breaking|Update|Latest)[\s:]+', '', company, flags=re.IGNORECASE)
+            company = company.strip(' ,-:')
+            
+            if company.lower() in skip_words:
+                continue
+            if len(company) < 3 or len(company) > 80:
+                continue
+            if company.lower().startswith(tuple(skip_words)):
+                continue
+                
+            return company
+    
+    words = text.split()
+    if len(words) >= 2:
+        potential = []
+        for word in words[:5]:
+            if word[0].isupper() and word.lower() not in skip_words:
+                potential.append(word)
+            elif potential:
+                break
+        
+        if potential:
+            company = " ".join(potential)
+            if 3 <= len(company) <= 50:
                 return company
     
     return None
