@@ -132,10 +132,22 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 **RELEASE_MODE System:** Controls production behavior.
 - `RELEASE_MODE=PRODUCTION`: Production mode (required for real leads)
 
-**EMAIL_MODE System:** Controls email sending behavior.
-- `EMAIL_MODE=SMTP`: Requires SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL
-- `EMAIL_MODE=SENDGRID`: Requires SENDGRID_API_KEY
+**EMAIL_MODE System:** Controls email sending behavior via SendGrid with authenticated domain.
+- `EMAIL_MODE=SENDGRID`: Production email via SendGrid (required for real outbound)
 - `EMAIL_MODE=DRY_RUN`: Logs emails without sending (testing only)
+- SMTP mode is deprecated - use SendGrid with hossagent.net domain
+
+**SendGrid Configuration (Required for EMAIL_MODE=SENDGRID):**
+- `SENDGRID_API_KEY`: SendGrid API key
+- `OUTBOUND_FROM`: Sending email address (e.g., hello@hossagent.net)
+- `OUTBOUND_REPLY_TO`: Reply-to address
+- `OUTBOUND_DISPLAY_NAME`: Display name (e.g., HossAgent)
+
+**Email Headers:**
+- From: `{OUTBOUND_DISPLAY_NAME} <{OUTBOUND_FROM}>` (e.g., "HossAgent <hello@hossagent.net>")
+- To: Lead email (the prospect) - NEVER the customer
+- CC: Customer email (for visibility and audit trail)
+- Reply-To: `{OUTBOUND_REPLY_TO}`
 
 **Lead Source System:** SignalNet is the PRIMARY lead generator. Apollo is metadata-only.
 - SignalNet monitors real-world signals (news, weather, social) and auto-creates LeadEvents for scores >= 60
@@ -144,13 +156,13 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - Autopilot pipeline: `SignalNet → Score → LeadEvents → Enrich → BizDev → Email`
 
 **Required Secrets for Production:**
+- `SENDGRID_API_KEY`: SendGrid API key for email sending
+- `OUTBOUND_FROM`: Sending email (e.g., hello@hossagent.net)
+- `OUTBOUND_REPLY_TO`: Reply-to address
+- `OUTBOUND_DISPLAY_NAME`: Display name (e.g., HossAgent)
 - `APOLLO_API_KEY`: Apollo.io API key (metadata only - get from apollo.io/settings/api-keys)
 - `STRIPE_API_KEY`: Stripe secret API key for payment processing
 - `STRIPE_WEBHOOK_SECRET`: Webhook signing secret
-- `SMTP_HOST`: SMTP server hostname (e.g., smtp.gmail.com)
-- `SMTP_USERNAME`: SMTP username/email
-- `SMTP_PASSWORD`: SMTP password or app password
-- `SMTP_FROM_EMAIL`: From email address
 - `ADMIN_PASSWORD`: Admin console password
 
 **Optional Secrets for SignalNet:**
@@ -168,6 +180,6 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
 - **SQLModel**: ORM for data modeling and interaction.
 - **PostgreSQL**: Production database (Neon-backed via Replit).
 - **bcrypt**: Used for secure password hashing.
-- **SendGrid / SMTP**: Email service providers for sending outreach and system emails.
+- **SendGrid**: Email service provider via authenticated hossagent.net domain.
 - **Stripe**: Payment gateway for managing subscriptions, invoices, and billing.
 - **Apollo.io**: Lead generation API for finding real business contacts in Miami/South Florida.

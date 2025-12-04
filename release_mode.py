@@ -13,7 +13,7 @@ Environment Variables:
 PRODUCTION mode:
     - Startup banner: [RELEASE_MODE][PRODUCTION]
     - Uses Apollo.io for lead generation (ONLY source - no fallbacks)
-    - Sends real emails (if EMAIL_MODE=SMTP or SENDGRID)
+    - Sends real emails via SendGrid (EMAIL_MODE=SENDGRID)
     - Strict validation of all credentials
     - Lead generation pauses if Apollo not connected
 
@@ -23,9 +23,16 @@ SANDBOX mode (default):
     - Safe for testing - must explicitly opt into production
     - Lenient configuration (DRY_RUN acceptable)
 
+Email Configuration (SendGrid with authenticated domain):
+    EMAIL_MODE = SENDGRID | DRY_RUN
+    SENDGRID_API_KEY       - SendGrid API key
+    OUTBOUND_FROM          - Sending email (e.g., hello@hossagent.net)
+    OUTBOUND_REPLY_TO      - Reply-to address
+    OUTBOUND_DISPLAY_NAME  - Display name (e.g., HossAgent)
+
 To change modes, update env vars in Replit Secrets:
     RELEASE_MODE=PRODUCTION  # Enable real lead sources + full pipeline
-    EMAIL_MODE=SMTP          # Enable real email sending
+    EMAIL_MODE=SENDGRID      # Enable real email sending via SendGrid
     APOLLO_API_KEY=xxx       # Required for lead generation
 """
 import os
@@ -105,13 +112,18 @@ def get_release_mode_status() -> Dict[str, Any]:
     max_emails_hour = int(os.getenv("MAX_EMAILS_PER_HOUR", "50"))
     lead_api_configured = bool(os.getenv("LEAD_SEARCH_API_KEY"))
     
-    # SMTP credential check
-    smtp_configured = bool(
-        os.getenv("SMTP_HOST") and 
-        os.getenv("SMTP_USERNAME") and 
-        os.getenv("SMTP_PASSWORD") and
-        os.getenv("SMTP_FROM_EMAIL")
-    )
+    # SendGrid credential check (primary email provider)
+    sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+    outbound_from = os.getenv("OUTBOUND_FROM")
+    outbound_reply_to = os.getenv("OUTBOUND_REPLY_TO")
+    outbound_display_name = os.getenv("OUTBOUND_DISPLAY_NAME", "HossAgent")
+    
+    sendgrid_configured = bool(sendgrid_api_key and outbound_from and outbound_reply_to)
+    
+    # Extract sending domain
+    sending_domain = ""
+    if outbound_from and "@" in outbound_from:
+        sending_domain = outbound_from.split("@")[1]
     
     warnings = []
     errors = []
@@ -129,26 +141,29 @@ def get_release_mode_status() -> Dict[str, Any]:
         if not os.getenv("APOLLO_API_KEY"):
             warnings.append("PRODUCTION mode but no APOLLO_API_KEY - lead generation PAUSED")
         
-        if email_mode == "SENDGRID" and not os.getenv("SENDGRID_API_KEY"):
-            errors.append("SENDGRID mode configured but SENDGRID_API_KEY not set - will fallback to DRY_RUN")
-        elif email_mode == "SMTP" and not smtp_configured:
+        if email_mode == "SENDGRID":
             missing = []
-            if not os.getenv("SMTP_HOST"): missing.append("SMTP_HOST")
-            if not os.getenv("SMTP_USERNAME"): missing.append("SMTP_USERNAME")
-            if not os.getenv("SMTP_PASSWORD"): missing.append("SMTP_PASSWORD")
-            if not os.getenv("SMTP_FROM_EMAIL"): missing.append("SMTP_FROM_EMAIL")
-            errors.append(f"SMTP mode configured but missing: {', '.join(missing)} - will fallback to DRY_RUN")
+            if not sendgrid_api_key:
+                missing.append("SENDGRID_API_KEY")
+            if not outbound_from:
+                missing.append("OUTBOUND_FROM")
+            if not outbound_reply_to:
+                missing.append("OUTBOUND_REPLY_TO")
+            if missing:
+                errors.append(f"SENDGRID mode requires: {', '.join(missing)} - will fallback to DRY_RUN")
+        elif email_mode == "SMTP":
+            errors.append("SMTP mode is deprecated - use SENDGRID with hossagent.net domain")
     
     elif mode == ReleaseMode.SANDBOX:
-        if email_mode not in ["DRY_RUN", "SENDGRID", "SMTP"]:
-            warnings.append(f"Unrecognized EMAIL_MODE: {email_mode}")
+        if email_mode not in ["DRY_RUN", "SENDGRID"]:
+            warnings.append(f"Unrecognized or deprecated EMAIL_MODE: {email_mode}")
     
     # Determine effective email mode (accounting for fallbacks)
     effective_email_mode = email_mode
-    if email_mode == "SMTP" and not smtp_configured:
-        effective_email_mode = "DRY_RUN (fallback)"
-    elif email_mode == "SENDGRID" and not os.getenv("SENDGRID_API_KEY"):
-        effective_email_mode = "DRY_RUN (fallback)"
+    if email_mode == "SMTP":
+        effective_email_mode = "DRY_RUN (SMTP deprecated)"
+    elif email_mode == "SENDGRID" and not sendgrid_configured:
+        effective_email_mode = "DRY_RUN (missing config)"
     
     return {
         "release_mode": mode.value,
@@ -156,7 +171,10 @@ def get_release_mode_status() -> Dict[str, Any]:
         "is_sandbox": mode == ReleaseMode.SANDBOX,
         "email_mode": email_mode,
         "effective_email_mode": effective_email_mode,
-        "smtp_configured": smtp_configured,
+        "sendgrid_configured": sendgrid_configured,
+        "sending_domain": sending_domain,
+        "outbound_from": outbound_from,
+        "outbound_display_name": outbound_display_name,
         "stripe_enabled": enable_stripe,
         "max_emails_per_hour": max_emails_hour,
         "lead_api_configured": lead_api_configured,
@@ -177,35 +195,47 @@ def print_startup_banners() -> None:
         print("[RELEASE_MODE][SANDBOX] HossAgent running in SANDBOX mode")
     
     email_mode = os.getenv("EMAIL_MODE", "DRY_RUN").upper()
-    print(f"[EMAIL][STARTUP] Mode: {email_mode}")
     
-    # Check SMTP credentials
-    smtp_configured = bool(
-        os.getenv("SMTP_HOST") and 
-        os.getenv("SMTP_USERNAME") and 
-        os.getenv("SMTP_PASSWORD") and
-        os.getenv("SMTP_FROM_EMAIL")
-    )
+    # Check SendGrid credentials (primary email provider)
+    sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+    outbound_from = os.getenv("OUTBOUND_FROM")
+    outbound_reply_to = os.getenv("OUTBOUND_REPLY_TO")
+    outbound_display_name = os.getenv("OUTBOUND_DISPLAY_NAME", "HossAgent")
+    
+    # Extract sending domain
+    sending_domain = ""
+    if outbound_from and "@" in outbound_from:
+        sending_domain = outbound_from.split("@")[1]
     
     max_emails_hour = int(os.getenv("MAX_EMAILS_PER_HOUR", "50"))
     if mode == ReleaseMode.PRODUCTION and max_emails_hour > 100:
         print(f"[PRODUCTION][HIGH_VOLUME_WARNING] MAX_EMAILS_PER_HOUR={max_emails_hour} - consider lower values for warm-up")
     
     if email_mode == "SENDGRID":
-        if not os.getenv("SENDGRID_API_KEY"):
-            print("[DRY_RUN_FALLBACK] SENDGRID_API_KEY not set - will use DRY_RUN")
+        missing = []
+        if not sendgrid_api_key:
+            missing.append("SENDGRID_API_KEY")
+        if not outbound_from:
+            missing.append("OUTBOUND_FROM")
+        if not outbound_reply_to:
+            missing.append("OUTBOUND_REPLY_TO")
+        
+        if missing:
+            print(f"[EMAIL][STARTUP] Mode: SENDGRID")
+            print(f"[EMAIL][ERROR] Missing required env vars: {', '.join(missing)}")
+            print("[EMAIL][STARTUP] Falling back to DRY_RUN mode")
         else:
+            print(f"[EMAIL][STARTUP] Mode: SENDGRID")
+            print(f"[EMAIL][STARTUP] Domain: {sending_domain} (authenticated)")
+            print(f"[EMAIL][STARTUP] From: {outbound_display_name} <{outbound_from}>")
+            print(f"[EMAIL][STARTUP] Reply-To: {outbound_reply_to}")
             print("[EMAIL][STARTUP] SendGrid configured and ready")
     elif email_mode == "SMTP":
-        if not smtp_configured:
-            missing = []
-            if not os.getenv("SMTP_HOST"): missing.append("SMTP_HOST")
-            if not os.getenv("SMTP_USERNAME"): missing.append("SMTP_USERNAME")
-            if not os.getenv("SMTP_PASSWORD"): missing.append("SMTP_PASSWORD")
-            if not os.getenv("SMTP_FROM_EMAIL"): missing.append("SMTP_FROM_EMAIL")
-            print(f"[DRY_RUN_FALLBACK] SMTP missing: {', '.join(missing)} - will use DRY_RUN")
-        else:
-            print("[EMAIL][STARTUP] SMTP configured and ready")
+        print(f"[EMAIL][STARTUP] Mode: SMTP")
+        print("[EMAIL][WARNING] SMTP mode is deprecated. Use SENDGRID mode with hossagent.net domain.")
+        print("[EMAIL][STARTUP] Falling back to DRY_RUN mode")
+    else:
+        print(f"[EMAIL][STARTUP] Mode: DRY_RUN (no emails will be sent)")
     
     apollo_key = os.getenv("APOLLO_API_KEY")
     if apollo_key:

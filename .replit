@@ -105,3 +105,6 @@ run = ["python", "main.py"]
 SMTP_HOST = "smtp.gmail.com"
 SMTP_USERNAME = "Samuel.hollidayv@gmail.com"
 SMTP_FROM_EMAIL = "Samuel.hollidayv@gmail.com"
+OUTBOUND_FROM = "hello@hossagent.net"
+OUTBOUND_REPLY_TO = "hello@hossagent.net"
+OUTBOUND_DISPLAY_NAME = "HossAgent"

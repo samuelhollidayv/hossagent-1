@@ -1,0 +1,100 @@
+You are updating HossAgent’s outbound email system to use the new authenticated domain hossagent.net and SendGrid as the sending provider.
+
+Make the following changes across the codebase. Do NOT remove any other logic, and preserve all rate-limit, suppression, deduplication, and template systems already implemented.
+
+========================================
+1. Switch outbound provider to SENDGRID mode
+========================================
+
+Update the email sending pipeline so that when EMAIL_MODE="SENDGRID", all emails are sent using the SendGrid API and NOT Gmail SMTP or any fallback.
+
+Ensure:
+- Outbound engine imports SendGrid client library correctly
+- It uses the SENDGRID_API_KEY from environment variables
+- Outbound engine calls the correct SendGrid API endpoint for mail send
+- Remove or disable any Gmail SMTP fallback logic
+
+========================================
+2. Update outgoing email headers for new domain
+========================================
+
+All outbound emails must use:
+
+From:
+    OUTBOUND_DISPLAY_NAME + " <" + OUTBOUND_FROM + ">"
+Example:
+    "HossAgent <hello@hossagent.net>"
+
+Reply-To:
+    OUTBOUND_REPLY_TO
+
+CC:
+    customer.email
+
+To:
+    lead_email (NEVER the customer)
+
+Ensure the new domain-based sender is ALWAYS used.
+
+========================================
+3. Validate required environment variables
+========================================
+
+Require the following env vars and throw a descriptive error if missing:
+
+SENDGRID_API_KEY
+OUTBOUND_FROM
+OUTBOUND_REPLY_TO
+OUTBOUND_DISPLAY_NAME
+
+========================================
+4. Add logging for domain authentication debugging
+========================================
+
+Every SendGrid send should create an outbound log entry including:
+- Sending domain (extracted from OUTBOUND_FROM)
+- DKIM signing status returned by SendGrid API (if available)
+- Any SendGrid error messages
+- Full JSON response from SendGrid on success/failure
+
+========================================
+5. Ensure HTML and plain-text versions are both sent
+========================================
+
+SendGrid prefers multi-part messages.
+Generate:
+- a plain text version
+- an HTML version (simple formatting is okay)
+
+========================================
+6. Remove "via Gmail" or "sent on behalf of" issues
+========================================
+
+Ensure no Gmail SMTP code paths remain.
+Ensure no “sendmail” fallbacks.
+Ensure the only sending path in SENDGRID mode is through SendGrid.
+
+========================================
+7. Test Mode (DRY_RUN)
+========================================
+
+If EMAIL_MODE="DRY_RUN", do NOT call SendGrid.
+Simulate send but still render the final outbound email in logs for review.
+
+========================================
+8. Post-send update
+========================================
+
+After SendGrid returns success:
+- Mark LeadEvent as CONTACTED (existing logic)
+- Update last_contacted_at
+- Increment contact counters for rate limiting
+
+========================================
+When finished:
+Return a summary of all modified files.
+Do not send test emails automatically.
+
+========================================
+
+Complete all changes now.
