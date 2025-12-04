@@ -856,6 +856,44 @@ def _has_contact_info(context_summary: str, raw_payload: str) -> bool:
     return False
 
 
+def is_self_signal(parsed_signal: ParsedSignal, session: Session) -> Tuple[bool, Optional[str]]:
+    """
+    Check if a signal refers to the customer's own company.
+    
+    Returns (is_self, reason) tuple.
+    If is_self is True, the signal should be ignored and no LeadEvent created.
+    """
+    context = (parsed_signal.context_summary or "").lower()
+    company_mentioned = None
+    
+    from models import Customer, BusinessProfile
+    customers = session.exec(select(Customer)).all()
+    
+    for customer in customers:
+        if customer.company and customer.company.lower() in context:
+            company_mentioned = customer.company
+            break
+            
+        if customer.contact_email:
+            domain = customer.contact_email.split("@")[-1].lower()
+            domain_name = domain.split(".")[0]
+            if domain_name in context and len(domain_name) > 3:
+                company_mentioned = customer.company
+                break
+        
+        profile = session.exec(
+            select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
+        ).first()
+        if profile:
+            if profile.company_name and profile.company_name.lower() in context:
+                company_mentioned = profile.company_name
+                break
+    
+    if company_mentioned:
+        return True, f"Signal mentions customer company: {company_mentioned}"
+    return False, None
+
+
 def create_lead_event_from_signal(
     scored_signal: ScoredSignal,
     session: Session,
@@ -915,6 +953,10 @@ def create_lead_event_from_signal(
         recommended_action=recommended_action,
         enrichment_status=enrichment_status,
         enriched_company_name=company_name,
+        lead_name=None,
+        lead_email=None,
+        lead_company=company_name,
+        lead_domain=domain,
     )
     
     session.add(event)
@@ -1123,6 +1165,17 @@ class SignalPipeline:
                     result["persisted"] += 1
                     
                     if scored.score >= LEADEVENT_SCORE_THRESHOLD and self.mode == "PRODUCTION":
+                        is_self, self_reason = is_self_signal(parsed, self.session)
+                        if is_self:
+                            log_signal_activity(
+                                source.name,
+                                "skip_self_signal",
+                                {"score": scored.score, "reason": self_reason},
+                                session=self.session
+                            )
+                            print(f"[SIGNALNET][SELF_SIGNAL] Skipping: {self_reason}")
+                            continue
+                        
                         lead_event = create_lead_event_from_signal(scored, self.session, signal)
                         if lead_event:
                             result["events_created"] += 1
