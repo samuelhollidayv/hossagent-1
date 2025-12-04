@@ -223,16 +223,18 @@ def validate_email_config() -> tuple[EmailMode, bool, str]:
         api_key = os.getenv("SENDGRID_API_KEY")
         from_email = os.getenv("SENDGRID_FROM_EMAIL")
         
+        missing = []
         if not api_key:
-            msg = "SENDGRID_API_KEY not set - falling back to DRY_RUN"
-            print(f"[EMAIL] Warning: {msg}")
-            return EmailMode.DRY_RUN, False, msg
+            missing.append("SENDGRID_API_KEY")
         if not from_email:
-            msg = "SENDGRID_FROM_EMAIL not set - falling back to DRY_RUN"
-            print(f"[EMAIL] Warning: {msg}")
+            missing.append("SENDGRID_FROM_EMAIL")
+        
+        if missing:
+            msg = f"Missing credentials: {', '.join(missing)}"
+            print(f"[EMAIL][DRY_RUN_FALLBACK] {msg}")
             return EmailMode.DRY_RUN, False, msg
         
-        return mode, True, "SendGrid configured"
+        return mode, True, "SendGrid configured and ready for production"
     
     if mode == EmailMode.SMTP:
         host = os.getenv("SMTP_HOST")
@@ -251,11 +253,11 @@ def validate_email_config() -> tuple[EmailMode, bool, str]:
             missing.append("SMTP_FROM_EMAIL")
         
         if missing:
-            msg = f"Missing SMTP config: {', '.join(missing)} - falling back to DRY_RUN"
-            print(f"[EMAIL] Warning: {msg}")
+            msg = f"Missing credentials: {', '.join(missing)}"
+            print(f"[EMAIL][DRY_RUN_FALLBACK] {msg}")
             return EmailMode.DRY_RUN, False, msg
         
-        return mode, True, "SMTP configured"
+        return mode, True, "SMTP configured and ready for production"
     
     return EmailMode.DRY_RUN, True, "Default DRY_RUN mode"
 

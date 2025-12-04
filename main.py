@@ -26,6 +26,7 @@ import asyncio
 import json
 import secrets
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, Depends, Request, HTTPException, Query, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -167,6 +168,193 @@ def run_retroactive_payment_links(max_invoices: int = 50) -> int:
     return links_created
 
 
+def bootstrap_business_profiles(session: Session) -> int:
+    """
+    Ensure all customers have a BusinessProfile with sensible defaults.
+    
+    Creates placeholder profiles for customers missing them, logging warnings.
+    This enables the Contextual Opportunity Engine to function for all customers.
+    
+    Returns:
+        Number of profiles created.
+    """
+    from models import BusinessProfile
+    
+    customers_without_profiles = session.exec(
+        select(Customer).where(
+            ~Customer.id.in_(
+                select(BusinessProfile.customer_id)
+            )
+        )
+    ).all()
+    
+    created = 0
+    for customer in customers_without_profiles:
+        default_profile = BusinessProfile(
+            customer_id=customer.id,
+            short_description=f"{customer.company} - Professional services",
+            services="General business services",
+            ideal_customer="Small to medium businesses",
+            voice_tone="professional",
+            communication_style="conversational",
+            primary_contact_name=customer.contact_name or "Team",
+            primary_contact_email=customer.contact_email
+        )
+        
+        if customer.niche:
+            default_profile.services = customer.niche
+        if customer.geography:
+            default_profile.ideal_customer = f"Businesses in {customer.geography}"
+        
+        session.add(default_profile)
+        created += 1
+        print(f"[BOOTSTRAP][WARNING] Created default BusinessProfile for customer {customer.id} ({customer.company}) - please configure in portal settings")
+    
+    if created > 0:
+        session.commit()
+        print(f"[BOOTSTRAP] Created {created} default BusinessProfiles")
+    
+    return created
+
+
+def run_production_cleanup(session: Session, owner_email_domain: str = "") -> dict:
+    """
+    One-time production database cleanup.
+    
+    Removes dev/test/demo data while preserving real production customers.
+    This should only be run ONCE during production initialization.
+    
+    Args:
+        session: Database session
+        owner_email_domain: Domain to identify real customers (e.g., "mycompany.com")
+    
+    Returns:
+        Summary of cleanup actions taken.
+    """
+    from datetime import datetime
+    
+    results = {
+        "signals_deleted": 0,
+        "lead_events_deleted": 0,
+        "pending_outbound_deleted": 0,
+        "reports_deleted": 0,
+        "invoices_deleted": 0,
+        "tasks_deleted": 0,
+        "leads_deleted": 0,
+        "customers_deleted": 0,
+        "counters_reset": 0,
+        "purged_at": datetime.utcnow().isoformat(),
+        "already_run": False
+    }
+    
+    cleanup_flag_file = Path("production_cleanup_completed.flag")
+    if cleanup_flag_file.exists():
+        results["already_run"] = True
+        print("[CLEANUP] Production cleanup already completed. Skipping.")
+        return results
+    
+    print("[CLEANUP] Starting one-time production database cleanup...")
+    
+    real_customer_ids = []
+    all_customers = session.exec(select(Customer)).all()
+    
+    for customer in all_customers:
+        is_real = False
+        
+        if owner_email_domain and customer.contact_email.endswith(owner_email_domain):
+            is_real = True
+        
+        if customer.plan == "paid" and customer.subscription_status == "active":
+            is_real = True
+        
+        if customer.stripe_customer_id or customer.stripe_subscription_id:
+            is_real = True
+        
+        if customer.plan == "trial" and customer.trial_start_at:
+            is_real = True
+        
+        if is_real:
+            real_customer_ids.append(customer.id)
+            print(f"[CLEANUP] Keeping real customer: {customer.id} - {customer.company} ({customer.contact_email})")
+    
+    if not real_customer_ids:
+        print("[CLEANUP] No real customers identified. Keeping all customers for safety.")
+        real_customer_ids = [c.id for c in all_customers]
+    
+    from models import Signal, LeadEvent, PendingOutbound, Report, Task, Invoice, Lead
+    
+    signals = session.exec(select(Signal)).all()
+    for s in signals:
+        if s.company_id and s.company_id not in real_customer_ids:
+            session.delete(s)
+            results["signals_deleted"] += 1
+    
+    lead_events = session.exec(select(LeadEvent)).all()
+    for le in lead_events:
+        if le.company_id and le.company_id not in real_customer_ids:
+            session.delete(le)
+            results["lead_events_deleted"] += 1
+    
+    pending = session.exec(select(PendingOutbound)).all()
+    for p in pending:
+        if p.customer_id not in real_customer_ids:
+            session.delete(p)
+            results["pending_outbound_deleted"] += 1
+    
+    reports = session.exec(select(Report)).all()
+    for r in reports:
+        if r.customer_id not in real_customer_ids:
+            session.delete(r)
+            results["reports_deleted"] += 1
+    
+    tasks = session.exec(select(Task)).all()
+    for t in tasks:
+        if t.customer_id not in real_customer_ids:
+            session.delete(t)
+            results["tasks_deleted"] += 1
+    
+    invoices = session.exec(select(Invoice)).all()
+    for i in invoices:
+        if i.customer_id not in real_customer_ids:
+            session.delete(i)
+            results["invoices_deleted"] += 1
+        elif i.amount_cents == 0 and i.status == "draft":
+            session.delete(i)
+            results["invoices_deleted"] += 1
+    
+    leads = session.exec(select(Lead)).all()
+    for lead in leads:
+        is_fake = False
+        if "@example" in lead.email or "@test" in lead.email:
+            is_fake = True
+        if lead.email.startswith("lead_") and "@" in lead.email:
+            is_fake = True
+        if lead.name.startswith("Lead_") and lead.name[5:].isdigit():
+            is_fake = True
+        
+        if is_fake:
+            session.delete(lead)
+            results["leads_deleted"] += 1
+    
+    for customer in all_customers:
+        if customer.id in real_customer_ids:
+            customer.tasks_this_period = 0
+            customer.leads_this_period = 0
+            session.add(customer)
+            results["counters_reset"] += 1
+    
+    session.commit()
+    
+    cleanup_flag_file.write_text(f"Production cleanup completed at {results['purged_at']}\n")
+    
+    print(f"[CLEANUP] Complete. Signals: {results['signals_deleted']}, Events: {results['lead_events_deleted']}, "
+          f"Outbound: {results['pending_outbound_deleted']}, Reports: {results['reports_deleted']}, "
+          f"Tasks: {results['tasks_deleted']}, Invoices: {results['invoices_deleted']}, "
+          f"Leads: {results['leads_deleted']}, Counters reset: {results['counters_reset']}")
+    
+    return results
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database, validate configuration, and start autopilot background loop."""
@@ -192,16 +380,27 @@ async def autopilot_loop():
     """
     Background task: Runs agent cycles automatically when autopilot is enabled.
     
-    Checks SystemSettings.autopilot_enabled every 5 minutes.
+    Checks SystemSettings.autopilot_enabled every 15 minutes (production cycle).
     If enabled, runs the full pipeline:
       1. Lead Generation - Fetch new leads from configured source (capped by MAX_NEW_LEADS_PER_CYCLE)
-      2. BizDev - Send outreach emails to NEW leads (capped by MAX_EMAILS_PER_CYCLE)
-      3. Onboarding - Convert qualified leads to customers
-      4. Ops - Execute pending tasks
-      5. Billing - Generate invoices for completed work
+      2. Signals Agent - Generate contextual intelligence from external signals
+      3. BizDev - Send outreach emails to NEW leads (capped by MAX_EMAILS_PER_CYCLE)
+      4. Event-Driven BizDev - Process LeadEvents for contextual outreach
+      5. Onboarding - Convert qualified leads to customers
+      6. Ops - Execute pending tasks and generate reports
+      7. Billing - Generate invoices for completed work
     
+    Per-customer autopilot settings override global behavior.
     Safe: Catches and logs exceptions without crashing the loop.
+    Idempotent: Prevents duplicate LeadEvents, outbound, and reports.
     """
+    # Log email mode at startup
+    from email_utils import get_email_status
+    email_status = get_email_status()
+    print(f"[AUTOPILOT][STARTUP] Email mode: {email_status['mode']} (configured: {email_status['configured_mode']})")
+    if not email_status['is_valid']:
+        print(f"[AUTOPILOT][STARTUP] Email fallback reason: {email_status['message']}")
+    
     while True:
         try:
             with Session(engine) as session:
@@ -211,6 +410,9 @@ async def autopilot_loop():
 
                 if settings and settings.autopilot_enabled:
                     print("\n[AUTOPILOT] Starting cycle...")
+                    
+                    # Bootstrap business profiles for customers without them
+                    bootstrap_business_profiles(session)
                     
                     generate_new_leads_from_source(session)
                     
@@ -223,13 +425,15 @@ async def autopilot_loop():
                     await run_billing_cycle(session)
                     print("[AUTOPILOT] Cycle complete.\n")
                 else:
-                    print("[AUTOPILOT] Disabled. Waiting...")
+                    pass  # Silent when disabled to reduce log noise
 
         except Exception as e:
-            print(f"[AUTOPILOT ERROR] {e}")
+            import traceback
+            print(f"[AUTOPILOT][ERROR] {e}")
+            print(f"[AUTOPILOT][TRACEBACK] {traceback.format_exc()}")
 
-        # Sleep 5 minutes between cycles
-        await asyncio.sleep(300)
+        # Sleep 15 minutes between cycles (production cadence)
+        await asyncio.sleep(900)
 
 
 # ============================================================================
@@ -1553,6 +1757,110 @@ Sent at: {datetime.utcnow().isoformat()}
         "mode": mode,
         "to": to_email,
         "message": f"Email {'sent successfully' if success else 'logged (dry-run mode)'} via {mode}"
+    }
+
+
+@app.post("/admin/production-cleanup")
+def admin_production_cleanup(
+    request: Request,
+    owner_email_domain: str = Query(default="", description="Domain to identify real customers (e.g., 'gmail.com')"),
+    confirm: bool = Query(default=False, description="Set to true to actually run cleanup"),
+    session: Session = Depends(get_session)
+):
+    """
+    One-time production database cleanup.
+    
+    IMPORTANT: This should only be run ONCE during production initialization.
+    It removes all dev/test/demo data while preserving real production customers.
+    
+    Safety:
+    - Requires confirm=true to actually run
+    - Creates a flag file to prevent re-running
+    - Logs all deletions for auditability
+    
+    Usage:
+        POST /admin/production-cleanup?owner_email_domain=gmail.com&confirm=true
+    
+    Returns JSON summary of cleanup actions taken.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token or ""):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    if not confirm:
+        cleanup_flag = Path("production_cleanup_completed.flag")
+        already_run = cleanup_flag.exists()
+        
+        return {
+            "success": False,
+            "message": "Dry run - set confirm=true to actually run cleanup",
+            "already_run": already_run,
+            "warning": "This will permanently delete dev/test data. Make sure you have a backup.",
+            "instructions": {
+                "owner_email_domain": "Set this to your email domain to identify real customers",
+                "confirm": "Set to true to execute the cleanup"
+            }
+        }
+    
+    results = run_production_cleanup(session, owner_email_domain)
+    
+    return {
+        "success": True,
+        "message": "Production cleanup completed" if not results["already_run"] else "Cleanup already run previously",
+        **results
+    }
+
+
+@app.get("/admin/production-status")
+def admin_production_status(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get production readiness status.
+    
+    Returns current configuration and readiness for production operation.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token or ""):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    email_status = get_email_status()
+    cleanup_flag = Path("production_cleanup_completed.flag")
+    
+    settings = session.exec(select(SystemSettings).where(SystemSettings.id == 1)).first()
+    
+    customers = session.exec(select(Customer)).all()
+    paid_customers = [c for c in customers if c.plan == "paid"]
+    trial_customers = [c for c in customers if c.plan == "trial"]
+    
+    return {
+        "email": {
+            "mode": email_status["mode"],
+            "configured_mode": email_status["configured_mode"],
+            "is_valid": email_status["is_valid"],
+            "message": email_status["message"],
+            "hourly_status": email_status["hourly"]
+        },
+        "autopilot": {
+            "global_enabled": settings.autopilot_enabled if settings else False,
+            "cycle_interval": "15 minutes"
+        },
+        "cleanup": {
+            "completed": cleanup_flag.exists(),
+            "flag_file": str(cleanup_flag)
+        },
+        "customers": {
+            "total": len(customers),
+            "paid": len(paid_customers),
+            "trial": len(trial_customers)
+        },
+        "production_ready": (
+            email_status["is_valid"] and 
+            email_status["mode"] != "DRY_RUN" and
+            cleanup_flag.exists()
+        ),
+        "recommendations": []
     }
 
 

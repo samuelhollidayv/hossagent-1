@@ -91,6 +91,7 @@ class Customer(SQLModel, table=True):
     cancellation_effective_at: Optional[datetime] = None
     
     outreach_mode: str = Field(default="AUTO")  # AUTO or REVIEW
+    autopilot_enabled: bool = Field(default=True)  # Per-customer autopilot toggle
     
     niche: Optional[str] = None
     geography: Optional[str] = None

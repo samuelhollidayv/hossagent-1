@@ -2186,9 +2186,108 @@
       "candidates_fetched": 10,
       "leads_created": 0,
       "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:09:30.027446",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:14:31.477801",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:19:32.979914",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:24:34.728812",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:29:35.931966",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:34:37.046502",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:39:38.186221",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:44:39.494090",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:49:40.803824",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:54:42.369338",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
+    },
+    {
+      "timestamp": "2025-12-04T00:59:44.513844",
+      "provider": "DummySeed",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 10,
+      "leads_created": 0,
+      "leads_skipped": 10
     }
   ],
-  "last_run": "2025-12-04T00:04:28.817077",
+  "last_run": "2025-12-04T00:59:44.513844",
   "last_created_count": 0,
   "recent_leads": [
     {

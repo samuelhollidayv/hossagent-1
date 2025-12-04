@@ -1,0 +1,106 @@
+You are working on my production deployment of HossAgent. I need to turn off the simulation mode (DRY_RUN) and fully enable real outbound, real autopilot cycles, and real customer-facing motion. Update the code and configuration to support full production operation. Follow these instructions precisely:
+
+============================================================
+GOALS
+	1.	Disable DRY_RUN mode and enable real outbound via SENDGRID or SMTP (based on EMAIL_MODE env variable).
+	2.	Ensure the Autopilot scheduler is fully operational in production.
+	3.	Ensure per-customer Autopilot toggles work correctly.
+	4.	Enforce safe outbound throttling (MAX_EMAILS_PER_CYCLE, MAX_EMAILS_PER_HOUR).
+	5.	Verify all pipelines (Signals → LeadEvents → Outbound → Ops → Billing) run end-to-end in production.
+	6.	Cleanly surface any errors in logging without crashing the loop.
+	7.	Keep all safety rails intact (idempotency, duplicate prevention, rate limits).
+	8.	Do NOT break existing features or the UX improvements we already integrated.
+	9.	Do NOT require any manual code changes after this prompt. All wiring must be automated and stable.
+
+============================================================
+A) OUTBOUND SYSTEM — ENABLE REAL EMAIL
+	1.	Update the code so EMAIL_MODE is interpreted as:
+	•	DRY_RUN → log only
+	•	SENDGRID → real emails via SendGrid
+	•	SMTP → real emails via SMTP credentials
+	2.	Validate all required env vars for SENDGRID/SMTP. If missing, fallback to DRY_RUN and log clearly.
+	3.	Make the fallback explicit: [EMAIL][DRY_RUN_FALLBACK] Missing credentials: <details>
+	4.	Ensure real outbound attempts update:
+	•	outbound_logs
+	•	lead_events.status
+	•	last_contacted_at
+	5.	Enforce:
+	•	MAX_EMAILS_PER_CYCLE
+	•	MAX_EMAILS_PER_HOUR (persist hourly counter in DB or a safe store)
+	6.	Add log entries before and after each send attempt.
+
+============================================================
+B) AUTOPILOT LOOP — FULL PRODUCTION MODE
+	1.	Ensure global scheduler runs every 15 minutes in production.
+	2.	Ensure scheduler does:
+	•	Ingest Signals
+	•	Create LeadEvents
+	•	Generate outbound
+	•	Send outbound (if EMAIL_MODE != DRY_RUN)
+	•	Run Ops tasks (reports)
+	•	Run Billing tasks
+	3.	Make per-customer Autopilot settings override global behavior (customer must explicitly enable Autopilot in their portal).
+	4.	Idempotency:
+	•	No duplicate LeadEvents from same signal
+	•	No duplicate outbound for same LeadEvent
+	•	No double-report generation
+
+============================================================
+C) BUSINESS PROFILE BOOTSTRAP
+
+Ensure each customer has:
+	•	industry
+	•	ICP
+	•	offer / value prop
+	•	geography
+	•	tone
+
+If missing, generate placeholder defaults and log a warning.
+
+============================================================
+D) FULL PIPELINE VERIFICATION
+
+Ensure the following work in production:
+	•	Signals table populates correctly
+	•	LeadEvents table populates correctly
+	•	Outbound logs record real send attempts
+	•	Reports generate and appear in the customer portal
+	•	Stripe subscription workflow executes without error
+
+Fix any broken joins or missing foreign keys discovered during this cycle.
+
+============================================================
+E) SECRETS IN PROD
+
+Update code to ensure the application:
+	•	loads EMAIL_MODE, STRIPE_API_KEY, STRIPE_PUBLIC_KEY, SENDGRID_API_KEY, SMTP_* keys from environment ONLY
+	•	fails gracefully if secrets missing
+
+============================================================
+F) NO UX REGRESSIONS
+
+Preserve:
+	•	portal subscription card at the top
+	•	reports section
+	•	settings section
+	•	admin override upgrade
+	•	forgot password flow
+	•	login persistence
+
+============================================================
+WHEN FINISHED
+
+Provide a summary of:
+	1.	Files changed
+	2.	New or modified functions
+	3.	New logs or warnings
+	4.	How to toggle Autopilot ON/OFF
+	5.	How to toggle DRY_RUN OFF (EMAIL_MODE=SENDGRID or SMTP)
+	6.	Any additional env vars required
+
+============================================================
+
+Make all changes now.
+Do not wait for further instructions.
+Do not degrade safety or idempotency.
+Ensure full production readiness.
