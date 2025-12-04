@@ -2907,7 +2907,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     else:
         pending_outreach_section = ""
     
-    opportunities = get_todays_opportunities(session, company_id=customer.id, limit=10)
+    total_opportunities = session.exec(select(func.count(LeadEvent.id)).where(LeadEvent.company_id == customer.id)).one()
+    opportunities = get_todays_opportunities(session, company_id=customer.id, limit=50)
     
     if opportunities:
         opportunities_rows = ""
@@ -2934,10 +2935,12 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 </tr>
             """
         
+        showing_text = f"Showing top 50 of {total_opportunities:,}" if total_opportunities > 50 else f"Showing all {total_opportunities:,}"
         opportunities_section = f"""
         <div class="section">
             <div class="section-header">
-                <div class="section-title">Today's Opportunities</div>
+                <div class="section-title">Your Opportunities</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">{showing_text}</div>
             </div>
             <div class="opportunities-subtitle">Automatically identified from public context signals • Click a row to see details</div>
             <div class="table-wrapper">
