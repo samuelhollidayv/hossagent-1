@@ -102,6 +102,6 @@ run = ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
 [userenv]
 
 [userenv.shared]
-SMTP_HOST = "smtp.office365.com"
-SMTP_USERNAME = "Samuel.holliday@wustl.edu"
-SMTP_FROM_EMAIL = "Samuel.holliday@wustl.edu"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_USERNAME = "Samuel.hollidayv@gmail.com"
+SMTP_FROM_EMAIL = "Samuel.hollidayv@gmail.com"
