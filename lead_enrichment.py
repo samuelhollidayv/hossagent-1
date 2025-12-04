@@ -893,7 +893,7 @@ def _apply_enrichment_to_lead_event(
     session.commit()
 
 
-MAX_ENRICHMENT_PER_CYCLE = int(os.environ.get("MAX_ENRICHMENT_PER_CYCLE", "5"))
+MAX_ENRICHMENT_PER_CYCLE = int(os.environ.get("MAX_ENRICHMENT_PER_CYCLE", "25"))
 
 
 async def run_enrichment_pipeline(session: Session, max_events: int = None) -> dict:

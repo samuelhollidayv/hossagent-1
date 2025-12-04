@@ -783,12 +783,8 @@ def _extract_company_from_context(context_summary: str) -> Optional[str]:
     """
     Extract company name from signal context_summary.
     
-    Aggressively extracts company names from news headlines and signal text.
-    Handles patterns like:
-    - "Miami Best Roofing Announces Expanded..."
-    - "Cool Running Air Expands AC Repair..."
-    - "Sunny Bliss Plumbing & Air Acquires..."
-    - "News: MYSHOP opens Miami headquarters"
+    Uses strict validation to extract real company names from news headlines.
+    Returns None if no high-confidence company name can be extracted.
     """
     if not context_summary:
         return None
@@ -799,61 +795,75 @@ def _extract_company_from_context(context_summary: str) -> Optional[str]:
     if text.startswith("News: "):
         text = text[6:]
     
+    verb_words = [
+        "opens", "expands", "announces", "acquires", "hires", "launches",
+        "adds", "reveals", "unveils", "introduces", "offers", "receives",
+        "gets", "wins", "reports", "seeks", "files", "gives", "breaks",
+        "evolves", "working", "works", "calls", "booming", "ramps",
+    ]
+    
     skip_words = [
         "miami", "florida", "south florida", "fort lauderdale", "broward", 
-        "palm beach", "local", "area", "regional", "downtown", "new",
+        "palm beach", "pompano", "boca raton", "hialeah", "orlando", "tampa",
+        "local", "area", "regional", "downtown", "new", "west", "east",
         "the", "a", "an", "this", "that", "first", "best", "top",
-        "breaking", "update", "latest", "today", "now", "here",
-        "see", "south", "north", "east", "west", "christmas", "holiday",
+        "breaking", "update", "latest", "today", "now", "here", "see",
+        "south", "north", "christmas", "holiday", "fortune", "major",
         "business", "businesses", "company", "companies", "firm", "firms",
-        "store", "stores", "opening", "opens", "expands", "expanding",
-        "broke", "ground", "between", "across", "over", "under",
-        "global", "national", "international", "major", "biggest", "largest",
-        "development", "developments", "project", "projects", "site", "sites",
+        "store", "stores", "owner", "owners", "partnership", "trump",
+        "global", "national", "international", "biggest", "largest",
+        "development", "developments", "project", "projects", "sites",
+        "vets", "veterans", "billionaire", "ceo", "executive", "over",
+        "architecture", "architectural", "real estate", "realty", "realtor",
     ]
     
-    patterns = [
-        r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:Announces?|Opens?|Expands?|Launches?|Acquires?|Hires?|Adds?|Reveals?|Unveils?|Introduces?|Offers?|Receives?|Gets?|Wins?|Reports?)",
-        
-        r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:is|has|to|will)\s+(?:opening|expanding|hiring|acquiring|launching)",
-        
-        r"(?:at|from|by|with)\s+([A-Z][a-zA-Z0-9\s&'.-]+?)(?:\s+(?:is|in|has|to|,|\.))",
-        
-        r"(?:for|at|from|by)\s+([A-Z][a-zA-Z0-9\s&'.-]+?)(?:\s+is|\s+in|\s+has|,|\.|\s+-)",
-        r"^([A-Z][a-zA-Z0-9\s&'.-]+?)\s+(?:is|has|updated|launched|added|posted|hiring)",
-        r"competitor\s+(?:of\s+)?([A-Z][a-zA-Z0-9\s&'.-]+)",
-        
-        r"^([A-Z][A-Z0-9\s&'.-]+)\s+",
+    bad_words = [
+        "roofing", "roofs", "roof", "plumbing", "hvac", "air", "ac",
+        "housing", "authority", "association", "contractors", "boom",
+        "permits", "permit", "zoning", "construction", "building",
+        "homes", "home", "house", "properties", "services", "service",
+        "repair", "repairs", "cooling", "heating", "furnaces", "supporter",
     ]
     
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            company = match.group(1).strip()
-            company = re.sub(r'^(News|Local|Breaking|Update|Latest)[\s:]+', '', company, flags=re.IGNORECASE)
-            company = company.strip(' ,-:')
-            
-            if company.lower() in skip_words:
-                continue
-            if len(company) < 3 or len(company) > 80:
-                continue
-            if company.lower().startswith(tuple(skip_words)):
-                continue
-                
+    reject_phrases = [
+        "breaks down", "supporter", "evolves", "boom", "gives away",
+        "vets receive", "florida home", "fortune 500", "amid", "after",
+        "between miami", "across south", "works to", "files complaint",
+    ]
+    
+    generic_descriptors = [
+        "firm", "firms", "agency", "agencies", "restaurant", "bar", "hotel",
+        "clinic", "store", "shop", "office", "group", "corporation", "corp",
+        "architecture", "architectural", "global", "national", "local",
+    ]
+    all_blocked = verb_words + bad_words + skip_words + generic_descriptors
+    
+    multi_word_pattern = r"^([A-Z][a-zA-Z0-9]+(?:\s+[A-Z]?[a-zA-Z0-9&'.-]+){1,4})\s+(?:Announces?|Opens?|Expands?|Launches?|Acquires?|Hires?|Adds?|Reveals?|Reports?)"
+    match = re.search(multi_word_pattern, text)
+    if match:
+        company = match.group(1).strip()
+        words = company.split()
+        
+        if len(words) >= 2 and len(words) <= 5:
+            has_blocked = any(w.lower() in all_blocked for w in words)
+            if not has_blocked:
+                if not any(phrase in company.lower() for phrase in reject_phrases):
+                    if len(company) >= 5 and len(company) <= 60:
+                        return company
+    
+    branded_pattern = r"^([A-Z][a-zA-Z]+\s+(?:Air|Roofing|Plumbing|HVAC|Electric|Cleaning|Landscaping|Construction))\s+(?:Announces?|Opens?|Expands?|Acquires?)"
+    match = re.search(branded_pattern, text)
+    if match:
+        company = match.group(1).strip()
+        if len(company.split()) >= 2:
             return company
     
-    words = text.split()
-    if len(words) >= 2:
-        potential = []
-        for word in words[:5]:
-            if word[0].isupper() and word.lower() not in skip_words:
-                potential.append(word)
-            elif potential:
-                break
-        
-        if potential:
-            company = " ".join(potential)
-            if 3 <= len(company) <= 50:
+    all_caps = r"^([A-Z]{2,}(?:\s+[A-Z]{2,})*)\s+(?:opens|expands|announces|launches)"
+    match = re.search(all_caps, text, re.IGNORECASE)
+    if match:
+        company = match.group(1).strip()
+        if len(company) >= 3 and len(company) <= 30:
+            if company.lower() not in skip_words + bad_words:
                 return company
     
     return None
