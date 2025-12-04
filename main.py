@@ -45,6 +45,7 @@ from signals_agent import run_signals_agent, get_signals_summary, get_lead_event
 from email_utils import send_email, get_email_status, get_email_log
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
+import signal_sources
 from release_mode import is_release_mode, print_startup_banners, get_release_mode_status
 from stripe_utils import (
     validate_stripe_at_startup,
