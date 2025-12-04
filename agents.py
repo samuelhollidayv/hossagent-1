@@ -13,6 +13,7 @@ Plan Gating:
 - Paid customers: Full access to all features
 """
 import asyncio
+import hashlib
 import secrets
 from datetime import datetime
 from sqlmodel import Session, select
@@ -538,6 +539,8 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     events_blocked = 0
     contacted_summaries = []
 
+    events_rate_limited = 0
+    
     for event in new_events:
         lead = None
         customer = None
@@ -545,6 +548,8 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
         contact_name = None
         company_name = None
         niche = "small business"
+        city = "Miami"
+        outreach_style = "transparent_ai"
         
         business_profile = None
         outreach_mode = OUTREACH_MODE_AUTO
@@ -560,12 +565,25 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
             print(f"[EVENT-BIZDEV] Event {event.id}: No lead email found, skipping (lead_email required)")
             continue
         
+        if event.do_not_contact:
+            events_blocked += 1
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: BLOCKED (event do_not_contact flag)")
+            continue
+        
+        rate_ok, rate_reason = check_rate_limits(session, contact_email, event.id, event.company_id)
+        if not rate_ok:
+            events_rate_limited += 1
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: RATE_LIMITED ({rate_reason})")
+            continue
+        
         if event.company_id:
             customer = session.exec(
                 select(Customer).where(Customer.id == event.company_id)
             ).first()
             if customer:
                 outreach_mode = customer.outreach_mode or OUTREACH_MODE_AUTO
+                outreach_style = getattr(customer, 'outreach_style', 'transparent_ai') or 'transparent_ai'
+                city = customer.geography or "Miami"
                 business_profile = get_business_profile(session, customer.id)
                 if business_profile:
                     do_not_contact_list = business_profile.do_not_contact_list
@@ -578,7 +596,7 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
         
         if check_do_not_contact(contact_email, do_not_contact_list):
             events_blocked += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: BLOCKED (do_not_contact)")
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: BLOCKED (do_not_contact list)")
             continue
         
         events_processed += 1
@@ -590,7 +608,11 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
             event_summary=event.summary,
             recommended_action=event.recommended_action or "contextual outreach",
             category=event.category,
-            urgency_score=event.urgency_score
+            urgency_score=event.urgency_score,
+            outreach_style=outreach_style,
+            event_id=event.id,
+            signal_id=event.signal_id,
+            city=city
         )
         
         if outreach_mode == OUTREACH_MODE_REVIEW and customer:
@@ -630,11 +652,19 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
             event.last_contact_at = datetime.utcnow()
             event.last_contact_summary = f"Contextual email sent: {event.category}"
             event.next_step_owner = NEXT_STEP_OWNER_AGENT
+            event.contact_count_24h = (event.contact_count_24h or 0) + 1
+            event.contact_count_7d = (event.contact_count_7d or 0) + 1
+            event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
             events_contacted += 1
             contacted_summaries.append(f"{company_name} ({event.category})")
             print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: CONTACTED (urgency={event.urgency_score})")
         elif email_result.result in ("dry_run", "fallback"):
             event.status = LEAD_STATUS_CONTACTED
+            event.last_contact_at = datetime.utcnow()
+            event.contact_count_24h = (event.contact_count_24h or 0) + 1
+            event.contact_count_7d = (event.contact_count_7d or 0) + 1
+            event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
+            events_contacted += 1
             print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: DRY_RUN (mode={email_result.mode})")
         else:
             events_failed += 1
@@ -650,10 +680,79 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     
     queued_info = f", Queued: {events_queued}" if events_queued > 0 else ""
     blocked_info = f", Blocked: {events_blocked}" if events_blocked > 0 else ""
+    rate_limit_info = f", Rate-limited: {events_rate_limited}" if events_rate_limited > 0 else ""
     unenriched_info = f", Awaiting enrichment: {unenriched_count}" if unenriched_count > 0 else ""
-    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}{queued_info}{blocked_info}{unenriched_info}. Mode: {effective_mode}. Companies: {summaries_str}"
+    msg = f"Event-Driven BizDev: Processed {events_processed} events, contacted {events_contacted}. Failed: {events_failed}{queued_info}{blocked_info}{rate_limit_info}{unenriched_info}. Mode: {effective_mode}. Companies: {summaries_str}"
     print(f"[CYCLE] {msg}")
     return msg
+
+
+SUBJECT_LINE_LIBRARY = [
+    "Quick heads-up for {company}",
+    "New signal in your market",
+    "Saw something relevant to {company}",
+    "Small opportunity I noticed near {city}",
+    "Thought this might be timely for you",
+    "Local lead-gen idea for {company}",
+    "Context on a shift near {city}",
+    "Your competitors are moving",
+    "New biz dev opportunity in your space",
+    "Short note about {signal_handle}",
+    "Something came up for {company}",
+    "Noticed a shift in {niche}",
+]
+
+
+def parse_first_name(full_name: str) -> str:
+    """
+    Parse first name from full name string.
+    
+    Rules:
+    - If first_name exists and is non-empty: use it
+    - If only have full name string: use first token as first name
+    - Else: return "there"
+    - Never use "First Last" as greeting
+    """
+    if not full_name or full_name.strip().lower() in ("there", "unknown", "none", ""):
+        return "there"
+    
+    parts = full_name.strip().split()
+    if len(parts) >= 1:
+        first = parts[0].strip()
+        if first and len(first) > 1:
+            return first.title()
+    
+    return "there"
+
+
+def get_subject_line(
+    company_name: str,
+    city: str,
+    niche: str,
+    signal_handle: str,
+    event_id: int,
+    signal_id: int = None
+) -> str:
+    """
+    Get subject line from library with consistent rotation.
+    
+    Uses hash of (event_id, signal_id) to pick subject consistently
+    so same lead+signal always gets same subject line.
+    """
+    import hashlib
+    
+    hash_input = f"{event_id}-{signal_id or 0}"
+    hash_value = int(hashlib.md5(hash_input.encode()).hexdigest()[:8], 16)
+    index = hash_value % len(SUBJECT_LINE_LIBRARY)
+    
+    template = SUBJECT_LINE_LIBRARY[index]
+    
+    return template.format(
+        company=company_name or "your company",
+        city=city or "Miami",
+        niche=niche or "your space",
+        signal_handle=signal_handle or "a recent signal"
+    )
 
 
 def generate_miami_contextual_email(
@@ -663,66 +762,202 @@ def generate_miami_contextual_email(
     event_summary: str,
     recommended_action: str,
     category: str,
-    urgency_score: int
+    urgency_score: int,
+    outreach_style: str = "transparent_ai",
+    event_id: int = 0,
+    signal_id: int = None,
+    city: str = "Miami"
 ) -> tuple[str, str]:
     """
     Generate Miami-style contextual email based on signal event.
     
-    Miami-Style Template Structure:
-    1. Lead with the observed moment (the signal)
-    2. Tie to Miami context (local market, bilingual advantage, weather, etc.)
-    3. Offer clarity and a clear next step
+    Two template styles:
+    - "transparent_ai": Explicit about AI & HossAgent, includes free trial pitch
+    - "classic": Traditional contextual outbound, less self-referential
+    
+    Features:
+    - First name only in greeting (never "Hi Ryan Cooper,")
+    - Non-clickbait subject lines from rotating library
+    - Context-driven body with clear value proposition
+    - Opt-out instructions in every email
     
     Returns: (subject, body) tuple
     """
     import os
-    sender_name = os.environ.get("BIZDEV_SENDER_NAME", "HossAgent")
     
-    category_intros = {
-        "HURRICANE_SEASON": f"With hurricane season in full swing here in South Florida",
-        "COMPETITOR_SHIFT": f"I noticed some movement in the local {niche} market",
-        "GROWTH_SIGNAL": f"Saw some positive signals coming from {company_name}",
-        "BILINGUAL_OPPORTUNITY": f"The Miami market rewards bilingual operations",
-        "REPUTATION_CHANGE": f"Your online reputation is currency in Miami",
-        "MIAMI_PRICE_MOVE": f"Pricing is shifting in the local {niche} space",
-        "OPPORTUNITY": f"Something caught my attention about {company_name}"
+    website_url = os.environ.get("HOSSAGENT_WEBSITE_URL", "https://hossagent.replit.app")
+    
+    first_name = parse_first_name(contact_name)
+    
+    signal_handle = None
+    summary_lower = event_summary.lower() if event_summary else ""
+    if "job posting" in summary_lower or "hiring" in summary_lower:
+        signal_handle = "a recent hire posting"
+    elif "review" in summary_lower:
+        signal_handle = "a recent review"
+    elif "competitor" in summary_lower:
+        signal_handle = "competitor activity"
+    elif "opening" in summary_lower or "expand" in summary_lower:
+        signal_handle = "an expansion signal"
+    elif "weather" in summary_lower or "hurricane" in summary_lower:
+        signal_handle = "weather conditions"
+    else:
+        signal_handle = "a recent signal"
+    
+    subject = get_subject_line(
+        company_name=company_name,
+        city=city,
+        niche=niche,
+        signal_handle=signal_handle,
+        event_id=event_id,
+        signal_id=signal_id
+    )
+    
+    category_benefits = {
+        "HURRICANE_SEASON": "shore up operations before peak season",
+        "COMPETITOR_SHIFT": "get ahead of price pressure",
+        "GROWTH_SIGNAL": "capitalize on the momentum",
+        "BILINGUAL_OPPORTUNITY": "capture bilingual market share",
+        "REPUTATION_CHANGE": "shore up your online presence",
+        "MIAMI_PRICE_MOVE": "adjust before the market shifts",
+        "OPPORTUNITY": "act while the timing is right"
     }
     
-    category_closers = {
-        "HURRICANE_SEASON": "Miami businesses that prepare early win when the storms come. Let me show you how we help.",
-        "COMPETITOR_SHIFT": "Staying ahead of local competition is everything here. Happy to share what I'm seeing.",
-        "GROWTH_SIGNAL": "Growth is good - but it needs infrastructure. That's where we come in.",
-        "BILINGUAL_OPPORTUNITY": "The bilingual edge is real ROI in South Florida. Let's talk about capturing it.",
-        "REPUTATION_CHANGE": "Your online presence shapes your pipeline. I can help you control the narrative.",
-        "MIAMI_PRICE_MOVE": "Market moves create opportunities for those paying attention. Are you?",
-        "OPPORTUNITY": "When I see moments like this, I reach out. Sometimes timing is everything."
-    }
+    concrete_benefit = category_benefits.get(category, category_benefits["OPPORTUNITY"])
     
-    intro = category_intros.get(category, category_intros["OPPORTUNITY"])
-    closer = category_closers.get(category, category_closers["OPPORTUNITY"])
-    
-    urgency_flag = ""
-    if urgency_score >= 75:
-        urgency_flag = " [Time-Sensitive]"
-    elif urgency_score >= 60:
-        urgency_flag = ""
-    
-    subject = f"{company_name} - noticed something{urgency_flag}"
-    
-    body = f"""Hi {contact_name},
+    if outreach_style == "transparent_ai":
+        body = f"""Hi {first_name},
 
-{intro}, I wanted to reach out.
+I saw a recent {signal_handle} related to {company_name} and thought it might be worth a quick note.
 
-Here's what I observed: {event_summary}
+I build tools that watch these kinds of signals so owners don't have to babysit feeds all day. Today your company popped onto my radar because of this specific event:
 
-My recommendation: {recommended_action}
+{event_summary}
 
-{closer}
+I think there's a short window where you could {concrete_benefit}. If it's useful, I can send you a short snapshot of what I'm seeing in your niche, plus a couple of concrete plays other local teams are running.
 
-Would a quick 15-minute call this week make sense? I'll come prepared with specifics.
+If that sounds interesting, just reply "send it" and I'll follow up, or we can set up a quick 15-minute call.
 
-- {sender_name}
+Quick context: this email was drafted by HossAgent, an AI "business autopilot" I'm building for local businesses in Miami-Dade and Broward. It watches public signals (jobs, reviews, local news, competitor moves) and nudges owners only when something looks worth acting on.
 
-P.S. I work with {niche} businesses across Miami-Dade and Broward. This isn't a mass email - I'm reaching out because the timing seems right."""
+I'm Sam Holliday, a local founder. You can see what I'm up to at {website_url} and spin up a 7-day free trial if you'd rather have it watching the market for you.
+
+If you'd rather not hear from me again, just reply "no thanks" and you won't get another email from this system.
+
+- Sam Holliday
+Founder, HossAgent
+{website_url}"""
+
+    else:
+        body = f"""Hi {first_name},
+
+I noticed something that might be relevant to {company_name}:
+
+{event_summary}
+
+Based on what I'm seeing in the local {niche} market, there may be a short window to {concrete_benefit}.
+
+My suggestion: {recommended_action}
+
+Would a quick 15-minute call this week make sense? I can share what I'm seeing in your space and a few plays that are working for similar businesses.
+
+- Sam Holliday
+
+Sent via HossAgent, a context-aware outreach assistant.
+If this isn't relevant, reply "no" and you'll be removed."""
 
     return subject, body
+
+
+def check_rate_limits(
+    session,
+    lead_email: str,
+    event_id: int,
+    customer_id: int = None
+) -> tuple[bool, str]:
+    """
+    Check if outbound to this lead is allowed under rate limits.
+    
+    Checks both lead_email and enriched_email fields for historical sends.
+    
+    Returns: (allowed, reason)
+    - allowed: True if email can be sent
+    - reason: Explanation if blocked
+    """
+    from models import (
+        LeadEvent, MAX_OUTBOUND_PER_LEAD_PER_DAY, 
+        MAX_OUTBOUND_PER_LEAD_PER_WEEK, MAX_OUTBOUND_PER_CUSTOMER_PER_DAY
+    )
+    from datetime import timedelta
+    from sqlalchemy import or_
+    
+    now = datetime.utcnow()
+    day_ago = now - timedelta(days=1)
+    week_ago = now - timedelta(days=7)
+    
+    contacted_24h = session.exec(
+        select(LeadEvent)
+        .where(or_(LeadEvent.enriched_email == lead_email, LeadEvent.lead_email == lead_email))
+        .where(LeadEvent.status == LEAD_STATUS_CONTACTED)
+        .where(LeadEvent.last_contact_at >= day_ago)
+    ).all()
+    
+    if len(contacted_24h) >= MAX_OUTBOUND_PER_LEAD_PER_DAY:
+        return False, f"Rate limit: {lead_email} already contacted in last 24h"
+    
+    contacted_7d = session.exec(
+        select(LeadEvent)
+        .where(or_(LeadEvent.enriched_email == lead_email, LeadEvent.lead_email == lead_email))
+        .where(LeadEvent.status == LEAD_STATUS_CONTACTED)
+        .where(LeadEvent.last_contact_at >= week_ago)
+    ).all()
+    
+    if len(contacted_7d) >= MAX_OUTBOUND_PER_LEAD_PER_WEEK:
+        return False, f"Rate limit: {lead_email} contacted {len(contacted_7d)} times this week"
+    
+    if customer_id:
+        customer_today = session.exec(
+            select(LeadEvent)
+            .where(LeadEvent.company_id == customer_id)
+            .where(LeadEvent.status == LEAD_STATUS_CONTACTED)
+            .where(LeadEvent.last_contact_at >= day_ago)
+        ).all()
+        
+        if len(customer_today) >= MAX_OUTBOUND_PER_CUSTOMER_PER_DAY:
+            return False, f"Rate limit: Customer daily cap ({MAX_OUTBOUND_PER_CUSTOMER_PER_DAY}) reached"
+    
+    return True, "OK"
+
+
+def check_opt_out(reply_text: str) -> bool:
+    """
+    Check if reply text contains opt-out phrases.
+    
+    Returns True if this is an opt-out request.
+    """
+    from models import OPT_OUT_PHRASES
+    
+    if not reply_text:
+        return False
+    
+    reply_lower = reply_text.lower().strip()
+    
+    for phrase in OPT_OUT_PHRASES:
+        if phrase in reply_lower:
+            return True
+    
+    return False
+
+
+def mark_do_not_contact(session, event: 'LeadEvent', reason: str = "opt_out_reply"):
+    """
+    Mark a LeadEvent as do-not-contact.
+    """
+    from datetime import datetime
+    
+    event.do_not_contact = True
+    event.do_not_contact_reason = reason
+    event.do_not_contact_at = datetime.utcnow()
+    session.add(event)
+    session.commit()
+    print(f"[SUPPRESSION] Marked event {event.id} ({event.enriched_email}) as do_not_contact: {reason}")

@@ -91,6 +91,7 @@ class Customer(SQLModel, table=True):
     cancellation_effective_at: Optional[datetime] = None
     
     outreach_mode: str = Field(default="AUTO")  # AUTO or REVIEW
+    outreach_style: str = Field(default="transparent_ai")  # transparent_ai or classic
     autopilot_enabled: bool = Field(default=True)  # Per-customer autopilot toggle
     
     niche: Optional[str] = None
@@ -327,6 +328,13 @@ class LeadEvent(SQLModel, table=True):
     next_step: Optional[str] = None
     next_step_owner: Optional[str] = None  # AGENT or CUSTOMER
     
+    do_not_contact: bool = Field(default=False)
+    do_not_contact_reason: Optional[str] = None
+    do_not_contact_at: Optional[datetime] = None
+    contact_count_24h: int = Field(default=0)
+    contact_count_7d: int = Field(default=0)
+    last_subject_hash: Optional[str] = None
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -334,6 +342,19 @@ TRIAL_TASK_LIMIT = 15
 TRIAL_LEAD_LIMIT = 20
 SUBSCRIPTION_PRICE_CENTS = 9900  # $99/month
 TRIAL_DAYS = 7
+
+MAX_OUTBOUND_PER_LEAD_PER_DAY = 1
+MAX_OUTBOUND_PER_LEAD_PER_WEEK = 3
+MAX_OUTBOUND_PER_CUSTOMER_PER_DAY = 100
+
+OUTREACH_STYLE_TRANSPARENT = "transparent_ai"
+OUTREACH_STYLE_CLASSIC = "classic"
+
+OPT_OUT_PHRASES = [
+    "no thanks", "no thank you", "unsubscribe", "stop", "remove me",
+    "remove my email", "don't contact", "do not contact", "please stop",
+    "take me off", "opt out", "not interested", "leave me alone"
+]
 
 
 class SignalLog(SQLModel, table=True):

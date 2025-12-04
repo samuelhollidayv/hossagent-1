@@ -1,0 +1,233 @@
+✅ MAGICBOX PROMPT — OUTBOUND COPY, RATE LIMITS, AND NO-NUISANCE RULES
+
+You’re the engineer / copy-chief for HossAgent’s outbound engine.
+Fix BOTH the content and the behavior of outbound so it’s:
+	•	human, ethical, non-spammy
+	•	context-driven (signal → opportunity)
+	•	rate-limited and non-annoying
+
+Implement all changes below without breaking existing sending or logging.
+
+⸻
+
+0. Overall goals
+	1.	Emails must feel like a sharp, considerate human wrote them.
+	2.	No clickbait / scammy patterns.
+	3.	Respect people’s time and preferences (real “don’t contact me” flow).
+	4.	Never hammer the same person with repeats.
+	5.	Clearly and honestly explain what HossAgent is when appropriate.
+
+⸻
+
+1. Greeting & name handling
+
+Current problem:
+	•	Greetings like “Hi Ryan Cooper,” feel robotic.
+	•	Sometimes fallback is weird (“Hi there,” with no name when we actually have one).
+
+Change:
+	•	Parse the recipient’s name into first_name and last_name when possible.
+	•	Greeting rules:
+	•	If first_name exists and is non-empty → Hi {{first_name}},
+	•	Else if we only have a full name string → use first token as first name.
+	•	Else → Hi there,
+	•	Never use “Hi First Last,” as the greeting.
+	•	Make sure this logic is used consistently in all outbound templates.
+
+⸻
+
+2. Subject line system (non-clickbait, human)
+
+Current problem:
+	•	“{{company}} – noticed something” is bland and a bit botty.
+	•	We don’t want spammy / clickbait like “Important message from your grandma”.
+
+Change:
+
+Create a subject library of ~10–12 variants that are:
+	•	Plain-spoken
+	•	Contextual
+	•	Non-sensational
+	•	A/B-testable
+
+Examples to implement (you can tweak wording but keep spirit):
+	1.	Quick heads-up for {{company}}
+	2.	New signal in your market
+	3.	Saw something relevant to {{company}}
+	4.	Small opportunity I noticed near {{city}}
+	5.	Thought this might be timely for you
+	6.	Local lead-gen idea for {{company}}
+	7.	Context on a shift near {{city}}
+	8.	Your competitors are moving
+	9.	New lead / biz dev opportunity in your space
+	10.	Short note about {{specific_signal_handle}}
+(e.g. “that new hire posting”, “a recent review”)
+
+Requirements:
+	•	No ALL-CAPS, no exclamation marks, no fake RE:/FW: prefixes.
+	•	Must not look like phishing / drama (“urgent security notice”, etc.).
+	•	Each outbound email chooses 1 subject at send-time, with light randomization but must remain consistent per (lead, signal) pair – i.e., don’t change the subject every time we follow up on the same signal.
+
+⸻
+
+3. Body templates: context + honesty + value
+
+Current state (see screenshots):
+	•	Structure is okay (observed signal → recommendation → call to action).
+	•	Feels a little generic and doesn’t explain what HossAgent is.
+	•	A typo exists (“small business businesses”).
+
+New requirements:
+
+Implement two families of templates, chosen based on configuration:
+
+3.1 “Straight shooter” template (explicit about AI & HossAgent)
+This is used when customer.settings.outbound_style = "transparent_ai" (add this config if not present).
+
+Body skeleton (feel free to polish wording, but preserve pieces):
+	1.	Context greeting:
+Hi {{first_name}},
+	2.	Observation (keep what we have, but tighten):
+I saw a recent {{signal_type_description}} related to {{lead_company}} and thought it might be worth a quick note.
+
+Example expansion based on signal:
+	•	“job posting for a sales coordinator in Doral”
+	•	“new negative review mentioning pricing transparency”
+	•	“competitor ramping up ads in Hollywood”
+	3.	Quick value framing:
+I build tools that watch these kinds of signals so owners don’t have to babysit feeds all day.
+Today your company popped onto my radar because of this specific event:
+{{one-sentence summary of the signal}}.
+	4.	Offer:
+I think there’s a short window where you could {{concrete benefit: “win overflow from X”, “shore up retention”, “get ahead of price pressure”}}.
+If it’s useful, I can send you a short snapshot of what I’m seeing in your niche, plus a couple of concrete plays other local teams are running.
+	5.	CTA:
+If that sounds interesting, just reply “send it” and I’ll follow up,
+or you can grab a 15-minute slot here: {{calendar_link or plain “we’ll set a time over email” if no link}}.
+	6.	Honest HossAgent explanation + free trial (1 short paragraph):
+Quick context: this email was drafted by HossAgent, an AI “business autopilot” I’m building for small businesses in Miami-Dade and Broward.
+It watches public signals (jobs, reviews, local news, competitor moves) and nudges owners only when something looks worth acting on.
+I’m Sam Holliday, a local founder; you can see what I’m up to at {{website_url}} and spin up a 7-day free trial if you’d rather have it watching the market for you.
+	7.	Don’t-contact + respect line:
+If you’d rather not hear from me again, just reply “no thanks” and you won’t get another email from this system.
+	8.	Signature:
+– Sam Holliday
+Founder, HossAgent
+{{website_url}}
+
+3.2 “Classic contextual outbound” template (less self-referential)
+For customers who don’t want the explicit AI paragraph (outbound_style = "classic"), keep closer to current:
+	•	Keep structure: greeting → observation → recommendation → CTA
+	•	Fix language:
+	•	Use first name only.
+	•	Tighten phrasing, no repeated “small business businesses”.
+	•	Keep it under ~150–180 words.
+
+Still append a short line in the footer for compliance:
+
+Sent via HossAgent, a context-aware outreach assistant.
+If this isn’t relevant, reply “no” and you’ll be removed.
+
+⸻
+
+4. “Don’t contact me” / suppression flow
+
+Implement a real suppression system so we’re never pests.
+
+Data model changes:
+	•	Add do_not_contact boolean (or equivalent) on the lead/contact entity.
+	•	Optionally track do_not_contact_reason and do_not_contact_at.
+
+Behavior:
+	1.	Any reply whose body contains common opt-out phrases (“no thanks”, “unsubscribe”, “stop”, “remove me”, etc.) →
+	•	Mark lead do_not_contact = True.
+	•	Log a suppression event.
+	•	Do not send further outbound for that lead for this customer.
+	2.	Suppression must be checked before queueing any outbound:
+	•	If do_not_contact is true → skip generation and sending.
+	3.	In the UI:
+	•	Show a clear “Do not contact” indicator on leads.
+	•	Allow manual toggle in admin (and respect it fully).
+
+No mass emailing, no ignoring opt-outs. Treat this as hard law.
+
+⸻
+
+5. Rate limiting & deduping (protect the Ryan Coopers of the world)
+
+Current issue:
+Some leads (e.g., “Ryan Cooper”) appear to be getting hit multiple times in a tight window.
+
+Implement robust throttling:
+
+Per-lead constraints:
+	•	max_outbound_per_lead_per_day = 1
+	•	For any given (customer_id, lead_email), send at most 1 new outbound in a rolling 24-hour period.
+	•	max_outbound_per_lead_per_week = 3 (configurable constant).
+	•	Track on the lead:
+	•	last_contacted_at
+	•	contact_count_24h
+	•	contact_count_7d
+
+Per-signal constraints:
+	•	For a given (lead_id, signal_id), send at most one initial outbound.
+	•	If you have follow-up logic later, that should be a separate, clearly designed sequence with its own caps (not implemented now unless already present).
+
+Deduping:
+	•	Deduplicate queued emails by (customer_id, lead_email, subject_line, signal_id) before sending.
+	•	If multiple agents/cycles try to send to the same lead in the same batch, collapse them into a single outbound.
+
+Global safety:
+	•	Add a per-run and per-day safety cap per customer, e.g.:
+	•	max_outbound_per_customer_per_day = 100 (configurable).
+	•	If cap is hit, queue additional candidates but do not send; log that rate limiting suppressed them.
+
+All rate limiting should be enforced in the outbound worker before send.
+
+⸻
+
+6. Content polish & errors
+
+Fix the following issues visible in the current examples:
+	•	Remove duplicated phrases like “small business businesses”.
+	•	Normalize style:
+	•	Use simple, concrete language.
+	•	No weird capitalization or jargon in PS lines.
+	•	Ensure each email clearly references:
+	•	{{lead_company}}
+	•	A specific {{signal_summary}}
+	•	A grounded recommendation tied to that signal.
+
+⸻
+
+7. Website + context
+
+When website_url is configured (e.g., https://hossagent.replit.app or later custom domain):
+	•	Include it in the signature.
+	•	Link is plain-text URL; no tracking parameters for now.
+	•	Don’t hardcode “replit” – use whatever domain is set in config/env.
+
+⸻
+
+8. Testing & verification
+
+After implementing:
+	1.	Create a test customer and 3–4 test leads (including a “Ryan Cooper”).
+	2.	Attach 3 different signals to the same lead and run outbound in DRY_RUN.
+	•	Verify:
+	•	Only one email is generated per lead per run.
+	•	Subject lines rotate across different leads but are sane.
+	•	Greeting is Hi Ryan, (first name only).
+	3.	Simulate an opt-out reply (“no thanks, please remove me”):
+	•	Ensure do_not_contact flips to true.
+	•	Subsequent runs do not generate further outbound for that lead.
+	4.	Turn on live mode (small batch, real but safe test emails to yourself):
+	•	Confirm formatting looks right in Gmail.
+	•	No obvious spam-trigger flags like ALL CAPS or shady subjects.
+
+Document key changes in comments and, if you keep a CHANGELOG, add an entry:
+	•	“Improved outbound copy, added rate limiting & suppression, clarified HossAgent context.”
+
+⸻
+
+Implement all of this so that HossAgent becomes the polite, context-aware, never-annoying signal salesman it’s supposed to be.

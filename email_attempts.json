@@ -38458,5 +38458,35 @@
     "mode": "SMTP",
     "result": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:28:57.125687",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "media@mordorintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:29:00.607883",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "Sai.k@datamintelligence.com",
+    "subject": "Your company - noticed something [Time-Sensitive]",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-04T16:29:03.086433",
+    "lead_name": null,
+    "company": "MYSHOP",
+    "to_email": "support@myshop.com",
+    "subject": "MYSHOP - noticed something",
+    "mode": "SMTP",
+    "result": "success",
+    "error": null
   }
 ]

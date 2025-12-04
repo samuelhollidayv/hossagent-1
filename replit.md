@@ -63,6 +63,22 @@ HossAgent is built on a FastAPI backend, utilizing `SQLModel` for data persisten
   - lead_company: Company name of the lead
   - lead_domain: Domain for enrichment lookup
 
+**Outbound Email System (Improved Dec 2024):**
+- **Subject Line Library**: 12 non-clickbait variants with consistent rotation per (event_id, signal_id) pair
+- **Template Styles**: Customer-configurable via `outreach_style`:
+  - `transparent_ai`: Full HossAgent disclosure, free trial pitch, Sam Holliday signature
+  - `classic`: Traditional contextual outbound, less self-referential
+- **Name Parsing**: `parse_first_name()` extracts first name only (never "Hi Ryan Cooper,")
+- **Rate Limiting**:
+  - Per-lead: MAX_OUTBOUND_PER_LEAD_PER_DAY (1), MAX_OUTBOUND_PER_LEAD_PER_WEEK (3)
+  - Per-customer: MAX_OUTBOUND_PER_CUSTOMER_PER_DAY (100)
+  - Tracks `contact_count_24h`, `contact_count_7d`, `last_subject_hash` on LeadEvent
+- **Suppression Flow**: 
+  - `do_not_contact` flag on LeadEvent blocks all future outreach
+  - `OPT_OUT_PHRASES` detects opt-out keywords in replies
+  - `check_opt_out()` and `mark_do_not_contact()` functions
+- **Email Content**: Every email includes opt-out instructions and website URL
+
 **Core Features:**
 - **Autonomous Agents:**
     - **Signals Agent (SignalNet):** 24/7 signal ingestion network that monitors real-world business signals from multiple sources.
