@@ -217,7 +217,7 @@ def bootstrap_business_profiles(session: Session) -> int:
     return created
 
 
-def run_production_cleanup(session: Session, owner_email_domain: str = "") -> dict:
+def run_production_cleanup(session: Session, owner_email_domain: str = "", purge_all_signals: bool = True) -> dict:
     """
     One-time production database cleanup.
     
@@ -227,11 +227,13 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "") -> di
     Args:
         session: Database session
         owner_email_domain: Domain to identify real customers (e.g., "mycompany.com")
+        purge_all_signals: If True, deletes ALL signals/lead_events (fresh start)
     
     Returns:
         Summary of cleanup actions taken.
     """
     from datetime import datetime
+    import re
     
     results = {
         "signals_deleted": 0,
@@ -244,7 +246,8 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "") -> di
         "customers_deleted": 0,
         "counters_reset": 0,
         "purged_at": datetime.utcnow().isoformat(),
-        "already_run": False
+        "already_run": False,
+        "audit_log": []
     }
     
     cleanup_flag_file = Path("production_cleanup_completed.flag")
@@ -256,12 +259,24 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "") -> di
     print("[CLEANUP] Starting one-time production database cleanup...")
     
     real_customer_ids = []
+    fake_customer_ids = []
     all_customers = session.exec(select(Customer)).all()
+    
+    fake_company_patterns = [
+        r"^Test\s", r"^Demo\s", r"^Fake\s", r"^Sample\s",
+        r"Quantum\s*Dynamics", r"Apex\s*Ventures", r"Stratton\s*Industries",
+        r"Atlas\s*Enterprise", r"Nexus\s*Capital", r"Titan\s*Logistics",
+        r"Meridian\s*Solutions", r"Catalyst\s*Growth", r"Vanguard\s*Consulting",
+        r"Precision\s*Demand", r"Sterling\s*Strategy", r"Forge\s*Strategic",
+        r"Atlas\s*Revenue", r"Momentum\s*Marketing", r"Quantum\s*Lead",
+        r"Elevate\s*Agency", r"Keystone\s*Advisory", r"Summit\s*Digital"
+    ]
     
     for customer in all_customers:
         is_real = False
+        is_fake = False
         
-        if owner_email_domain and customer.contact_email.endswith(owner_email_domain):
+        if owner_email_domain and customer.contact_email and customer.contact_email.endswith(owner_email_domain):
             is_real = True
         
         if customer.plan == "paid" and customer.subscription_status == "active":
@@ -270,71 +285,133 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "") -> di
         if customer.stripe_customer_id or customer.stripe_subscription_id:
             is_real = True
         
-        if customer.plan == "trial" and customer.trial_start_at:
+        if hasattr(customer, 'notes') and customer.notes and "ADMIN" in customer.notes.upper():
             is_real = True
         
-        if is_real:
+        if customer.contact_email:
+            fake_email_patterns = ["@example", "@test", "@fake", "@demo", "@localhost", "@dummy"]
+            if any(p in customer.contact_email.lower() for p in fake_email_patterns):
+                is_fake = True
+        
+        if customer.company:
+            for pattern in fake_company_patterns:
+                if re.search(pattern, customer.company, re.IGNORECASE):
+                    is_fake = True
+                    break
+        
+        if is_real and not is_fake:
             real_customer_ids.append(customer.id)
             print(f"[CLEANUP] Keeping real customer: {customer.id} - {customer.company} ({customer.contact_email})")
+        elif is_fake and not is_real:
+            fake_customer_ids.append(customer.id)
+            results["audit_log"].append(f"CUSTOMER_MARKED_FAKE: {customer.id} - {customer.company}")
     
     if not real_customer_ids:
-        print("[CLEANUP] No real customers identified. Keeping all customers for safety.")
+        print("[CLEANUP][WARNING] No real customers identified by domain. Checking for trial customers with real signups...")
+        for customer in all_customers:
+            if customer.plan == "trial" and customer.trial_start_at and customer.id not in fake_customer_ids:
+                real_customer_ids.append(customer.id)
+                print(f"[CLEANUP] Keeping trial customer: {customer.id} - {customer.company}")
+    
+    if not real_customer_ids:
+        print("[CLEANUP][SAFETY] No real customers identified. Keeping all customers.")
         real_customer_ids = [c.id for c in all_customers]
     
     from models import Signal, LeadEvent, PendingOutbound, Report, Task, Invoice, Lead
     
-    signals = session.exec(select(Signal)).all()
-    for s in signals:
-        if s.company_id and s.company_id not in real_customer_ids:
+    if purge_all_signals:
+        all_signals = session.exec(select(Signal)).all()
+        for s in all_signals:
             session.delete(s)
             results["signals_deleted"] += 1
-    
-    lead_events = session.exec(select(LeadEvent)).all()
-    for le in lead_events:
-        if le.company_id and le.company_id not in real_customer_ids:
+        results["audit_log"].append(f"SIGNALS_PURGED_ALL: {results['signals_deleted']}")
+        
+        all_events = session.exec(select(LeadEvent)).all()
+        for le in all_events:
             session.delete(le)
             results["lead_events_deleted"] += 1
+        results["audit_log"].append(f"LEAD_EVENTS_PURGED_ALL: {results['lead_events_deleted']}")
+    else:
+        signals = session.exec(select(Signal)).all()
+        for s in signals:
+            if s.company_id and s.company_id not in real_customer_ids:
+                session.delete(s)
+                results["signals_deleted"] += 1
+        
+        lead_events = session.exec(select(LeadEvent)).all()
+        for le in lead_events:
+            if le.company_id and le.company_id not in real_customer_ids:
+                session.delete(le)
+                results["lead_events_deleted"] += 1
     
     pending = session.exec(select(PendingOutbound)).all()
     for p in pending:
         if p.customer_id not in real_customer_ids:
             session.delete(p)
             results["pending_outbound_deleted"] += 1
+    results["audit_log"].append(f"PENDING_OUTBOUND_DELETED: {results['pending_outbound_deleted']}")
     
     reports = session.exec(select(Report)).all()
     for r in reports:
         if r.customer_id not in real_customer_ids:
             session.delete(r)
             results["reports_deleted"] += 1
+    results["audit_log"].append(f"REPORTS_DELETED: {results['reports_deleted']}")
     
     tasks = session.exec(select(Task)).all()
     for t in tasks:
         if t.customer_id not in real_customer_ids:
             session.delete(t)
             results["tasks_deleted"] += 1
+    results["audit_log"].append(f"TASKS_DELETED: {results['tasks_deleted']}")
     
     invoices = session.exec(select(Invoice)).all()
     for i in invoices:
+        should_delete = False
         if i.customer_id not in real_customer_ids:
-            session.delete(i)
-            results["invoices_deleted"] += 1
+            should_delete = True
         elif i.amount_cents == 0 and i.status == "draft":
+            should_delete = True
+        elif i.amount_cents == 0 and not i.stripe_invoice_id:
+            should_delete = True
+        
+        if should_delete:
             session.delete(i)
             results["invoices_deleted"] += 1
+    results["audit_log"].append(f"INVOICES_DELETED: {results['invoices_deleted']}")
     
     leads = session.exec(select(Lead)).all()
+    fake_lead_patterns = [
+        r"^Lead_\d+",
+        r"@example\.", r"@test\.", r"@fake\.", r"@demo\.",
+        r"@localhost", r"@mailinator", r"@dummy",
+        r"^contact@(quantum|apex|stratton|atlas|nexus|titan|meridian|catalyst|vanguard)",
+    ]
+    
     for lead in leads:
-        is_fake = False
-        if "@example" in lead.email or "@test" in lead.email:
-            is_fake = True
-        if lead.email.startswith("lead_") and "@" in lead.email:
-            is_fake = True
-        if lead.name.startswith("Lead_") and lead.name[5:].isdigit():
-            is_fake = True
+        is_fake_lead = False
         
-        if is_fake:
+        if lead.email:
+            for pattern in fake_lead_patterns:
+                if re.search(pattern, lead.email, re.IGNORECASE):
+                    is_fake_lead = True
+                    break
+        
+        if lead.name and re.match(r"^Lead_\d+$", lead.name):
+            is_fake_lead = True
+        
+        if is_fake_lead:
             session.delete(lead)
             results["leads_deleted"] += 1
+    results["audit_log"].append(f"LEADS_DELETED: {results['leads_deleted']}")
+    
+    for cid in fake_customer_ids:
+        if cid not in real_customer_ids:
+            customer = session.get(Customer, cid)
+            if customer:
+                session.delete(customer)
+                results["customers_deleted"] += 1
+                results["audit_log"].append(f"CUSTOMER_DELETED: {cid} - {customer.company}")
     
     for customer in all_customers:
         if customer.id in real_customer_ids:
@@ -342,15 +419,39 @@ def run_production_cleanup(session: Session, owner_email_domain: str = "") -> di
             customer.leads_this_period = 0
             session.add(customer)
             results["counters_reset"] += 1
+    results["audit_log"].append(f"COUNTERS_RESET: {results['counters_reset']}")
     
     session.commit()
     
-    cleanup_flag_file.write_text(f"Production cleanup completed at {results['purged_at']}\n")
+    audit_content = f"""Production Cleanup Audit Log
+============================
+Timestamp: {results['purged_at']}
+Owner Domain Filter: {owner_email_domain or 'None'}
+Purge All Signals: {purge_all_signals}
+
+Summary:
+--------
+Signals Deleted: {results['signals_deleted']}
+Lead Events Deleted: {results['lead_events_deleted']}
+Pending Outbound Deleted: {results['pending_outbound_deleted']}
+Reports Deleted: {results['reports_deleted']}
+Tasks Deleted: {results['tasks_deleted']}
+Invoices Deleted: {results['invoices_deleted']}
+Leads Deleted: {results['leads_deleted']}
+Customers Deleted: {results['customers_deleted']}
+Counters Reset: {results['counters_reset']}
+
+Audit Trail:
+------------
+""" + "\n".join(results["audit_log"])
+    
+    cleanup_flag_file.write_text(audit_content)
     
     print(f"[CLEANUP] Complete. Signals: {results['signals_deleted']}, Events: {results['lead_events_deleted']}, "
           f"Outbound: {results['pending_outbound_deleted']}, Reports: {results['reports_deleted']}, "
           f"Tasks: {results['tasks_deleted']}, Invoices: {results['invoices_deleted']}, "
-          f"Leads: {results['leads_deleted']}, Counters reset: {results['counters_reset']}")
+          f"Leads: {results['leads_deleted']}, Customers: {results['customers_deleted']}, "
+          f"Counters reset: {results['counters_reset']}")
     
     return results
 
@@ -1770,6 +1871,7 @@ Sent at: {datetime.utcnow().isoformat()}
 def admin_production_cleanup(
     request: Request,
     owner_email_domain: str = Query(default="", description="Domain to identify real customers (e.g., 'gmail.com')"),
+    purge_all_signals: bool = Query(default=True, description="If true, delete ALL signals and lead_events (fresh start)"),
     confirm: bool = Query(default=False, description="Set to true to actually run cleanup"),
     session: Session = Depends(get_session)
 ):
@@ -1783,9 +1885,26 @@ def admin_production_cleanup(
     - Requires confirm=true to actually run
     - Creates a flag file to prevent re-running
     - Logs all deletions for auditability
+    - Produces an audit log file for compliance
     
     Usage:
-        POST /admin/production-cleanup?owner_email_domain=gmail.com&confirm=true
+        POST /admin/production-cleanup?owner_email_domain=gmail.com&purge_all_signals=true&confirm=true
+    
+    What it deletes:
+    - ALL signals and lead_events (if purge_all_signals=true)
+    - Signals/events from non-real customers
+    - Pending outbound from non-real customers
+    - Reports from non-real customers
+    - Tasks from non-real customers
+    - Invoices with $0 amounts or from non-real customers
+    - Leads with fake emails (Lead_*, @example, @test, etc.)
+    - Customers with demo company names
+    
+    What it preserves:
+    - Customers matching owner_email_domain
+    - Customers with ADMIN in notes
+    - Customers with Stripe integration
+    - Paid customers with active subscriptions
     
     Returns JSON summary of cleanup actions taken.
     """
@@ -1804,11 +1923,12 @@ def admin_production_cleanup(
             "warning": "This will permanently delete dev/test data. Make sure you have a backup.",
             "instructions": {
                 "owner_email_domain": "Set this to your email domain to identify real customers",
+                "purge_all_signals": "Set to true to delete ALL signals/lead_events (recommended for fresh start)",
                 "confirm": "Set to true to execute the cleanup"
             }
         }
     
-    results = run_production_cleanup(session, owner_email_domain)
+    results = run_production_cleanup(session, owner_email_domain, purge_all_signals)
     
     return {
         "success": True,
