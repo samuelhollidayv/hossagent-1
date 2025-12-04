@@ -1070,10 +1070,29 @@ def create_lead_event_from_signal(
             log_signal_activity(
                 "pipeline",
                 "skip_duplicate",
-                {"signal_id": signal.id, "existing_event_id": existing.id},
+                {"signal_id": signal.id, "existing_event_id": existing.id, "reason": "same_signal_id"},
                 session=session
             )
             return None
+    
+    assigned_company_id = parsed.company_id
+    if not assigned_company_id:
+        assigned_company_id = _get_primary_customer(session)
+    
+    existing_by_summary = session.exec(
+        select(LeadEvent).where(
+            LeadEvent.summary == parsed.context_summary,
+            LeadEvent.company_id == assigned_company_id
+        )
+    ).first()
+    if existing_by_summary:
+        log_signal_activity(
+            "pipeline",
+            "skip_duplicate",
+            {"existing_event_id": existing_by_summary.id, "reason": "same_summary"},
+            session=session
+        )
+        return None
     
     category = parsed.category_hint or _infer_category(
         parsed.source_type,
@@ -1087,10 +1106,6 @@ def create_lead_event_from_signal(
     domain = _extract_domain_from_context(parsed.context_summary, parsed.raw_payload)
     
     recommended_action = _generate_recommended_action(category, parsed.context_summary)
-    
-    assigned_company_id = parsed.company_id
-    if not assigned_company_id:
-        assigned_company_id = _get_primary_customer(session)
     
     event = LeadEvent(
         company_id=assigned_company_id,
