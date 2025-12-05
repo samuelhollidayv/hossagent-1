@@ -1017,7 +1017,7 @@ def _get_source_url_for_event(lead_event: LeadEvent, session: Session) -> Option
         return None
 
 
-async def run_enrichment_pipeline(session: Session, max_events: int = None) -> dict:
+async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = None) -> dict:
     """
     Domain-first enrichment pipeline for LeadEvents.
     
@@ -1042,19 +1042,19 @@ async def run_enrichment_pipeline(session: Session, max_events: int = None) -> d
         
     log_enrichment("pipeline_start", details={"status": "starting", "max_events": max_events})
     
-    unenriched_events = session.exec(
+    unenriched_events = list(session.exec(
         select(LeadEvent)
         .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_UNENRICHED)
         .order_by(LeadEvent.created_at.desc())
         .limit(max_events // 2)
-    ).all()
+    ).all())
     
-    with_domain_events = session.exec(
+    with_domain_events = list(session.exec(
         select(LeadEvent)
         .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL)
         .order_by(LeadEvent.created_at.desc())
         .limit(max_events // 2)
-    ).all()
+    ).all())
     
     legacy_events = session.exec(
         select(LeadEvent)

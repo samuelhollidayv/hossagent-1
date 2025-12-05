@@ -266,7 +266,7 @@ def _domain_matches_company(domain: str, company_name: str) -> Tuple[bool, float
     return confidence >= 0.5, confidence
 
 
-def _fetch_page(url: str, timeout: int = None) -> Optional[str]:
+def _fetch_page(url: str, timeout: Optional[int] = None) -> Optional[str]:
     """
     Fetch a page with retry and error handling.
     

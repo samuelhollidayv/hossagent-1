@@ -24,7 +24,13 @@ from models import (
     OUTREACH_MODE_AUTO, OUTREACH_MODE_REVIEW,
     LEAD_STATUS_NEW, LEAD_STATUS_CONTACTED,
     NEXT_STEP_OWNER_AGENT, NEXT_STEP_OWNER_CUSTOMER,
-    ENRICHMENT_STATUS_ENRICHED, ENRICHMENT_STATUS_OUTBOUND_READY, ENRICHMENT_STATUS_UNENRICHED
+    ENRICHMENT_STATUS_UNENRICHED,
+    ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+    ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+    ENRICHMENT_STATUS_OUTBOUND_SENT,
+    ENRICHMENT_STATUS_ARCHIVED,
+    ENRICHMENT_STATUS_ENRICHED,
+    ENRICHMENT_STATUS_OUTBOUND_READY,
 )
 from email_utils import (
     send_email,
@@ -482,47 +488,49 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     Event-Driven BizDev Cycle: Send contextual outreach based on LeadEvents from Signals Engine.
     
     This is a moment-aware outreach system that:
-    1. Selects LeadEvents with status='new' AND enrichment_status in (ENRICHED, OUTBOUND_READY)
-    2. Skips UNENRICHED events (wait for enrichment pipeline to process them)
+    1. Selects LeadEvents with enrichment_status = ENRICHED_NO_OUTBOUND (ready to send)
+    2. Skips UNENRICHED and WITH_DOMAIN_NO_EMAIL (wait for enrichment pipeline)
     3. Checks customer's outreach_mode and do_not_contact list
     4. Generates Miami-style contextual emails based on event.summary and event.recommended_action
     5. If AUTO mode: sends email immediately
     6. If REVIEW mode: creates PendingOutbound for customer approval
     7. Gets CC/Reply-To from BusinessProfile.primary_contact_email
-    8. Updates event status to 'contacted' and stores the outbound_message
+    8. Updates enrichment_status to OUTBOUND_SENT and status to 'CONTACTED'
     
-    Miami-Style Template Language:
-    - Lead with the observed moment (the signal)
-    - Tie to Miami context (local relevance, bilingual, hurricane season, etc.)
-    - Offer clarity and next step
+    Enrichment Status Flow:
+    - UNENRICHED → WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND → OUTBOUND_SENT
     
-    Safe to call repeatedly - only processes enriched events with status='new'.
+    Safe to call repeatedly - only processes ENRICHED_NO_OUTBOUND events.
     """
     max_events = get_max_emails_per_cycle()
     email_status = get_email_status()
     effective_mode = email_status["mode"]
     
-    # Only process LeadEvents that have been enriched (ENRICHED or OUTBOUND_READY)
-    # Skip UNENRICHED events - wait for enrichment pipeline to process them
-    # Use LEAD_STATUS_NEW constant (uppercase "NEW") to match database storage
     new_events = session.exec(
         select(LeadEvent)
         .where(LeadEvent.status == LEAD_STATUS_NEW)
-        .where(LeadEvent.enrichment_status.in_([ENRICHMENT_STATUS_ENRICHED, ENRICHMENT_STATUS_OUTBOUND_READY]))
+        .where(LeadEvent.enrichment_status.in_([
+            ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+            ENRICHMENT_STATUS_ENRICHED,
+            ENRICHMENT_STATUS_OUTBOUND_READY
+        ]))
         .order_by(LeadEvent.urgency_score.desc())
         .limit(max_events)
     ).all()
     
-    # Count unenriched events for logging
-    unenriched_count = session.exec(
+    unenriched_count = len(session.exec(
         select(LeadEvent)
         .where(LeadEvent.status == LEAD_STATUS_NEW)
         .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_UNENRICHED)
-    ).all()
-    unenriched_count = len(unenriched_count)
+    ).all())
     
-    # Diagnostic log for debugging
-    print(f"[EVENT-BIZDEV] Found {len(new_events)} enriched events to process, {unenriched_count} awaiting enrichment")
+    with_domain_count = len(session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.status == LEAD_STATUS_NEW)
+        .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL)
+    ).all())
+    
+    print(f"[EVENT-BIZDEV] Found {len(new_events)} ready for outbound, {unenriched_count} unenriched, {with_domain_count} with domain only")
     
     if not new_events:
         if unenriched_count > 0:
@@ -649,6 +657,7 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
         
         if email_result.actually_sent:
             event.status = LEAD_STATUS_CONTACTED
+            event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
             event.last_contact_at = datetime.utcnow()
             event.last_contact_summary = f"Contextual email sent: {event.category}"
             event.next_step_owner = NEXT_STEP_OWNER_AGENT
@@ -657,15 +666,16 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
             event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
             events_contacted += 1
             contacted_summaries.append(f"{company_name} ({event.category})")
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: CONTACTED (urgency={event.urgency_score})")
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: OUTBOUND_SENT (urgency={event.urgency_score})")
         elif email_result.result in ("dry_run", "fallback"):
             event.status = LEAD_STATUS_CONTACTED
+            event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
             event.last_contact_at = datetime.utcnow()
             event.contact_count_24h = (event.contact_count_24h or 0) + 1
             event.contact_count_7d = (event.contact_count_7d or 0) + 1
             event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
             events_contacted += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: DRY_RUN (mode={email_result.mode})")
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: DRY_RUN OUTBOUND_SENT (mode={email_result.mode})")
         else:
             events_failed += 1
             print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: FAILED error=\"{email_result.error}\"")
