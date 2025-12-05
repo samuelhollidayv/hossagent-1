@@ -24,6 +24,7 @@ Subscription Model:
 """
 import asyncio
 import json
+import os
 import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -68,6 +69,23 @@ from lead_sources import get_lead_source_status
 import signal_sources
 from signal_sources import get_signal_status, run_signal_pipeline, get_registry, get_signal_mode
 from release_mode import is_release_mode, print_startup_banners, get_release_mode_status
+from analytics import (
+    track_page_view, track_funnel_event, track_event,
+    EventType, get_analytics_summary, get_page_view_stats, get_funnel_stats
+)
+
+def get_ga_script() -> str:
+    """Generate Google Analytics 4 script tag if measurement ID is configured."""
+    ga_id = os.environ.get("GA_MEASUREMENT_ID", "")
+    if not ga_id:
+        return ""
+    return f'''<script async src="https://www.googletagmanager.com/gtag/js?id={ga_id}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){{dataLayer.push(arguments);}}
+        gtag('js', new Date());
+        gtag('config', '{ga_id}');
+    </script>'''
 from stripe_utils import (
     validate_stripe_at_startup,
     is_stripe_enabled,
@@ -612,10 +630,17 @@ async def autopilot_loop():
 
 
 @app.get("/", response_class=HTMLResponse)
-def serve_marketing_landing():
+def serve_marketing_landing(request: Request):
     """Marketing Landing Page: Public-facing marketing page for new visitors."""
+    track_page_view(
+        path="/",
+        referrer=request.headers.get("referer"),
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host if request.client else None
+    )
     with open("templates/marketing_landing.html", "r") as f:
-        return f.read()
+        template = f.read()
+    return template.replace("{ga_script}", get_ga_script())
 
 
 @app.get("/about", response_class=HTMLResponse)
@@ -638,8 +663,13 @@ def serve_how_it_works_page():
 
 
 @app.get("/signup", response_class=HTMLResponse)
-def signup_get():
+def signup_get(request: Request):
     """Render signup form."""
+    track_funnel_event(
+        EventType.SIGNUP_STARTED,
+        ip_address=request.client.host if request.client else None
+    )
+    
     with open("templates/auth_signup.html", "r") as f:
         template = f.read()
     
@@ -731,6 +761,12 @@ def signup_post(
     
     session.commit()
     
+    track_funnel_event(
+        EventType.SIGNUP_COMPLETED,
+        customer_id=customer.id,
+        ip_address=ip_address
+    )
+    
     print(f"[SIGNUP] New customer created: {customer.company} ({customer.contact_email})")
     
     session_token = create_customer_session(customer.id)
@@ -783,6 +819,8 @@ def login_post(
             email=email
         )
         return HTMLResponse(content=html)
+    
+    track_funnel_event(EventType.LOGIN, customer_id=customer.id)
     
     session_token = create_customer_session(customer.id)
     response = RedirectResponse(url="/portal", status_code=303)
@@ -1108,6 +1146,8 @@ def portal_session_based(request: Request, session: Session = Depends(get_sessio
     if not customer:
         return RedirectResponse(url="/login", status_code=303)
     
+    track_funnel_event(EventType.PORTAL_VIEW, customer_id=customer.id)
+    
     return render_customer_portal(customer, request, session)
 
 
@@ -1119,6 +1159,8 @@ def portal_settings_get(request: Request, session: Session = Depends(get_session
     
     if not customer:
         return RedirectResponse(url="/login", status_code=303)
+    
+    track_funnel_event(EventType.SETTINGS_VIEW, customer_id=customer.id)
     
     profile = session.exec(
         select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
@@ -1271,6 +1313,8 @@ def portal_cancel_subscription(request: Request, session: Session = Depends(get_
     customer.cancelled_at_period_end = True
     session.add(customer)
     session.commit()
+    
+    track_funnel_event(EventType.CANCELLATION, customer_id=customer.id)
     
     print(f"[PORTAL] Subscription cancellation scheduled for customer {customer.id}: {customer.company}")
     
@@ -3845,6 +3889,8 @@ def api_create_checkout_session(
     success_url = f"{base_url}/portal?payment=success"
     cancel_url = f"{base_url}/portal?payment=cancelled"
     
+    track_funnel_event(EventType.CHECKOUT_STARTED, customer_id=customer.id)
+    
     success, checkout_url, mode, error = get_or_create_subscription_checkout_link(
         customer,
         success_url=success_url,
@@ -5105,6 +5151,40 @@ def get_admin_stats(request: Request, session: Session = Depends(get_session)):
         "customers": customers,
         "email_mode": f"Email: {email_mode.value}"
     }
+
+
+@app.get("/api/admin/analytics")
+def get_admin_analytics(request: Request):
+    """
+    Get analytics dashboard data.
+    
+    Returns page views, funnel metrics, and abandonment data.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return get_analytics_summary()
+
+
+@app.get("/api/admin/analytics/page-views")
+def get_admin_page_views(request: Request, days: int = 7):
+    """Get page view statistics."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return get_page_view_stats(days)
+
+
+@app.get("/api/admin/analytics/funnel")
+def get_admin_funnel(request: Request, days: int = 30):
+    """Get conversion funnel statistics."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return get_funnel_stats(days)
 
 
 @app.get("/api/admin/signals")

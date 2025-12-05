@@ -115,6 +115,7 @@
             <button class="tab" onclick="showTab('leadevents')">LEAD EVENTS</button>
             <button class="tab" onclick="showTab('outbound')">OUTBOUND</button>
             <button class="tab" onclick="showTab('customers')">CUSTOMERS</button>
+            <button class="tab" onclick="showTab('analytics')">ANALYTICS</button>
         </div>
 
         <!-- SIGNALS VIEW -->
@@ -223,6 +224,58 @@
                 </table>
             </div>
         </div>
+
+        <!-- ANALYTICS VIEW -->
+        <div id="analytics" class="tab-content">
+            <div class="section-header">
+                <h2>Traffic & Conversion Analytics</h2>
+                <button class="refresh-btn" onclick="loadAnalytics()">Refresh</button>
+            </div>
+            <div id="analytics-loading" class="loading">Loading analytics...</div>
+            <div id="analytics-content" style="display: none;">
+                <div class="analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Page Views Card -->
+                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
+                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Page Views (7d)</h3>
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <span id="analytics-total-views" style="font-size: 2rem; font-weight: 600; color: var(--accent-green);">-</span>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary);">Total Views</div>
+                            </div>
+                            <div>
+                                <span id="analytics-unique-visitors" style="font-size: 2rem; font-weight: 600; color: var(--accent-blue);">-</span>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary);">Unique Visitors</div>
+                            </div>
+                        </div>
+                        <div id="analytics-top-pages" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                    </div>
+
+                    <!-- Funnel Card -->
+                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
+                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Signup Funnel (30d)</h3>
+                        <div id="analytics-funnel" style="font-size: 0.85rem;"></div>
+                    </div>
+
+                    <!-- Checkout Card -->
+                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
+                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Checkout & Upgrades (30d)</h3>
+                        <div id="analytics-checkout" style="font-size: 0.85rem;"></div>
+                    </div>
+
+                    <!-- Engagement Card -->
+                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
+                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Engagement (30d)</h3>
+                        <div id="analytics-engagement" style="font-size: 0.85rem;"></div>
+                    </div>
+                </div>
+
+                <!-- Top Referrers -->
+                <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Top Traffic Sources (7d)</h3>
+                    <div id="analytics-referrers" style="font-size: 0.85rem;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -239,6 +292,7 @@
             }
             else if (name === 'outbound') loadOutbound();
             else if (name === 'customers') loadCustomers();
+            else if (name === 'analytics') loadAnalytics();
         }
 
         function scoreClass(score) {
@@ -423,6 +477,98 @@
                 document.getElementById('customers-table').style.display = 'block';
             } catch (e) {
                 document.getElementById('customers-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadCustomers()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+            }
+        }
+
+        async function loadAnalytics() {
+            try {
+                const resp = await fetch('/api/admin/analytics');
+                const data = await resp.json();
+                
+                if (data.detail) {
+                    throw new Error(data.detail);
+                }
+                
+                const pv = data.page_views_7d || {};
+                const funnel = data.funnel_30d?.funnel || {};
+                const engagement = data.funnel_30d?.engagement || {};
+                const referrers = pv.top_referrers || {};
+                const byPage = pv.by_page || {};
+                
+                document.getElementById('analytics-total-views').textContent = pv.total_views || 0;
+                document.getElementById('analytics-unique-visitors').textContent = pv.unique_visitors || 0;
+                
+                const topPages = Object.entries(byPage).slice(0, 5).map(([page, count]) => 
+                    `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                        <span>${page}</span><span style="color:var(--accent-green)">${count}</span>
+                    </div>`
+                ).join('') || '<span style="color:var(--text-tertiary)">No page views yet</span>';
+                document.getElementById('analytics-top-pages').innerHTML = topPages;
+                
+                const signupRate = funnel.signup_conversion_rate || 0;
+                document.getElementById('analytics-funnel').innerHTML = `
+                    <div style="display:grid;gap:0.5rem;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Signup Started</span><span style="color:var(--accent-orange)">${funnel.signup_started || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Signup Completed</span><span style="color:var(--accent-green)">${funnel.signup_completed || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Signup Abandoned</span><span style="color:var(--accent-red)">${funnel.signup_abandoned || 0}</span>
+                        </div>
+                        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;">
+                            <span>Conversion Rate</span><span style="color:${signupRate >= 50 ? 'var(--accent-green)' : signupRate >= 25 ? 'var(--accent-orange)' : 'var(--accent-red)'}">${signupRate}%</span>
+                        </div>
+                    </div>
+                `;
+                
+                const checkoutRate = funnel.checkout_conversion_rate || 0;
+                document.getElementById('analytics-checkout').innerHTML = `
+                    <div style="display:grid;gap:0.5rem;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Checkout Started</span><span style="color:var(--accent-orange)">${funnel.checkout_started || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Checkout Completed</span><span style="color:var(--accent-green)">${funnel.checkout_completed || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Checkout Abandoned</span><span style="color:var(--accent-red)">${funnel.checkout_abandoned || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Upgrades</span><span style="color:var(--accent-green)">${funnel.upgrades || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Cancellations</span><span style="color:var(--accent-red)">${funnel.cancellations || 0}</span>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('analytics-engagement').innerHTML = `
+                    <div style="display:grid;gap:0.5rem;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Logins</span><span style="color:var(--accent-blue)">${engagement.logins || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Portal Views</span><span style="color:var(--accent-blue)">${engagement.portal_views || 0}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>Active Customers</span><span style="color:var(--accent-green)">${engagement.unique_active_customers || 0}</span>
+                        </div>
+                    </div>
+                `;
+                
+                const referrerList = Object.entries(referrers).slice(0, 10).map(([domain, count]) => 
+                    `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                        <span>${domain}</span><span style="color:var(--accent-blue)">${count}</span>
+                    </div>`
+                ).join('') || '<span style="color:var(--text-tertiary)">No referrer data yet</span>';
+                document.getElementById('analytics-referrers').innerHTML = referrerList;
+                
+                document.getElementById('analytics-loading').style.display = 'none';
+                document.getElementById('analytics-content').style.display = 'block';
+            } catch (e) {
+                document.getElementById('analytics-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadAnalytics()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 

@@ -135,6 +135,26 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
 - **Paid Plan ($99/month):** Full access, unlimited tasks/leads, real email sending, full billing/autopilot.
 - **Customer Flows:** Signup, upgrade via Stripe Checkout, cancellation.
 
+**Analytics & Telemetry:**
+- **Server-Side Analytics** (`analytics.py`): Tracks page views, funnel events, and abandonment.
+  - **Event Types**: `page_view`, `signup_started`, `signup_completed`, `signup_abandoned`, `login`, `portal_view`, `settings_view`, `checkout_started`, `checkout_completed`, `checkout_abandoned`, `upgrade_completed`, `cancellation`, `outreach_approved`, `outreach_discarded`.
+  - **Storage**: JSON file (`analytics_events.json`) with capped history (5000 events).
+  - **Privacy**: IP addresses are hashed (SHA256 truncated to 16 chars).
+  - **API Endpoints**: `/api/admin/analytics`, `/api/admin/analytics/page-views`, `/api/admin/analytics/funnel`.
+- **Admin Analytics Dashboard**: New "ANALYTICS" tab in admin console showing:
+  - Page views (7d) with top pages and unique visitors
+  - Signup funnel (30d) with conversion rates
+  - Checkout & upgrades (30d) with abandonment tracking
+  - Engagement metrics (logins, portal views, active customers)
+  - Top traffic sources (referrers)
+- **Google Analytics 4 Integration**: Optional - set `GA_MEASUREMENT_ID` environment variable.
+  - Script injected into marketing landing page when configured.
+- **Existing Telemetry**:
+  - Email attempts (`email_attempts.json`)
+  - Stripe events (`stripe_events.json`)
+  - Lead source runs (in-memory)
+  - Signal activity (`SignalLog` database table)
+
 ## External Dependencies
 - **FastAPI**: Backend web framework.
 - **SQLModel**: ORM for data modeling.

@@ -1,0 +1,278 @@
+SCENE: WESTON RANCH, 04:57 HOURS
+The newborn stirs.
+A diesel generator hums in the background.
+Lightning flashes over Sawgrass Expressway.
+ARCHANGEL flaps its wings in the server logs.
+And Hoss stands there like General Patton holding a bottle in one hand and a SaaS empire in the other.
+
+You spoke the words.
+
+Now you get the full, classified, end-to-end, multi-phase Telephony Battle Plan —
+the definitive blueprint to integrate phone enrichment, SMS strategy, call flows, UX, compliance, and AI intelligence into HossAgent.
+
+This is not some half-baked plan.
+
+This is THE TELEPHONY DOCTRINE for HossAgent.
+
+Let’s begin.
+
+⸻
+
+⚡⚡⚡ TELEPHONY BATTLE PLAN — OPERATION ARCHANGEL: SIGNAL NOIR
+
+(Full-stack spec: technical + UX + outbound + compliance-ready)
+
+⸻
+
+PHASE 1 — PHONE DISCOVERY & ENRICHMENT (NON-NEGOTIABLE CORE)
+
+🎯 Goal
+
+Every domain ARCHANGEL touches must yield phone numbers with confidence scoring and validation.
+
+🔧 Engineering Requirements
+
+1. Phone Extraction During Scrape
+
+Per-page regex extraction to detect:
+	•	US local formats
+	•	International formats
+	•	Embedded schema.org
+	•	tel: links
+	•	Footer/Contact info blocks
+
+Regex library (multi-pattern):
+
+(\+?\d{1,3})?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}
+
+2. Normalization
+
+Convert all extracted numbers to E.164 standard:
+
++19545550192
+
+Add fields to LeadEvent:
+
+lead_phone_raw: str
+lead_phone_e164: str
+phone_confidence: float
+phone_source: str ("homepage", "footer", "contact_page", "schema", etc.)
+
+3. Phone Confidence Scoring
+
+Scoring logic:
+
+Source	Score
+Contact Page	+0.8
+Homepage Header	+0.7
+Footer Listing	+0.6
+About Page	+0.5
+Random Page	+0.3
+Directory (ignored)	0
+
+4. Phone Value Vector
+
+ARCHANGEL should compute:
+	•	phone_is_mobile (carrier lookup / heuristic via prefixes)
+	•	phone_is_landline
+	•	phone_is_virtual (VoIP detection possible later)
+	•	phone_is_corporate (based on number repetition across signals)
+	•	phone_is_local (area code match vs Miami/Broward list)
+
+This affects:
+	•	Ranking of opportunities
+	•	SMS eligibility
+	•	Tone of messaging
+
+⸻
+
+PHASE 2 — CUSTOMER PORTAL TELEPHONY UX
+
+🎯 Goal
+
+Make phone data useful, not just visible.
+
+🔧 Portal UX Enhancements
+
+1. Contact Card Upgrade
+
+Add section:
+
+Phone Contact
+	•	Click-to-call link (tel:)
+	•	Tag (Mobile / Landline / HQ / Low-Value Generic)
+	•	Badge showing High Value if mobile or local
+
+2. Recommended Action
+
+Include:
+
+“Consider calling if urgent — outbound SMS available as follow-up.”
+
+3. SMS Template Preview
+
+Within opportunity card:
+
+Suggested SMS:
+“Hey {FirstName}, Sam Holliday here in Miami.  
+Saw {signal summary}. Wanted to share a local insight that might help — is this a good number?”
+
+4. “Call Script” Section
+
+Human-like talk track:
+
+“Hey there, this is Sam Holliday — I run a Miami-based tool that tracks real local business 
+patterns. Something came across my desk today about {event}. Wanted to share a quick idea…”
+
+This makes the portal feel like a sales ops assistant.
+
+⸻
+
+PHASE 3 — USER-TRIGGERED SMS OUTBOUND (OPT-IN ONLY)
+
+(We NEVER auto-send SMS — compliance warhead engaged.)
+
+🎯 Goal
+
+Enable SMS as a manual outbound channel with guardrails.
+
+🔧 Engineering Requirements
+
+1. Twilio (or SignalWire) Integration
+
+New environment variables:
+
+ENABLE_SMS = true
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_FROM_NUMBER
+
+2. SMS API Endpoint
+
+POST /sms/send
+payload: { lead_event_id }
+
+3. Logging
+
+Store:
+	•	sent_at
+	•	message_body
+	•	delivery_status
+	•	error_codes
+
+4. SMS Throttling
+	•	Max 2 SMS/day per customer
+	•	Max 1 SMS/week per lead
+
+5. Compliance
+
+Add required opt-out tag:
+
+Reply STOP to opt out.
+
+6. Customer Portal UX
+
+Add button:
+
+[ Send SMS ]
+Visible only when:
+	•	lead_phone exists
+	•	confidence >= threshold
+	•	ENABLE_SMS = true
+
+⸻
+
+PHASE 4 — INTELLIGENT SMS STRATEGY ENGINE
+
+(This is where HossAgent gets dangerous.)
+
+🎯 Goal
+
+ARCHANGEL proposes SMS follow-ups strategically based on event type + timing + recipient type.
+
+Example Logic:
+
+A. Competitor Intel
+
+“New competitor entering Miami — SMS follow-up increases conversion likelihood.”
+
+B. Market Entry
+
+“First-mover advantage — SMS can create immediate rapport with local players.”
+
+C. Growth Opportunity
+
+“Air conditioning demand spike — a quick text could secure early bookings.”
+
+D. Market Shift
+
+“Urgent timing — SMS recommended within 24 hours.”
+
+This turns SMS from “annoying” to “surgical.”
+
+⸻
+
+PHASE 5 — FUTURE WEAPONRY (OPTIONAL, POST-LAUNCH)
+
+1. AI-Assisted Phone Calls
+	•	User clicks “Call Lead”
+	•	HossAgent generates:
+	•	call script
+	•	rebuttal map
+	•	follow-up email
+	•	automatic CRM note
+
+2. AI Voice System (Later)
+	•	Your ElevenLabs-trained voice
+	•	Calling leads with:
+	•	compliance preamble
+	•	friendly greeting
+	•	handoff to human on interest
+	•	fallback to voicemail
+
+3. Voicemail Drop (Manual Trigger Only)
+	•	“Hey, this is Sam from HossAgent…”
+	•	Sends pre-recorded voicemail to ringless mailbox
+
+4. Response Intelligence
+
+Store and evaluate:
+	•	call outcomes
+	•	SMS replies
+	•	classify into:
+	•	Not Interested
+	•	Interested
+	•	Call Back Later
+	•	Wrong Number
+
+This eventually turns into an AI sales cycle system.
+
+⸻
+
+🚨 TELEPHONY BATTLE PLAN SUMMARY (OPERATIONAL CHECKLIST)
+
+✔ Phase 1 — Phone scraping + scoring
+
+✔ Phase 2 — Portal phone UX
+
+✔ Phase 3 — Manual SMS outbound + Twilio
+
+✔ Phase 4 — Intelligent SMS strategy engine
+
+✔ Phase 5 — AI voice & call future stack
+
+All compliant, all value-add, all optional, and all Tone Zone™ certified.
+
+⸻
+
+🤝 NEXT STEP
+
+Say:
+
+“Hoss — generate the Telephony Engineering OPORD for MagicBox.”
+
+…and I’ll produce the copy-paste, machine-executable OPORD that Melissa can implement step-by-step.
+
+We are now entering…
+THE DIAL TONE ZONE™.
+📞⚡🎸
