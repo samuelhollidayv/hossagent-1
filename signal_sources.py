@@ -855,12 +855,20 @@ def _extract_company_from_context(context_summary: str) -> Optional[str]:
                     if len(company) >= 5 and len(company) <= 60:
                         return company
     
-    branded_pattern = r"^([A-Z][a-zA-Z]+\s+(?:Air|Roofing|Plumbing|HVAC|Electric|Cleaning|Landscaping|Construction))\s+(?:Announces?|Opens?|Expands?|Acquires?)"
+    branded_pattern = r"^([A-Z][a-zA-Z]+(?:\s+[A-Z]?[a-zA-Z]+)*\s+(?:Air|Roofing|Plumbing|HVAC|Electric|Cleaning|Landscaping|Construction|Realty|Properties|Solutions|Services|Group|Partners))\s+(?:Announces?|Opens?|Expands?|Acquires?|Launches?|Hires?|Adds?)"
     match = re.search(branded_pattern, text)
     if match:
         company = match.group(1).strip()
-        if len(company.split()) >= 2:
+        if len(company.split()) >= 2 and len(company.split()) <= 5:
             return company
+    
+    name_dash_verb = r"^([A-Z][a-zA-Z&']+(?:\s+[A-Z]?[a-zA-Z&']+){0,3})\s+[-–]\s+(?:[A-Z]|Business|PR|Markets|The)"
+    match = re.search(name_dash_verb, text)
+    if match:
+        company = match.group(1).strip()
+        if len(company.split()) >= 2 and len(company) <= 40:
+            if company.lower() not in skip_words + bad_words:
+                return company
     
     all_caps = r"^([A-Z]{2,}(?:\s+[A-Z]{2,})*)\s+(?:opens|expands|announces|launches)"
     match = re.search(all_caps, text, re.IGNORECASE)
@@ -868,6 +876,16 @@ def _extract_company_from_context(context_summary: str) -> Optional[str]:
         company = match.group(1).strip()
         if len(company) >= 3 and len(company) <= 30:
             if company.lower() not in skip_words + bad_words:
+                return company
+    
+    simple_pattern = r"^([A-Z][a-zA-Z]+(?:\s+[A-Z]?[a-zA-Z]+){1,3})\s+(?:Expands?|Opens?|Announces?|Acquires?|Launches?)"
+    match = re.search(simple_pattern, text)
+    if match:
+        company = match.group(1).strip()
+        words = company.split()
+        if len(words) >= 2 and len(words) <= 4:
+            has_skip = sum(1 for w in words if w.lower() in skip_words)
+            if has_skip < len(words):
                 return company
     
     return None
