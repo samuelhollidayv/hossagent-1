@@ -37,20 +37,30 @@ from models import (
     LeadEvent,
     Lead,
     Signal,
+    Company,
+    EnrichmentMetrics,
     ENRICHMENT_STATUS_UNENRICHED,
     ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
     ENRICHMENT_STATUS_WITH_PHONE_ONLY,
     ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
     ENRICHMENT_STATUS_OUTBOUND_SENT,
     ENRICHMENT_STATUS_ARCHIVED,
+    ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE,
     ENRICHMENT_STATUS_ENRICHED,
     ENRICHMENT_STATUS_FAILED,
     ENRICHMENT_STATUS_SKIPPED,
+    UNENRICHABLE_REASON_NO_DOMAIN,
+    UNENRICHABLE_REASON_NO_CONTACT_INFO,
+    UNENRICHABLE_REASON_NO_OSINT_PRESENCE,
+    UNENRICHABLE_REASON_BLOCKED_DOMAIN,
+    UNENRICHABLE_REASON_INVALID_COMPANY,
+    DEFAULT_MAX_ENRICHMENT_ATTEMPTS,
 )
 from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary, _is_valid_branded_company
 from outbound_utils import send_lead_event_immediate
 from phone_extraction import discover_phones, get_domain_from_phone, PhoneDiscoveryResult
 from company_name_extraction import extract_company_candidates, get_best_company_name, NameStormResult
+from mission_log import MissionLog, log_enrichment_attempt, should_attempt_action
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -235,6 +245,265 @@ def log_enrichment(
     error_part = f" | Error: {error}" if error else ""
     
     print(f"{prefix}[ENRICHMENT][{action.upper()}]{domain_part}{event_part}{source_part}{details_str}{error_part}")
+
+
+def check_enrichment_budget(lead_event: LeadEvent) -> bool:
+    """
+    ARCHANGEL v2: Check if lead has exceeded its enrichment budget.
+    
+    Returns:
+        True if lead can still be enriched, False if budget exhausted
+    """
+    max_attempts = lead_event.max_enrichment_attempts or DEFAULT_MAX_ENRICHMENT_ATTEMPTS
+    current_attempts = lead_event.enrichment_attempts or 0
+    
+    return current_attempts < max_attempts
+
+
+def mark_as_unenrichable(
+    lead_event: LeadEvent,
+    reason: str,
+    session: Session,
+    mission_log: Optional[MissionLog] = None
+) -> None:
+    """
+    ARCHANGEL v2: Mark a lead as permanently unenrichable.
+    
+    Transitions lead to ARCHIVED_UNENRICHABLE status with reason code.
+    
+    Args:
+        lead_event: LeadEvent to mark
+        reason: One of UNENRICHABLE_REASON_* constants
+        session: Database session
+        mission_log: Optional mission log to persist
+    """
+    lead_event.enrichment_status = ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE
+    lead_event.unenrichable_reason = reason
+    lead_event.last_enrichment_at = datetime.utcnow()
+    
+    if mission_log:
+        mission_log.add_entry(
+            phase="ARCHANGEL",
+            action="mark_unenrichable",
+            result="completed",
+            notes=f"Reason: {reason}"
+        )
+        lead_event.enrichment_mission_log = mission_log.to_json()
+    
+    log_enrichment("ARCHANGEL_UNENRICHABLE", lead_event_id=lead_event.id,
+                   details={"reason": reason, 
+                            "attempts": lead_event.enrichment_attempts,
+                            "max_attempts": lead_event.max_enrichment_attempts})
+    
+    session.add(lead_event)
+    session.commit()
+
+
+def get_mission_log(lead_event: LeadEvent) -> MissionLog:
+    """
+    ARCHANGEL v2: Get or create mission log for a lead.
+    
+    Args:
+        lead_event: LeadEvent to get mission log for
+        
+    Returns:
+        MissionLog instance (may be empty if new)
+    """
+    return MissionLog.from_json(lead_event.enrichment_mission_log)
+
+
+def save_mission_log(lead_event: LeadEvent, mission_log: MissionLog) -> None:
+    """
+    ARCHANGEL v2: Save mission log back to lead event.
+    
+    Args:
+        lead_event: LeadEvent to update
+        mission_log: MissionLog instance to persist
+    """
+    lead_event.enrichment_mission_log = mission_log.to_json()
+
+
+def upsert_company(
+    session: Session,
+    name: str,
+    domain: Optional[str] = None,
+    geography: Optional[str] = None,
+    source_type: Optional[str] = None,
+    source_signal_id: Optional[int] = None,
+    phones: Optional[List[Dict]] = None,
+    emails: Optional[List[Dict]] = None
+) -> Company:
+    """
+    ARCHANGEL v2: Upsert company to Company table.
+    
+    Matching strategy:
+    1. If domain provided, match by domain (unique)
+    2. Otherwise, match by normalized_name + geography
+    
+    Args:
+        session: Database session
+        name: Company name
+        domain: Primary domain (optional)
+        geography: Geographic region (optional)
+        source_type: Signal source type
+        source_signal_id: Source signal ID
+        phones: List of phone dicts
+        emails: List of email dicts
+        
+    Returns:
+        Company instance (existing or new)
+    """
+    normalized = name.lower().strip()
+    normalized = re.sub(r'\s+(inc|llc|corp|co|ltd|llp|pllc|pc|pa)\.?$', '', normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r'[^\w\s]', '', normalized)
+    normalized = ' '.join(normalized.split())
+    
+    existing = None
+    
+    if domain:
+        existing = session.exec(
+            select(Company).where(Company.domain == domain)
+        ).first()
+    
+    if not existing:
+        existing = session.exec(
+            select(Company)
+            .where(Company.normalized_name == normalized)
+            .where(Company.geography == geography)
+        ).first()
+    
+    if existing:
+        existing.last_seen_at = datetime.utcnow()
+        if domain and not existing.domain:
+            existing.domain = domain
+        if phones:
+            existing_phones = json.loads(existing.phones) if existing.phones else []
+            existing_phones.extend(phones)
+            existing.phones = json.dumps(existing_phones[-10:])
+        if emails:
+            existing_emails = json.loads(existing.emails) if existing.emails else []
+            existing_emails.extend(emails)
+            existing.emails = json.dumps(existing_emails[-10:])
+        session.add(existing)
+        session.commit()
+        return existing
+    
+    company = Company(
+        name=name,
+        normalized_name=normalized,
+        domain=domain,
+        geography=geography,
+        source_type=source_type,
+        source_signal_id=source_signal_id,
+        phones=json.dumps(phones) if phones else None,
+        emails=json.dumps(emails) if emails else None
+    )
+    session.add(company)
+    session.commit()
+    session.refresh(company)
+    
+    log_enrichment("COMPANY_CREATED", details={
+        "company_id": company.id,
+        "name": name,
+        "domain": domain,
+        "geography": geography
+    })
+    
+    return company
+
+
+def link_lead_to_company(lead_event: LeadEvent, company: Company, session: Session) -> None:
+    """
+    ARCHANGEL v2: Link a LeadEvent to its canonical Company.
+    
+    Args:
+        lead_event: LeadEvent to link
+        company: Company to link to
+        session: Database session
+    """
+    if lead_event.company_table_id != company.id:
+        lead_event.company_table_id = company.id
+        session.add(lead_event)
+        session.commit()
+        
+        log_enrichment("LEAD_LINKED_TO_COMPANY", lead_event_id=lead_event.id,
+                       details={"company_id": company.id, "company_name": company.name})
+
+
+def update_enrichment_metrics(
+    session: Session,
+    source_type: str,
+    enriched: bool = False,
+    domain_discovered: bool = False,
+    email_discovered: bool = False,
+    phone_discovered: bool = False,
+    unenrichable_reason: Optional[str] = None,
+    outbound_sent: bool = False,
+    reply_received: bool = False
+) -> None:
+    """
+    ARCHANGEL v2: Update enrichment metrics for a source.
+    
+    Args:
+        session: Database session
+        source_type: Signal source type (news, craigslist, etc.)
+        enriched: Whether enrichment succeeded
+        domain_discovered: Whether domain was found
+        email_discovered: Whether email was found
+        phone_discovered: Whether phone was found
+        unenrichable_reason: Reason if marked unenrichable
+        outbound_sent: Whether outbound was sent
+        reply_received: Whether reply was received
+    """
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    metrics = session.exec(
+        select(EnrichmentMetrics)
+        .where(EnrichmentMetrics.source_type == source_type)
+        .where(EnrichmentMetrics.period_start == today)
+    ).first()
+    
+    if not metrics:
+        metrics = EnrichmentMetrics(
+            source_type=source_type,
+            period_start=today
+        )
+        session.add(metrics)
+    
+    metrics.total_leads += 1
+    if enriched:
+        metrics.enriched_leads += 1
+    if domain_discovered:
+        metrics.domains_discovered += 1
+    if email_discovered:
+        metrics.emails_discovered += 1
+    if phone_discovered:
+        metrics.phones_discovered += 1
+    if outbound_sent:
+        metrics.outbound_sent += 1
+    if reply_received:
+        metrics.replies_received += 1
+    
+    if unenrichable_reason:
+        if unenrichable_reason == UNENRICHABLE_REASON_NO_DOMAIN:
+            metrics.unenrichable_no_domain += 1
+        elif unenrichable_reason == UNENRICHABLE_REASON_NO_CONTACT_INFO:
+            metrics.unenrichable_no_contact += 1
+        elif unenrichable_reason == UNENRICHABLE_REASON_NO_OSINT_PRESENCE:
+            metrics.unenrichable_no_osint += 1
+        elif unenrichable_reason == UNENRICHABLE_REASON_BLOCKED_DOMAIN:
+            metrics.unenrichable_blocked += 1
+        elif unenrichable_reason == UNENRICHABLE_REASON_INVALID_COMPANY:
+            metrics.unenrichable_invalid_company += 1
+    
+    if metrics.total_leads > 0:
+        metrics.enrichment_rate = (metrics.enriched_leads / metrics.total_leads) * 100
+    if metrics.outbound_sent > 0:
+        metrics.reply_rate = (metrics.replies_received / metrics.outbound_sent) * 100
+    
+    metrics.last_updated_at = datetime.utcnow()
+    session.add(metrics)
+    session.commit()
 
 
 @dataclass

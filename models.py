@@ -279,6 +279,14 @@ ENRICHMENT_STATUS_WITH_PHONE_ONLY = "WITH_PHONE_ONLY"  # Phone found but no emai
 ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND = "ENRICHED_NO_OUTBOUND"  # Email found, awaiting outbound
 ENRICHMENT_STATUS_OUTBOUND_SENT = "OUTBOUND_SENT"  # Outbound email sent successfully
 ENRICHMENT_STATUS_ARCHIVED = "ARCHIVED"  # Archived (stale or manually archived)
+ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE = "ARCHIVED_UNENRICHABLE"  # Exhausted all enrichment attempts
+
+# Unenrichable reason constants - Why a lead cannot be enriched
+UNENRICHABLE_REASON_NO_DOMAIN = "NO_DOMAIN"  # Could not discover domain after max attempts
+UNENRICHABLE_REASON_NO_CONTACT_INFO = "NO_CONTACT_INFO"  # Domain found but no email/phone discovered
+UNENRICHABLE_REASON_NO_OSINT_PRESENCE = "NO_OSINT_PRESENCE"  # No web presence found
+UNENRICHABLE_REASON_BLOCKED_DOMAIN = "BLOCKED_DOMAIN"  # Domain is in blocked list
+UNENRICHABLE_REASON_INVALID_COMPANY = "INVALID_COMPANY"  # Company name extraction failed completely
 
 # Legacy status mappings (for backward compatibility during transition)
 ENRICHMENT_STATUS_ENRICHING = "ENRICHING"  # Deprecated - maps to UNENRICHED
@@ -286,6 +294,9 @@ ENRICHMENT_STATUS_ENRICHED = "ENRICHED"  # Deprecated - maps to ENRICHED_NO_OUTB
 ENRICHMENT_STATUS_OUTBOUND_READY = "OUTBOUND_READY"  # Deprecated - maps to ENRICHED_NO_OUTBOUND
 ENRICHMENT_STATUS_FAILED = "FAILED"  # Deprecated - maps to UNENRICHED (retry)
 ENRICHMENT_STATUS_SKIPPED = "SKIPPED"  # Deprecated - maps to UNENRICHED (no domain)
+
+# Default enrichment budget
+DEFAULT_MAX_ENRICHMENT_ATTEMPTS = 3
 
 
 class LeadEvent(SQLModel, table=True):
@@ -306,9 +317,11 @@ class LeadEvent(SQLModel, table=True):
     Admin Console shows all states for debugging.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-    company_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    company_id: Optional[int] = Field(default=None, foreign_key="customer.id")  # Customer who owns this lead
     lead_id: Optional[int] = Field(default=None, foreign_key="lead.id")
     signal_id: Optional[int] = Field(default=None, foreign_key="signal.id")
+    macro_event_id: Optional[int] = Field(default=None, foreign_key="macroevent.id")  # EPIC 5: MacroStorm source
+    company_table_id: Optional[int] = Field(default=None, foreign_key="company.id")  # EPIC 2: Canonical company link
     lead_name: Optional[str] = None
     lead_email: Optional[str] = None
     lead_company: Optional[str] = None
@@ -321,9 +334,10 @@ class LeadEvent(SQLModel, table=True):
     outbound_message: Optional[str] = None  # Generated email if contacted
     outbound_subject: Optional[str] = None  # Subject line of sent email
     
-    enrichment_status: Optional[str] = Field(default="UNENRICHED")  # UNENRICHED, ENRICHING, ENRICHED, OUTBOUND_READY, FAILED, SKIPPED
+    enrichment_status: Optional[str] = Field(default="UNENRICHED")  # UNENRICHED, ENRICHING, ENRICHED, OUTBOUND_READY, FAILED, SKIPPED, ARCHIVED_UNENRICHABLE
     enrichment_source: Optional[str] = None  # hunter, clearbit, scrape, signal, manual
     enrichment_attempts: int = Field(default=0)
+    max_enrichment_attempts: int = Field(default=3)  # ARCHANGEL v2: Budget limit for attempts
     last_enrichment_at: Optional[datetime] = None
     enriched_email: Optional[str] = None
     enriched_phone: Optional[str] = None
@@ -332,8 +346,17 @@ class LeadEvent(SQLModel, table=True):
     enriched_social_links: Optional[str] = None  # JSON string of social links (legacy)
     enriched_at: Optional[datetime] = None
     
+    # ARCHANGEL v2: Unenrichable tracking
+    unenrichable_reason: Optional[str] = None  # NO_DOMAIN, NO_CONTACT_INFO, NO_OSINT_PRESENCE, BLOCKED_DOMAIN, INVALID_COMPANY
+    
+    # ARCHANGEL v2: Mission Log - JSON array of enrichment attempt records
+    enrichment_mission_log: Optional[str] = None  # JSON: [{timestamp, pass, phase, action, query, result, notes}]
+    
+    # ARCHANGEL v2: Multi-candidate company names
+    candidate_company_names: Optional[str] = None  # JSON: [{name, confidence, source, raw_match}]
+    
     # ARCHANGEL Confidence Scoring
-    company_name_candidate: Optional[str] = None  # Extracted company name from signal/title
+    company_name_candidate: Optional[str] = None  # Extracted company name from signal/title (best candidate)
     domain_confidence: float = Field(default=0.0)  # 0-1.0, domain match confidence score
     email_confidence: float = Field(default=0.0)  # 0-1.0, email validity and context score
     social_facebook: Optional[str] = None
@@ -597,4 +620,161 @@ class ConversationMetrics(SQLModel, table=True):
     avg_thread_depth: float = Field(default=0.0)  # Avg messages per thread
     
     last_calculated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ============================================================
+# EPIC 2: COMPANY INTELLIGENCE LAYER
+# ============================================================
+
+class Company(SQLModel, table=True):
+    """
+    ARCHANGEL v2: Canonical company entity.
+    
+    Stores enriched company data that can be reused across multiple LeadEvents.
+    When enrichment succeeds, we upsert to this table and link leads to it.
+    This builds our own mini-ZoomInfo over time.
+    
+    Matching strategy:
+    - Primary: normalized_name + geography
+    - Secondary: domain (unique identifier)
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    name: str = Field(index=True)
+    normalized_name: str = Field(index=True)  # Lowercase, stripped, for matching
+    domain: Optional[str] = Field(default=None, index=True, unique=True)  # Primary domain
+    
+    hq_city: Optional[str] = None
+    hq_state: Optional[str] = None
+    hq_country: str = Field(default="US")
+    geography: Optional[str] = None  # Miami, Broward, Palm Beach, etc.
+    
+    phones: Optional[str] = None  # JSON: [{number, type, source_url, confidence}]
+    emails: Optional[str] = None  # JSON: [{email, type, source_url, confidence}]
+    
+    source_confidence: float = Field(default=0.0)  # Overall data quality score
+    source_signal_id: Optional[int] = Field(default=None, foreign_key="signal.id")
+    source_type: Optional[str] = None  # news, craigslist, job_board, reddit, sec_filing
+    
+    tags: Optional[str] = None  # JSON: ["HVAC", "Miami", "commercial"]
+    niche: Optional[str] = None  # Industry/vertical
+    
+    enrichment_complete: bool = Field(default=False)
+    last_enriched_at: Optional[datetime] = None
+    enrichment_attempts: int = Field(default=0)
+    
+    first_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ============================================================
+# EPIC 4: ENRICHMENT METRICS
+# ============================================================
+
+class EnrichmentMetrics(SQLModel, table=True):
+    """
+    ARCHANGEL v2: Global enrichment performance metrics.
+    
+    Tracks enrichment success rates per source to:
+    - Kill or downrank low-yield sources
+    - Tune scoring thresholds
+    - Decide where to invest engineering time
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    source_type: str = Field(index=True)  # news, craigslist, job_board, reddit, sec_filing
+    
+    total_leads: int = Field(default=0)
+    enriched_leads: int = Field(default=0)
+    enrichment_rate: float = Field(default=0.0)  # enriched_leads / total_leads * 100
+    
+    domains_discovered: int = Field(default=0)
+    emails_discovered: int = Field(default=0)
+    phones_discovered: int = Field(default=0)
+    
+    avg_attempts_per_lead: float = Field(default=0.0)
+    
+    unenrichable_no_domain: int = Field(default=0)
+    unenrichable_no_contact: int = Field(default=0)
+    unenrichable_no_osint: int = Field(default=0)
+    unenrichable_blocked: int = Field(default=0)
+    unenrichable_invalid_company: int = Field(default=0)
+    
+    outbound_sent: int = Field(default=0)
+    replies_received: int = Field(default=0)
+    reply_rate: float = Field(default=0.0)  # replies / outbound * 100
+    
+    period_start: datetime = Field(default_factory=datetime.utcnow)
+    period_end: Optional[datetime] = None
+    last_updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ============================================================
+# EPIC 5: MACROSTORM / FORCECAST
+# ============================================================
+
+MACRO_FORCE_TYPE_EXPANSION = "EXPANSION"
+MACRO_FORCE_TYPE_CONTRACTION = "CONTRACTION"
+MACRO_FORCE_TYPE_RESTRUCTURING = "RESTRUCTURING"
+MACRO_FORCE_TYPE_MERGER = "MERGER"
+MACRO_FORCE_TYPE_BANKRUPTCY = "BANKRUPTCY"
+MACRO_FORCE_TYPE_SUPPLY_CHAIN = "SUPPLY_CHAIN"
+MACRO_FORCE_TYPE_REGULATORY = "REGULATORY"
+
+MACRO_SOURCE_SEC_10K = "SEC_10K"
+MACRO_SOURCE_SEC_10Q = "SEC_10Q"
+MACRO_SOURCE_SEC_8K = "SEC_8K"
+MACRO_SOURCE_SEC_S1 = "SEC_S1"
+MACRO_SOURCE_EARNINGS_CALL = "EARNINGS_CALL"
+MACRO_SOURCE_BANKRUPTCY = "BANKRUPTCY"
+MACRO_SOURCE_STATE_REGISTRY = "STATE_REGISTRY"
+
+
+class MacroEvent(SQLModel, table=True):
+    """
+    EPIC 5: MacroStorm / ForceCast strategic intelligence.
+    
+    Captures big-company moves from public filings that create downstream
+    opportunities for small businesses.
+    
+    Example: McDonald's 10-K shows 120 new units in Florida over 3 years
+    -> Creates opportunities for local HVAC, construction, staffing, etc.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    macro_event_id: str = Field(index=True, unique=True)  # e.g., "macro-2025-SEC-MCD-10K-ops-expansion"
+    
+    source_type: str = Field(index=True)  # SEC_10K, SEC_8K, BANKRUPTCY, etc.
+    source_ref: Optional[str] = None  # CIK number, filing ID, etc.
+    source_url: Optional[str] = None
+    
+    company_name: str  # The big company (e.g., "McDonald's Corporation")
+    ticker: Optional[str] = Field(default=None, index=True)  # Stock ticker if public
+    
+    headline: str  # Human-readable summary: "Plans 500 new units, 120 in Florida over 3 years"
+    
+    geographies: Optional[str] = None  # JSON: ["Florida", "Miami-Dade", "Broward"]
+    segments_affected: Optional[str] = None  # JSON: ["QSR", "logistics", "construction"]
+    
+    force_type: str = Field(index=True)  # EXPANSION, CONTRACTION, MERGER, etc.
+    time_horizon: Optional[str] = None  # "1-3_years", "0-12_months", etc.
+    
+    risk_impact: Optional[str] = None  # JSON: {local_competitors: "INCREASED_COMPETITION", ...}
+    
+    raw_snippet: Optional[str] = None  # Actual text from filing/transcript
+    confidence: float = Field(default=0.0)  # Extraction confidence score
+    
+    smb_opportunity_segments: Optional[str] = None  # JSON: [{segment, geo, urgency, window}]
+    
+    leads_generated: int = Field(default=0)
+    leads_enriched: int = Field(default=0)
+    leads_contacted: int = Field(default=0)
+    leads_replied: int = Field(default=0)
+    
+    processed: bool = Field(default=False)
+    processed_at: Optional[datetime] = None
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
