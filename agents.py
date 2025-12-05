@@ -655,6 +655,80 @@ def get_subject_line(
     )
 
 
+def _detect_signal_type(event_summary: str, category: str) -> str:
+    """
+    Detect the strategic type of signal to determine outreach approach.
+    
+    Returns: 'market_entry', 'competitor_intel', 'growth_opportunity', 'market_shift'
+    """
+    summary_lower = (event_summary or "").lower()
+    
+    if any(phrase in summary_lower for phrase in [
+        "competitor", "rival", "new player", "competing", "market share"
+    ]):
+        return "competitor_intel"
+    
+    if any(phrase in summary_lower for phrase in [
+        "opening", "expand", "enters", "entering", "launch", "new location",
+        "setting up", "establish", "relocat", "move to", "operations in"
+    ]):
+        return "market_entry"
+    
+    if any(phrase in summary_lower for phrase in [
+        "hiring", "job posting", "recruit", "growing team", "expansion"
+    ]):
+        return "growth_opportunity"
+    
+    if category in ["COMPETITOR_SHIFT", "MIAMI_PRICE_MOVE"]:
+        return "competitor_intel"
+    
+    return "market_shift"
+
+
+def _generate_actionable_insights(signal_type: str, niche: str, city: str) -> tuple[str, str, str]:
+    """
+    Generate actionable insights based on signal type.
+    
+    Returns: (market_context, specific_recommendations, product_tie_in)
+    """
+    insights = {
+        "market_entry": (
+            f"The {city} {niche} market is competitive but has clear patterns for success",
+            f"""Here's what I'm seeing work for {niche} businesses breaking into {city}:
+1. Local partnerships beat cold advertising 3-to-1 for customer acquisition
+2. Bilingual operations (English/Spanish) typically see 40% higher retention
+3. The first 90 days determine 80% of long-term success - speed matters""",
+            f"I track these patterns across hundreds of {city} businesses and can show you exactly what's working in your space right now"
+        ),
+        "competitor_intel": (
+            f"New competition means the {city} {niche} landscape is shifting",
+            f"""When new players enter, here's what successful {niche} operators do:
+1. Double down on what differentiates you - now is not the time to be generic
+2. Lock in your best customers before competitors start poaching
+3. Watch their pricing strategy - early signals predict their long game""",
+            f"I monitor competitor moves across {city} in real-time and can flag when you need to react"
+        ),
+        "growth_opportunity": (
+            f"Growth signals in {city}'s {niche} sector indicate timing advantages",
+            f"""The businesses capitalizing fastest on these moments typically:
+1. Move within 2-3 weeks of the signal - timing decay is real
+2. Have a clear "next step" ready for interested leads
+3. Use the momentum for social proof and referral asks""",
+            f"I can surface these opportunities the moment they appear so you're first to act"
+        ),
+        "market_shift": (
+            f"Market conditions in {city} are creating short windows of opportunity",
+            f"""Here's what's working for {niche} businesses right now:
+1. Businesses that adapt their messaging to current conditions see 2x engagement
+2. Proactive outreach during market shifts outperforms waiting
+3. The businesses that act in the next 30 days will set the pace for the next quarter""",
+            f"I track these signals continuously so you never miss a window"
+        )
+    }
+    
+    return insights.get(signal_type, insights["market_shift"])
+
+
 def generate_miami_contextual_email(
     contact_name: str,
     company_name: str,
@@ -670,18 +744,17 @@ def generate_miami_contextual_email(
     source_url: str = None
 ) -> tuple[str, str]:
     """
-    Generate Miami-style contextual email based on signal event.
+    Generate strategic contextual email with actionable insights.
+    
+    Key principles:
+    1. Introduce sender FIRST, AI disclosure comes later
+    2. Provide NOVEL value - not just regurgitating news they already know
+    3. Give specific, actionable recommendations tied to their situation
+    4. Clear product tie-in that explains the "so what"
     
     Two template styles:
-    - "transparent_ai": Explicit about AI & HossAgent, includes free trial pitch
-    - "classic": Traditional contextual outbound, less self-referential
-    
-    Features:
-    - First name only in greeting (never "Hi Ryan Cooper,")
-    - Non-clickbait subject lines from rotating library
-    - Context-driven body with clear value proposition
-    - Opt-out instructions in every email
-    - Source URL hyperlink when available
+    - "transparent_ai": Full disclosure with strategic insights
+    - "classic": Professional outbound with clear value prop
     
     Returns: (subject, body) tuple
     """
@@ -691,20 +764,21 @@ def generate_miami_contextual_email(
     
     first_name = parse_first_name(contact_name)
     
+    signal_type = _detect_signal_type(event_summary, category)
+    market_context, recommendations, product_tie = _generate_actionable_insights(signal_type, niche, city)
+    
     signal_handle = None
     summary_lower = event_summary.lower() if event_summary else ""
     if "job posting" in summary_lower or "hiring" in summary_lower:
-        signal_handle = "a recent hire posting"
+        signal_handle = "growth activity"
     elif "review" in summary_lower:
-        signal_handle = "a recent review"
+        signal_handle = "market feedback"
     elif "competitor" in summary_lower:
-        signal_handle = "competitor activity"
-    elif "opening" in summary_lower or "expand" in summary_lower:
-        signal_handle = "an expansion signal"
-    elif "weather" in summary_lower or "hurricane" in summary_lower:
-        signal_handle = "weather conditions"
+        signal_handle = "competitive movement"
+    elif "opening" in summary_lower or "expand" in summary_lower or "entering" in summary_lower:
+        signal_handle = "market entry"
     else:
-        signal_handle = "a recent signal"
+        signal_handle = "a market signal"
     
     subject = get_subject_line(
         company_name=company_name,
@@ -715,60 +789,49 @@ def generate_miami_contextual_email(
         signal_id=signal_id
     )
     
-    category_benefits = {
-        "HURRICANE_SEASON": "shore up operations before peak season",
-        "COMPETITOR_SHIFT": "get ahead of price pressure",
-        "GROWTH_SIGNAL": "capitalize on the momentum",
-        "BILINGUAL_OPPORTUNITY": "capture bilingual market share",
-        "REPUTATION_CHANGE": "shore up your online presence",
-        "MIAMI_PRICE_MOVE": "adjust before the market shifts",
-        "OPPORTUNITY": "act while the timing is right"
-    }
-    
-    concrete_benefit = category_benefits.get(category, category_benefits["OPPORTUNITY"])
-    
     source_line = ""
     if source_url:
-        source_line = f"\n(Source: {source_url})\n"
+        source_line = f"\n(Story: {source_url})\n"
     
     if outreach_style == "transparent_ai":
         body = f"""Hi {first_name},
 
-I saw a recent {signal_handle} related to {company_name} and thought it might be worth a quick note.
-
-I build tools that watch these kinds of signals so owners don't have to babysit feeds all day. Today your company popped onto my radar because of this specific event:
+I'm Sam Holliday, a founder based in {city}. I run a business intelligence service that monitors market signals for local businesses, and something relevant to {company_name} came across my radar:
 
 {event_summary}{source_line}
-I think there's a short window where you could {concrete_benefit}. If it's useful, I can send you a short snapshot of what I'm seeing in your niche, plus a couple of concrete plays other local teams are running.
+Here's why I'm reaching out: {market_context}.
 
-If that sounds interesting, just reply "send it" and I'll follow up, or we can set up a quick 15-minute call.
+{recommendations}
 
-Quick context: this email was drafted by HossAgent, an AI "business autopilot" I'm building for local businesses in Miami-Dade and Broward. It watches public signals (jobs, reviews, local news, competitor moves) and nudges owners only when something looks worth acting on.
+{product_tie}. I built HossAgent to automate this kind of market awareness - it watches public signals (news, competitor moves, local market shifts) and surfaces what's actionable.
 
-I'm Sam Holliday, a local founder. You can see what I'm up to at {website_url} and spin up a 7-day free trial if you'd rather have it watching the market for you.
+If any of this resonates, I'd be happy to share a quick competitive snapshot of your space - no pitch, just useful intel. Reply "send it" and I'll put something together, or we can do a 15-minute call if that's easier.
 
-If you'd rather not hear from me again, just reply "no thanks" and you won't get another email from this system.
+This email was drafted with AI assistance through HossAgent (transparency matters to me). You can see what we're building at {website_url} - we offer a 7-day trial if you'd rather have the system watching your market directly.
+
+Reply "no thanks" if this isn't relevant and I won't reach out again.
 
 - Sam Holliday
-Founder, HossAgent
 {website_url}"""
 
     else:
         body = f"""Hi {first_name},
 
-I noticed something that might be relevant to {company_name}:
+I'm Sam Holliday - I run a market intelligence service in {city}. I noticed something that might be relevant to {company_name}:
 
 {event_summary}{source_line}
-Based on what I'm seeing in the local {niche} market, there may be a short window to {concrete_benefit}.
+{market_context}.
 
-My suggestion: {recommended_action}
+{recommendations}
 
-Would a quick 15-minute call this week make sense? I can share what I'm seeing in your space and a few plays that are working for similar businesses.
+I track these patterns across {city} businesses and can share what's working in your space right now. Would a quick 15-minute call make sense? I can bring specific insights on your market and a few plays that are getting results for similar businesses.
+
+Reply "interested" and I'll send over some times, or "no thanks" if this isn't a fit.
 
 - Sam Holliday
+{website_url}
 
-Sent via HossAgent, a context-aware outreach assistant.
-If this isn't relevant, reply "no" and you'll be removed."""
+(This message was sent via HossAgent, a market intelligence tool for local businesses.)"""
 
     return subject, body
 

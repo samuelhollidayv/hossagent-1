@@ -245,6 +245,25 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
             reason="No email address available"
         )
     
+    GENERIC_PREFIXES = ['info', 'contact', 'hello', 'support', 'admin', 'sales', 'enquiry', 
+                        'enquiries', 'office', 'mail', 'help', 'general', 'team']
+    email_local = contact_email.split('@')[0].lower() if '@' in contact_email else ''
+    is_generic_inbox = any(email_local == prefix or email_local.startswith(f"{prefix}.") 
+                           for prefix in GENERIC_PREFIXES)
+    
+    email_confidence = getattr(lead_event, 'email_confidence', 0.5)
+    
+    if is_generic_inbox:
+        if email_confidence < 0.4:
+            print(f"[IMMEDIATE-SEND] Skipping low-confidence generic inbox {contact_email} (confidence={email_confidence:.2f})")
+            return ImmediateSendResult(
+                success=False,
+                action="skipped",
+                reason=f"Generic inbox ({email_local}@) with low confidence - continuing enrichment"
+            )
+        else:
+            print(f"[IMMEDIATE-SEND] Allowing generic inbox {contact_email} (confidence={email_confidence:.2f}) - no person-like email available")
+    
     if lead_event.do_not_contact:
         return ImmediateSendResult(
             success=False,
