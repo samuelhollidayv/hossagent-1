@@ -1,0 +1,634 @@
+HossAgent — Vision, Current State, and Enrichment Problem Statement
+Author: Samuel Holliday (“Hoss”)
+Context: Alignment doc for Melissa + Deep Research Pass
+
+============================================================
+SECTION 0 — PURPOSE OF THIS DOCUMENT
+============================================================
+
+This document is meant to be a **single source of truth** about:
+
+1. What HossAgent is and aspires to be.
+2. What the current system architecture and behavior *appears* to be.
+3. What we believe the core bottlenecks are (especially enrichment).
+4. What we’ve aligned on as a path forward.
+
+Goal for Melissa:
+- Review for **accuracy vs. the actual implementation**.
+- Call out any incorrect assumptions or missing constraints.
+- Once corrected, this document becomes the “context packet” for a focused deep-research ChatGPT session to validate/extend our strategy.
+
+---
+
+============================================================
+SECTION 1 — WHAT HOSSAGENT IS (TODAY)
+============================================================
+
+HossAgent is an **autonomous business development engine** designed to identify real-world business opportunities and initiate personalized outreach on behalf of small businesses. It continuously:
+
+- Monitors the external environment.
+- Detects meaningful events (“signals”).
+- Converts them into actionable leads.
+- Enriches contact information (domain, email, phone).
+- Generates outreach messages.
+- Sends those messages and tracks outcomes.
+
+All of this runs in a continuous “autopilot loop.”
+
+### 1.1 Core Subsystems (As We Understand Them)
+
+- **SignalNet**  
+  - Gathers external signals (currently mostly *news*).
+  - Detects business activity: openings, expansions, hiring, market shifts.
+  - Periodic runs (e.g., every 15 minutes) using news search queries tuned to:
+    - Geography: “Miami, Broward, South Florida”
+    - Niche: med spa, HVAC, realtor, roofing, immigration attorney, marketing agency
+  - Results are scored (0–100). High-scoring ones become LeadEvents.
+
+- **LeadEngine**  
+  - Converts raw signals into structured **LeadEvent** records.
+  - Fields typically include:
+    - Summary of the event
+    - Geography
+    - Category/niche
+    - Some inferred or extracted “company name” (when possible)
+    - Urgency/priority scores
+    - Enrichment status
+
+- **ARCHANGEL (Enrichment Engine)**  
+  - Attempts to determine:
+    - Company name (NAMESTORM-style extraction)
+    - Website domain (DOMAINSTORM logic)
+    - Email addresses (via web scraping, patterns, heuristics)
+    - Phone numbers (PHONESTORM Lite)
+  - Uses a layered approach:
+    - Check existing fields and URLs
+    - Parse article source / target page
+    - Scrape website for contact info
+    - Potentially use DuckDuckGo or similar for domain discovery
+  - Classification of leads into:
+    - UNENRICHED
+    - WITH_DOMAIN_NO_EMAIL
+    - ENRICHED_NO_OUTBOUND
+    - OUTBOUND_SENT
+    - ARCHIVED (stale/unresolvable)
+  - Enrichment pipeline runs periodically, picking up unenriched events and processing them.
+
+- **Outbound Engine**  
+  - Uses **SendGrid** with authenticated `hossagent.net` domain.
+  - From: `HossAgent <hello@hossagent.net>`
+  - Reply-To: `sam@hossagent.net` (or similar configured contact).
+  - Generates personalized email copy that:
+    - Introduces Sam / the product first.
+    - Explains the event that triggered outreach.
+    - Provides a “so what” (why this matters for the recipient).
+    - Recommends 2–3 practical steps.
+    - Mentions AI assistance in a transparent but non-cringe way.
+  - Currently sends emails automatically when leads reach ENRICHED_NO_OUTBOUND.
+
+- **Customer Portal (`/portal`)**  
+  - Customer-facing view of opportunities.
+  - Shows cards for each opportunity with:
+    - Status (“EMAIL SENT”, etc.)
+    - Lead/company name.
+    - Clickable email address and domain, when present.
+    - Explanation of “Why this opportunity?”
+    - Full email subject + body used for outreach.
+  - Intention: Only show **useful, enriched, actionable** opportunities (OUTBOUND_SENT and maybe ENRICHED_NO_OUTBOUND in review mode).
+
+- **Admin Console (`/admin`)**  
+  - Operator-facing dashboard.
+  - Shows:
+    - Signals.
+    - LeadEvents with enrichment status.
+    - Counts per status (UNENRICHED, WITH_DOMAIN_NO_EMAIL, ENRICHED_NO_OUTBOUND, OUTBOUND_SENT, ARCHIVED).
+    - Some logging, metrics, debug tools.
+  - Currently still “messy”/crime-scene-ish, but functional for debugging.
+
+- **Billing / Subscription**  
+  - Stripe enabled in production.
+  - Product + price created on startup.
+  - Supports:
+    - 7-day free trial.
+    - Paid subscription around $99/month.
+  - Limited number of early customers (1 paid, 1 trial as last seen).
+
+### 1.2 What’s Actually Running Right Now (Approximate)
+
+- SignalNet:
+  - Thousands of signals collected over ~48 hours (e.g., 4,000+).
+  - Several hundred LeadEvents created (e.g., 300+).
+- Enrichment:
+  - Great majority of leads stuck as UNENRICHED.
+  - A small number (≈5–6) successfully enriched and emailed.
+  - Enrichment success rate estimated ~1–2% of total leads.
+- Outbound:
+  - A handful of real emails sent to real companies (Miami Best Roofing, Cool Running Air, MYSHOP, etc.).
+  - No replies yet (sample size too small to judge).
+
+---
+
+============================================================
+SECTION 2 — WHAT HOSSAGENT ASPIRES TO BE (VISION)
+============================================================
+
+HossAgent aims to become a **fully autonomous growth agent for small businesses**, not just an email blaster. The long-term aspirations:
+
+### 2.1 Real-Time Opportunity Detection
+
+- Expand beyond news to detect business opportunities *wherever* they surface:
+  - Social posts.
+  - Reddit / forums.
+  - Craigslist / classifieds.
+  - Job boards.
+  - Google Maps / local listing changes.
+  - Reviews (Yelp/Google).
+  - Other SMB chatter channels.
+- Notice relevant events **before** competitors do.
+
+### 2.2 Tenacious, Multi-Pass Enrichment
+
+- Enrichment engine acts like a **search mission**, not a single function call:
+  - Multi-pass attempts.
+  - Escalating strategies and sources.
+  - Repeated, bounded attempts until:
+    - Contact info is found, or
+    - We can confidently mark the lead unresolvable.
+- Architecture shifts from a linear pipeline to a **recursive, feedback-driven system**.
+
+### 2.3 Personalized, Context-Aware Outreach
+
+- Outreach should always:
+  - Reference the specific event that triggered the lead.
+  - Provide a clear “so what” and recommendations.
+  - Tie back into the customer’s product/service value prop.
+- Goal: Emails (and eventual SMS / calls) feel **timely, specific, and actionable** — not generic spam.
+
+### 2.4 Autonomous “Set-and-Forget” Pipeline
+
+- Users configure once. HossAgent runs continuously.
+- Requirements:
+  - Reliable enrichment throughput.
+  - Steady outbound volume.
+  - Clear reporting & analytics to build trust.
+- Outcome: Users actually experience HossAgent as a **passive income machine**, not a thing they constantly babysit.
+
+### 2.5 SMB-Focused Intelligence Infrastructure
+
+- Instead of proprietary data like Apollo/ZoomInfo, HossAgent uses:
+  - Public, legal, OSINT-style information.
+  - Web scraping.
+  - Open search.
+  - Public signals.
+- Goal: Build an SMB intelligence layer that does **not** rely on gray-area data brokerage.
+
+### 2.6 Scalable Multi-Tenant Platform
+
+- Many customers running at once:
+  - Per-tenant signal filters.
+  - Per-tenant enrichment.
+  - Per-tenant outbound.
+- Shared infrastructure with:
+  - Caching.
+  - Throttling.
+  - Deduplication.
+  - Robust error handling.
+
+---
+
+============================================================
+SECTION 3 — WHY HOSSAGENT EXISTS
+============================================================
+
+Most small businesses:
+
+- Are overwhelmed running day-to-day operations.
+- Don’t have time or skill to:
+  - Track local competitors.
+  - Understand market shifts.
+  - Monitor hiring/expansion.
+  - Do proactive outbound.
+
+HossAgent fills this gap by becoming:
+
+- The **eyes and ears** of the business.
+- The **analyst** detecting change.
+- The **SDR** identifying decision-makers.
+- The **copywriter** drafting outreach.
+- The **automation engine** executing consistently.
+
+Where SMBs are reactive, HossAgent makes them **strategically proactive**.
+
+---
+
+============================================================
+SECTION 4 — WHAT MUST BE TRUE FOR HOSSAGENT TO SUCCEED
+============================================================
+
+For this to be a viable product (not just a cool demo), several conditions must hold.
+
+### 4.1 Reliable Enrichment Throughput
+
+- We need at least **5–10%** of signals to become **enriched, contactable leads**.
+- Current state appears to be closer to ~1–2%.
+- Below ~5%, customers will feel:
+  - “The machine doesn’t really find anything for me.”
+  - “The value isn’t worth $99/month.”
+
+### 4.2 Multi-Source Signals (Beyond News)
+
+News alone is not enough. To get SMB-relevant leads, we need:
+
+- Reddit local subreddits.
+- Craigslist / classifieds.
+- Job postings.
+- Google Maps changes.
+- Review surges.
+- Social mentions (where legal).
+
+These are the actual “obituary pages” for small businesses: hire, expand, move, open, close, pivot.
+
+### 4.3 Recursive Enrichment + Clear Stop Conditions
+
+ARCHANGEL must:
+
+- Try, fail, broaden, retry.
+- Use multiple NameStorm variants.
+- Use multiple search engines / scrapers.
+- Use phone numbers as anchors.
+- Track each attempt.
+- Stop only when a defined **budget** is exhausted.
+
+Then mark leads as:
+
+- ENRICHED (success)  
+- ARCHIVED_UNENRICHABLE (terminal failure with explicit reason)
+
+### 4.4 Evidence-Based Optimization
+
+We must measure:
+
+- Enrichment yield by:
+  - Source type (news vs. Reddit vs. jobs).
+  - Geography.
+  - Industry/niche.
+  - Strategy (which enrichment methods work).
+
+Then:
+
+- Disable low-yield sources.
+- Prioritize high-yield ones.
+- Tune thresholds (e.g., scoring).
+- Tighten or expand search budgets based on ROI.
+
+### 4.5 Clean Customer vs. System Boundaries
+
+- Customer Portal:
+  - Show only actionable, enriched stuff (OUTBOUND_SENT + maybe ENRICHED_NO_OUTBOUND).
+- Admin Console:
+  - Show the messy internals: failures, retries, archival, etc.
+
+---
+
+============================================================
+SECTION 5 — CURRENT PROBLEM SET (OBSERVED FACT PATTERN)
+============================================================
+
+This is the “whiteboard truth” of what seems to be happening today, based on logs and behavior.
+
+### 5.1 News-Only Signals Are Weak Fuel for SMB Enrichment
+
+Observed:
+
+- News rarely includes explicit SMB contact info.
+- Many articles describe:
+  - Projects.
+  - Developers.
+  - Macro-economic stories.
+  - Large corporate moves.
+- Often use vague references like “the developer” or “the firm.”
+- Often behind aggregators (e.g., `news.google.com`), not origin domains.
+
+Impact:
+
+- ARCHANGEL doesn’t reliably get:
+  - Clear company names.
+  - Clean local SMB identities.
+- Result:
+  - Very low enrichment success (~1–2%).
+  - Only a handful of email-ready leads.
+
+### 5.2 Enrichment Was Originally One-Shot
+
+Originally:
+
+- ARCHANGEL:
+  - Takes a LeadEvent.
+  - Attempts to find:
+    - Company name.
+    - Domain.
+    - Email.
+    - Phone.
+  - If unsuccessful → essentially moves on.
+
+Impact:
+
+- Leads die silently.
+- No recursion.
+- No retry / escalation.
+- No fallback passes.
+- No path to reuse improved algorithms later.
+
+Net effect: A growing pile of **zombie UNENRICHED** leads.
+
+### 5.3 Lack of “Where We Already Looked” Memory
+
+Current behavior (as inferred):
+
+- ARCHANGEL does not fully track:
+  - Which URLs it scraped.
+  - Which queries it used.
+  - Which domains it tried.
+  - Which phone numbers it validated.
+- So repeated attempts may:
+  - Redo the same failed work.
+  - Not build any “negative evidence” (places we know *don’t* work).
+
+Impact:
+
+- Wasted CPU / bandwidth.
+- No learning.
+- Hard to reason about why leads are unresolvable.
+
+### 5.4 No Structured Stop Conditions
+
+Right now:
+
+- Leads either get enriched or effectively stall.
+- There is no explicit:
+  - `max_attempts` or `max_cost` per lead.
+  - Terminal state like ARCHIVED_UNENRICHABLE with a reason.
+
+Impact:
+
+- Backlog grows.
+- System feels non-deterministic from operator POV.
+- It’s hard to say:
+  - “We’ve truly exhausted this lead.”
+  - “We should never try this one again.”
+
+### 5.5 No Model of Source Quality
+
+SignalNet does not yet (as far as we can tell):
+
+- Track enrichment yield per source.
+- Score sources by convertibility.
+- Automatically disable low-yield channels.
+
+Impact:
+
+- All sources equal.
+- No natural optimization over time.
+- Hard to answer “which firehose is worth drinking from?”
+
+### 5.6 Weak Coupling Between SignalNet and ARCHANGEL
+
+Current architecture:
+
+- `SignalNet → LeadEvent → ARCHANGEL → (fail) → dead-ish`
+
+Desired architecture:
+
+- `SignalNet → LeadEvent → ARCHANGEL`
+  - On fail:
+    - Expand search.
+    - Pull additional signals for same entity.
+    - Use NameStorm alternatives.
+    - Retry with new information.
+  - Then either:
+    - Succeed (ENRICHED).
+    - Or mark as ARCHIVED_UNENRICHABLE.
+
+Impact:
+
+- Today there is no real feedback loop.
+- You feel like the system is “disconnected” and doesn’t fight for each lead.
+
+### 5.7 Underutilization of OSINT Sources
+
+Not yet fully implemented:
+
+- Reddit.
+- Craigslist.
+- Job boards.
+- Local listing changes.
+- Reviews.
+
+Impact:
+
+- Pipeline enriched mostly on macro news about:
+  - Data centers.
+  - Large developers.
+  - Macro Boomer Business Journal content.
+- Very little of this maps cleanly to the SMB world HossAgent is supposed to serve.
+
+### 5.8 No Learning Over Time
+
+The system:
+
+- Does not store patterns for repeated failures.
+- Does not build deny-lists or heuristics like:
+  - “This pattern never yields domains.”
+  - “This niche+source combo is a waste.”
+- ARCHANGEL behaves like:
+  - Strong but amnesiac.
+  - No long-term meta-knowledge.
+
+---
+
+============================================================
+SECTION 6 — WHAT WE’VE ALIGNED ON AS THE SOLUTION DIRECTION
+============================================================
+
+### 6.1 ARCHANGEL Must Become Multi-Pass and Recursive
+
+Key changes (conceptual):
+
+- Treat enrichment as a process with:
+  - Multiple passes.
+  - Escalating strategies.
+  - Bounded budgets.
+- For each LeadEvent:
+  - Attempt enrichment using basic methods.
+  - On failure, log what was tried.
+  - Retry later using additional sources or NameStorm variants.
+  - Terminate only after exhausting a defined budget.
+
+### 6.2 Introduce Explicit Budgets and Stop Conditions
+
+Per lead, define something like:
+
+- `max_attempts` (N attempts).
+- `max_scrape_depth` (e.g., N pages).
+- `max_search_variants`.
+- `max_time_window` before archival.
+
+Terminal states:
+
+- ENRICHED_NO_OUTBOUND → OUTBOUND_SENT  
+- UNENRICHED with budget exhausted → ARCHIVED_UNENRICHABLE.
+
+This gives us a “land-nav” style discipline:
+- We know where we *have* searched.
+- We know when to move on.
+
+### 6.3 Track Enrichment History
+
+ARCHANGEL needs a per-lead “mission log”:
+
+- URLs scraped.
+- Domains attempted.
+- Search engines hit.
+- Search queries used.
+- Phone numbers found/validated.
+- Intermediate candidate names.
+
+Benefits:
+
+- No re-covering old ground.
+- Easier debugging (“what actually happened?”).
+- Basis for machine learning or heuristic refinement later.
+
+### 6.4 NameStorm: Multiple Company Name Candidates with Confidence
+
+Instead of returning:
+
+- `company_name = None`
+
+We want NameStorm to return:
+
+```json
+[
+  {"name": "Cool Running Air", "confidence": 0.92},
+  {"name": "Cool Running HVAC Services", "confidence": 0.78},
+  {"name": "Running Air LLC", "confidence": 0.41}
+]
+
+DomainStorm then uses these as search vectors.
+
+6.5 DomainStorm: Layered, Persistent Domain Discovery
+
+DomainStorm should:
+	•	Use multiple layers:
+	1.	Existing fields (lead_domain, original URL).
+	2.	Article links / structured data.
+	3.	Direct website scraping.
+	4.	Search engine query (e.g., DuckDuckGo).
+	5.	Phone-based triangulation (match phone ↔ domain).
+	•	Keep trying across attempts until:
+	•	Domain is found.
+	•	Or budget is exhausted.
+
+6.6 PhoneStorm Lite as a Discovery Aid
+
+Phones should be:
+	•	Extracted and validated.
+	•	Typed (mobile, landline, toll-free, VoIP).
+	•	Used in:
+	•	Reverse search heuristics.
+	•	Identity triangulation.
+	•	Domain disambiguation (which “Cool Running” is this?).
+
+Phone numbers are often more stable than domains in SMB land.
+
+6.7 Multi-Source SignalStorm
+
+Once enrichment is not the obvious bottleneck, we want to add:
+	•	Reddit local business chatter.
+	•	Craigslist / offer posts.
+	•	Job boards (e.g., “now hiring HVAC techs in X”).
+	•	Other SMB-rich OSINT sources.
+
+Goal:
+	•	Shift from macro news to true SMB signals, raising both:
+	•	Enrichment success rate.
+	•	Relevance of opportunities.
+
+6.8 Shift from Linear to Cyclical Architecture
+
+From:
+	•	Signal → Lead → Enrich → Fail → Dead
+
+To:
+	•	Signal → Lead → Enrich (Pass 1)
+	•	→ Fail → Enrich (Pass 2, expanded)
+	•	→ Fail → Enrich (Pass 3, external sources)
+	•	→ … → ARCHIVED_UNENRICHABLE (with reason)
+
+Where each pass:
+	•	Logs what happened.
+	•	Uses more context than the last.
+	•	Changes the state machine.
+
+6.9 Add Global Learning / Meta-Knowledge
+
+Over time:
+	•	Store metrics like:
+	•	yield_by_source.
+	•	yield_by_niche.
+	•	yield_by_geography.
+	•	yield_by_strategy.
+	•	Use that to:
+	•	Turn noisy pipes down or off.
+	•	Turn high ROI pipes up.
+	•	Adjust scoring and filtering thresholds.
+
+⸻
+
+============================================================
+SECTION 7 — OPERATING PRINCIPLES GOING FORWARD
+
+7.1 Don’t Expand Geography Until Enrichment Works
+	•	If enrichment is 1–2% in Miami/Broward:
+	•	Expanding globally just adds noise and cost.
+	•	We first prove:
+	•	Enrichment can get to 5–10% on a constrained region.
+	•	Then we scale to more geos.
+
+7.2 Tactical Pause (Ron Popeil Mode)
+	•	Stop thrashing the code and constantly tweaking settings.
+	•	Let the upgraded Triple-Stack (NameStorm + DomainStorm + PhoneStorm Lite) run for a meaningful window (e.g., 24–48 hours of real cycles).
+	•	Measure:
+	•	How many new signals came in.
+	•	How many became enriched leads.
+	•	How many got archived as unresolvable.
+	•	Only after this observation window:
+	•	Decide whether SignalStorm expansion and feedback loops are needed immediately or not.
+
+⸻
+
+============================================================
+SECTION 8 — ASK TO MELISSA
+
+Melissa, can you sanity-check this doc against the actual system you’ve built?
+
+Specifically:
+	1.	Architecture Accuracy
+	•	Is this description of SignalNet, LeadEngine, ARCHANGEL, Outbound, Portal, and Admin Console accurate?
+	•	Are there components or flows missing or misunderstood?
+	2.	Enrichment Behavior
+	•	Does ARCHANGEL currently behave as described (mostly one-pass, limited retries)?
+	•	How much of NameStorm / DomainStorm / PhoneStorm behavior is already implemented vs. planned?
+	3.	Status Lifecycle
+	•	Are these the correct states and transitions?
+	•	Are there any internal statuses we didn’t mention that matter?
+	4.	Metrics / Current Numbers
+	•	Are the rough numbers (lead counts, enrichment rates, etc.) directionally correct?
+	5.	Constraints
+	•	Are there technical or infra constraints (e.g., search engine throttling, scraping limits, runtime limits) that this plan needs to respect?
+
+Once we incorporate your corrections, this document becomes our final context packet to:
+	•	Feed into a dedicated “deep research” ChatGPT session.
+	•	Stress-test our chosen strategies against how Apollo/ZoomInfo/Hunter-like players solve enrichment.
+	•	Identify any missing pieces we must add to make HossAgent’s enrichment pipeline competitive and robust.
+
