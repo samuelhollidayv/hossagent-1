@@ -270,13 +270,21 @@ class Signal(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-# Enrichment status constants
-ENRICHMENT_STATUS_UNENRICHED = "UNENRICHED"
-ENRICHMENT_STATUS_ENRICHING = "ENRICHING"
-ENRICHMENT_STATUS_ENRICHED = "ENRICHED"
-ENRICHMENT_STATUS_OUTBOUND_READY = "OUTBOUND_READY"
-ENRICHMENT_STATUS_FAILED = "FAILED"
-ENRICHMENT_STATUS_SKIPPED = "SKIPPED"
+# Enrichment status constants - Lifecycle states for LeadEvents
+# Customer-facing states: ENRICHED_NO_OUTBOUND (review mode), OUTBOUND_SENT
+# Admin-only states: UNENRICHED, WITH_DOMAIN_NO_EMAIL
+ENRICHMENT_STATUS_UNENRICHED = "UNENRICHED"  # No domain discovered yet
+ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL = "WITH_DOMAIN_NO_EMAIL"  # Domain found, email not yet discovered
+ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND = "ENRICHED_NO_OUTBOUND"  # Email found, awaiting outbound
+ENRICHMENT_STATUS_OUTBOUND_SENT = "OUTBOUND_SENT"  # Outbound email sent successfully
+ENRICHMENT_STATUS_ARCHIVED = "ARCHIVED"  # Archived (stale or manually archived)
+
+# Legacy status mappings (for backward compatibility during transition)
+ENRICHMENT_STATUS_ENRICHING = "ENRICHING"  # Deprecated - maps to UNENRICHED
+ENRICHMENT_STATUS_ENRICHED = "ENRICHED"  # Deprecated - maps to ENRICHED_NO_OUTBOUND
+ENRICHMENT_STATUS_OUTBOUND_READY = "OUTBOUND_READY"  # Deprecated - maps to ENRICHED_NO_OUTBOUND
+ENRICHMENT_STATUS_FAILED = "FAILED"  # Deprecated - maps to UNENRICHED (retry)
+ENRICHMENT_STATUS_SKIPPED = "SKIPPED"  # Deprecated - maps to UNENRICHED (no domain)
 
 
 class LeadEvent(SQLModel, table=True):
@@ -286,15 +294,15 @@ class LeadEvent(SQLModel, table=True):
     Each event represents a contextual moment for outreach.
     Categories are Miami-tuned: HURRICANE_SEASON, COMPETITOR_SHIFT, GROWTH_SIGNAL, etc.
     
-    Lifecycle tracking mirrors Lead lifecycle for consistency.
+    Lifecycle States (Domain-First Pipeline):
+    - UNENRICHED: No domain discovered yet (admin-only)
+    - WITH_DOMAIN_NO_EMAIL: Domain found but no email discovered (admin-only)
+    - ENRICHED_NO_OUTBOUND: Email found, awaiting outbound (review mode visible)
+    - OUTBOUND_SENT: Outbound email sent (customer visible)
+    - ARCHIVED: Stale or manually archived (hidden)
     
-    Enrichment Status:
-    - UNENRICHED: Not yet processed by enrichment pipeline
-    - ENRICHING: Currently being enriched
-    - ENRICHED: Successfully enriched with contact data
-    - OUTBOUND_READY: Enriched and ready for outbound
-    - FAILED: Enrichment attempted but failed
-    - SKIPPED: Skipped (e.g., no domain available)
+    Customer Portal only shows: OUTBOUND_SENT (and ENRICHED_NO_OUTBOUND in REVIEW mode)
+    Admin Console shows all states for debugging.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     company_id: Optional[int] = Field(default=None, foreign_key="customer.id")

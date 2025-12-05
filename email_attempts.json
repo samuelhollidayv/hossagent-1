@@ -70,5 +70,23 @@
       "date": "Fri, 05 Dec 2025 06:16:38 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-05T06:27:49.547182",
+    "lead_name": null,
+    "company": "Cool Running Air",
+    "to_email": "info@coolrunningair.com",
+    "subject": "Context on a shift near South Florida",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "i4WYB8b8S52jeEpE7SpWKg",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 06:27:49 GMT",
+      "response_body": "{}"
+    }
   }
 ]

@@ -1,0 +1,358 @@
+Yep, this is the right instinct: no more cute features until the beast can find domains on command.
+
+Right now your bottleneck is very clean:
+
+tons of good signals → lots of LeadEvents → no domain → enrichment skips → outbound starves.
+
+So we turn HossAgent into a domain-hunting demon and we hide all the half-baked junk from customers until it grows teeth.
+
+I’ll break it in two parts:
+	1.	How the pipeline should work (in plain terms)
+	2.	A MagicBox prompt you can paste in to make it real
+
+⸻
+
+1. What we want the machine to do
+
+A. LeadEvent lifecycle (internal reality vs. customer reality)
+
+Internal states (for us):
+	•	RAW_SIGNAL – just the Signal, no LeadEvent yet
+	•	LEAD_EVENT_UNENRICHED – has summary/geo/etc., but no domain
+	•	LEAD_EVENT_WITH_DOMAIN – we have a domain, enrichment can work
+	•	ENRICHED_NO_EMAIL – domain found, but no usable email yet
+	•	ENRICHED_WITH_EMAIL – domain + email + basic context
+	•	OUTBOUND_SENT – email fired, tracked, logged
+
+Customer should only see:
+	1.	Enriched + email + SENT
+	•	i.e., “We found this, we contacted them on your behalf.”
+	2.	Optionally: Enriched + email + READY_TO_SEND (if you ever add review mode)
+
+Everything else:
+	•	UNENRICHED
+	•	WITH_DOMAIN_BUT_NO_EMAIL
+	•	FAILED_ENRICHMENT
+
+→ All of that lives in the back room: admin-only, sortable, debuggable.
+Customer portal is only “shit you can actually use.”
+
+⸻
+
+B. Domain-finding logic: turn it to 11
+
+We want a layered, ruthless strategy:
+
+1. Extract from the signal itself
+For each Signal / LeadEvent:
+	•	Look at:
+	•	source_url (article link)
+	•	summary
+	•	title
+	•	any existing company_name
+
+Heuristics:
+	•	If source_url is clearly a company site (not news):
+	•	e.g., https://coolrunningair.com/about-us → domain = coolrunningair.com
+	•	If source_url is news / PR / directory:
+	•	parse the article page:
+	•	look for outbound links with anchor text matching the company name (e.g., “Cool Running Air,” “Sunny Bliss Plumbing & Air”)
+	•	if exactly one domain looks like the company → use that
+
+2. Web search fallback
+If we don’t have a domain yet:
+	•	Construct a search query:
+	•	"Cool Running Air" Miami HVAC
+	•	"Sunny Bliss Plumbing & Air" South Florida
+	•	Scrape the top 3–5 results:
+	•	prefer:
+	•	not review platforms (yelp.com, google.com/maps, facebook.com, etc.)
+	•	unique domains whose name matches the company token (coolrunningair, sunnyblissroofing, etc.)
+	•	Pick the strongest match:
+	•	company name tokens appear in domain
+	•	not obviously a directory / aggregator
+
+3. Guardrails (no garbage domains)
+Before you accept a domain:
+	•	Reject:
+	•	facebook.com, instagram.com, linkedin.com, yelp.com, angi.com, etc.
+	•	random news domains (miaminewsnow.com) unless the company is clearly the site itself
+	•	Basic sanity:
+	•	TLD is sane: .com, .net, .org, .biz, common country codes
+	•	No 100% generic junk like localhvacquote.com unless the company is actually named that.
+
+If no good candidate is found → keep it UNENRICHED and do not bother the customer.
+
+⸻
+
+C. Enrichment + outbound rules
+
+Once you have a domain:
+	1.	Try scrape-first (what you’re already doing):
+	•	/contact, /about, footer
+	•	collect emails, phones, contact form URLs
+	•	choose a sane email for outbound:
+	•	priority:
+	•	owner@, founder@, info@, hello@ over support@ / billing@
+	•	set:
+	•	lead_email
+	•	lead_company
+	•	lead_domain
+	•	enrichment_source = "scrape"
+	2.	If no email found:
+	•	mark as ENRICHED_NO_EMAIL
+	•	show it in admin as:
+	•	“We found domain but no email: click to add manually or skip forever.”
+	•	do not surface to customer.
+	3.	When we have email:
+	•	mark ENRICHED_WITH_EMAIL
+	•	BizDev pipeline is allowed to:
+	•	generate outbound
+	•	send via SendGrid
+	•	mark as OUTBOUND_SENT
+
+Customer portal shows:
+	•	table of OUTBOUND_SENT opportunities:
+	•	lead_company
+	•	lead_email
+	•	short context
+	•	send timestamp
+	•	status (Contacted / Replied / etc., later)
+
+⸻
+
+D. Sorting / expiration logic
+
+To avoid the dashboard shitshow:
+	•	For the customer portal:
+	•	Default sort: most_recent_outbound_sent_at DESC
+	•	Only show:
+	•	ENRICHED_WITH_EMAIL (if you add review mode)
+	•	OUTBOUND_SENT
+	•	Optional top caps:
+	•	last 100 sent
+	•	or last 30 days
+	•	For the admin console:
+	•	Separate tabs:
+	•	Signals
+	•	Unenriched (no domain)
+	•	With Domain / No Email
+	•	Enriched
+	•	Sent
+	•	Expiration rules:
+	•	UNENRICHED older than 30 days → auto-archive
+	•	WITH_DOMAIN_NO_EMAIL older than 30 days → auto-archive
+	•	ENRICHED_NO_OUTBOUND older than X days → flag for review or archive
+
+⸻
+
+2. MagicBox prompt — domain demon + customer-only view
+
+Here’s the no-theatrics block you can paste straight into MagicBox.
+
+⸻
+
+MAGICBOX PROMPT — UPGRADE DOMAIN DISCOVERY + HIDE UNUSABLE LEADS
+
+Your task is to turn HossAgent into an aggressive domain-finding and enrichment engine, and to ensure the customer portal only shows leads that are actually usable (enriched + email + optionally sent).
+
+Focus on:
+	1.	Robust domain discovery for LeadEvents
+	2.	Clear enrichment states
+	3.	Customer-facing filtering and sorting
+	4.	No regressions to outbound behavior
+
+Implement ALL of the following.
+
+⸻
+
+1. Introduce explicit enrichment / lifecycle states
+
+Add a simple state model for LeadEvents (can be a field like enrichment_status with string or enum values):
+	•	RAW_SIGNAL – Signal exists, but no LeadEvent yet (implicit; no code changes needed unless helpful)
+	•	UNENRICHED – LeadEvent created, but no domain yet
+	•	WITH_DOMAIN_NO_EMAIL – domain found, but no email found yet
+	•	ENRICHED_NO_OUTBOUND – email found, but no outbound sent yet
+	•	OUTBOUND_SENT – outbound email sent successfully
+
+Rules:
+	•	When creating a LeadEvent from a Signal and you don’t yet have a domain, set enrichment_status = UNENRICHED.
+	•	When you set a lead_domain for the first time, move to WITH_DOMAIN_NO_EMAIL.
+	•	When enrichment finds and sets lead_email, move to ENRICHED_NO_OUTBOUND.
+	•	When outbound fires successfully, move to OUTBOUND_SENT.
+
+Make sure all pipelines and queries use these states consistently.
+
+⸻
+
+2. Build a layered domain discovery pipeline
+
+Create a function like:
+
+def discover_domain_for_lead_event(event: LeadEvent) -> Optional[str]:
+    ...
+
+Or equivalent, and wire it into the enrichment pipeline before email scraping.
+
+Implement the following steps, in order:
+
+(a) Use existing fields
+	•	If lead_domain is already set → return it (no work).
+	•	If lead_email is already set → derive domain from it (e.g. info@foo.com → foo.com) and backfill lead_domain if missing.
+
+(b) Extract from signal / source URL
+
+For each LeadEvent:
+	•	Inspect:
+	•	any source_url from the originating Signal
+	•	signal title / summary
+	•	lead_company (if present)
+
+Logic:
+	•	If source_url domain looks like the company itself (not a news site, not a directory), e.g. coolrunningair.com, use that as lead_domain.
+	•	If source_url is a news or directory site (e.g. miaminews.com, businesswire.com, prnewswire.com, local10.com):
+	•	fetch the article page
+	•	try to extract outbound links whose anchor text or surrounding text contains the company name
+	•	if exactly one candidate domain matches the company name tokens, treat that as lead_domain.
+
+(c) Web search fallback
+
+If still no domain:
+	•	Build a search query using:
+	•	lead_company or company-like name pulled from the signal
+	•	geography (e.g. “Miami”, “South Florida”)
+	•	niche (e.g. “HVAC”, “roofing”, “med spa”)
+
+Example query patterns:
+	•	"Cool Running Air" Miami HVAC
+	•	"Sunny Bliss Plumbing & Air" South Florida
+
+Perform a small web search and inspect the top 3–5 results:
+	•	Reject results whose domains are clearly:
+	•	large social / directory platforms: facebook.com, instagram.com, linkedin.com, yelp.com, angi.com, homeadvisor.com, tripadvisor.com, etc.
+	•	generic news outlets (unless the company is the outlet itself)
+	•	Prefer domains where:
+	•	the domain name contains tokens from the company name (e.g. coolrunningair in coolrunningair.com)
+	•	site content mentions the company name prominently on the homepage
+
+If exactly one candidate passes these filters, set that as lead_domain.
+
+(d) Guardrails
+	•	Never treat social/network/directory domains as lead_domain.
+	•	Only accept sane TLDs (e.g. .com, .net, .org, .biz, common country codes).
+	•	If you cannot confidently identify a domain, leave lead_domain = None and keep enrichment_status = UNENRICHED.
+
+Wire this domain discovery step into the enrichment pipeline so that:
+	•	For each UNENRICHED event, you attempt to discover a domain.
+	•	If a domain is found, update lead_domain and set enrichment_status = WITH_DOMAIN_NO_EMAIL.
+
+⸻
+
+3. Enrichment pipeline behavior with domains
+
+Update the enrichment pipeline to follow this sequence:
+	1.	When processing a LeadEvent:
+	•	If status is UNENRICHED, call the new domain discovery function first.
+	•	If no domain is found → skip with a clear log reason and keep status as UNENRICHED.
+	•	If a domain is found → set lead_domain and enrichment_status = WITH_DOMAIN_NO_EMAIL.
+	2.	When lead_domain is present:
+	•	Run the existing scrape-based enrichment:
+	•	crawl contact pages and footers
+	•	collect emails
+	•	Prefer outbound emails in this order if multiple exist:
+	•	owner / founder / first-name style if available
+	•	info@, hello@, contact@
+	•	avoid noreply@, support@, billing@ for initial outbound if possible.
+	3.	If at least one usable email is found:
+	•	Set lead_email
+	•	Set enrichment_status = ENRICHED_NO_OUTBOUND
+	4.	If no usable email is found after scraping:
+	•	Keep lead_domain
+	•	Set enrichment_status = WITH_DOMAIN_NO_EMAIL
+	•	Log: “Domain found but no email” with company + domain for admin debugging.
+
+⸻
+
+4. BizDev / outbound rules (no change to direction, only to gating)
+
+Outbound engine should:
+	•	Only generate outbound email when:
+	•	enrichment_status = ENRICHED_NO_OUTBOUND
+	•	lead_email is present
+	•	lead_company is present
+	•	When outbound succeeds:
+	•	Set enrichment_status = OUTBOUND_SENT
+	•	Keep all existing semantics:
+	•	To = lead_email
+	•	CC = customer.email
+	•	Reply-To = customer.email
+
+Keep the existing directionality fixes intact. Do not reintroduce any behavior that sends recommendation-style emails to the customer as the primary recipient.
+
+⸻
+
+5. Customer portal visibility & sorting
+
+Update the customer-facing portal queries and UI so that:
+	•	The main lead/opportunity table only shows LeadEvents where:
+	•	enrichment_status = OUTBOUND_SENT
+	•	(optionally) OR enrichment_status = ENRICHED_NO_OUTBOUND if a “review before sending” mode is enabled.
+	•	Hide from the customer:
+	•	UNENRICHED
+	•	WITH_DOMAIN_NO_EMAIL
+	•	ENRICHED_NO_OUTBOUND if there is no review mode and outbound is purely autonomous.
+
+Sorting:
+	•	Default sort: most_recent_outbound_sent_at DESC (or equivalent)
+	•	Show key columns:
+	•	lead_company
+	•	lead_email
+	•	signal_summary (shortened)
+	•	sent_at timestamp
+	•	status chip like Contacted / Pending reply
+
+Admin console:
+	•	May expose additional views/tabs for:
+	•	UNENRICHED
+	•	WITH_DOMAIN_NO_EMAIL
+	•	ENRICHED_NO_OUTBOUND
+	•	OUTBOUND_SENT
+	•	But these should be admin-only; customers should not see partially-enriched or uncontactable leads.
+
+⸻
+
+6. Expiration / archival logic (basic)
+
+Implement light-touch archival to avoid long-term clutter:
+	•	For UNENRICHED events older than 30 days:
+	•	mark as archived = True or similar and exclude from all active queues.
+	•	For WITH_DOMAIN_NO_EMAIL older than 30 days:
+	•	also mark as archived.
+	•	For ENRICHED_NO_OUTBOUND older than a configurable threshold (e.g. 14–30 days):
+	•	either:
+	•	enqueue for forced outbound (if safe), or
+	•	mark as archived.
+
+This is internal only for now; we don’t need to expose archival to customers, but we must make sure old junk doesn’t clog the enrichment queue.
+
+⸻
+
+7. Verification
+
+After implementing these changes:
+	1.	Create a test LeadEvent with:
+	•	a fake but realistic company name and domain that can be scraped
+	•	confirm:
+	•	UNENRICHED → WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND → OUTBOUND_SENT
+	•	correct state transitions
+	2.	Run a full Signals → LeadEvents → Enrichment → BizDev cycle in DRY_RUN and then in live mode to confirm:
+	•	domain discovery works for real news-based signals
+	•	events without domains are skipped cleanly
+	•	events with domains but no email are clearly logged and not exposed to customers
+	•	customer portal only shows leads that are enriched + usable
+
+Document any assumptions directly in the code via comments/docstrings.
+
+⸻
+
+Implement all of the above without regressing existing outbound behavior, email directionality, SendGrid configuration, Stripe integration, or the removal of Apollo/Hunter/Clearbit.

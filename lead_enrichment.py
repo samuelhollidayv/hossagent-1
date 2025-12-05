@@ -36,11 +36,17 @@ from sqlmodel import Session, select
 from models import (
     LeadEvent,
     Lead,
+    Signal,
     ENRICHMENT_STATUS_UNENRICHED,
+    ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+    ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+    ENRICHMENT_STATUS_OUTBOUND_SENT,
+    ENRICHMENT_STATUS_ARCHIVED,
     ENRICHMENT_STATUS_ENRICHED,
     ENRICHMENT_STATUS_FAILED,
     ENRICHMENT_STATUS_SKIPPED,
 )
+from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -926,21 +932,32 @@ async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> Enrichme
 def _apply_enrichment_to_lead_event(
     lead_event: LeadEvent,
     result: EnrichmentResult,
-    session: Session
-) -> None:
+    session: Session,
+    domain_discovered: bool = False
+) -> str:
     """
     Apply enrichment results to LeadEvent and persist to database.
     
-    IMPORTANT: Sets both lead_email (for outbound) and enriched_email (for tracking).
-    The Event-Driven BizDev cycle checks lead_email for sending.
+    Uses new lifecycle states:
+    - UNENRICHED: No domain discovered yet
+    - WITH_DOMAIN_NO_EMAIL: Domain found but no email discovered  
+    - ENRICHED_NO_OUTBOUND: Email found, awaiting outbound
+    - OUTBOUND_SENT: Outbound email sent (set by BizDev cycle)
     
     Args:
         lead_event: LeadEvent to update
         result: EnrichmentResult with data
         session: Database session
+        domain_discovered: True if domain was just discovered this cycle
+        
+    Returns:
+        New enrichment status string
     """
-    if result.success:
-        lead_event.enrichment_status = ENRICHMENT_STATUS_ENRICHED
+    lead_event.enrichment_attempts = (lead_event.enrichment_attempts or 0) + 1
+    lead_event.last_enrichment_at = datetime.utcnow()
+    
+    if result.success and result.email:
+        lead_event.enrichment_status = ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
         lead_event.enrichment_source = result.source
         lead_event.enriched_email = result.email
         lead_event.enriched_phone = result.phone
@@ -949,46 +966,76 @@ def _apply_enrichment_to_lead_event(
         lead_event.enriched_social_links = json.dumps(result.social_links) if result.social_links else None
         lead_event.enriched_at = datetime.utcnow()
         
-        if result.email and not lead_event.lead_email:
+        if not lead_event.lead_email:
             lead_event.lead_email = result.email
             log_enrichment("email_set", lead_event_id=lead_event.id,
                            details={"lead_email": result.email, "source": result.source})
         
         if result.contact_name and not lead_event.lead_name:
             lead_event.lead_name = result.contact_name
+            
+        log_enrichment("status_transition", lead_event_id=lead_event.id,
+                       details={"new_status": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND})
+    
+    elif lead_event.lead_domain:
+        lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
+        lead_event.enrichment_source = result.source if result else "none"
+        log_enrichment("status_transition", lead_event_id=lead_event.id,
+                       details={"new_status": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 
+                                "domain": lead_event.lead_domain})
+    
     else:
-        lead_event.enrichment_status = ENRICHMENT_STATUS_FAILED
-        lead_event.enrichment_source = "none"
+        lead_event.enrichment_status = ENRICHMENT_STATUS_UNENRICHED
+        log_enrichment("status_transition", lead_event_id=lead_event.id,
+                       details={"new_status": ENRICHMENT_STATUS_UNENRICHED, "reason": "no_domain"})
     
     session.add(lead_event)
     session.commit()
+    
+    return lead_event.enrichment_status
 
 
 MAX_ENRICHMENT_PER_CYCLE = int(os.environ.get("MAX_ENRICHMENT_PER_CYCLE", "25"))
 
 
+def _get_source_url_for_event(lead_event: LeadEvent, session: Session) -> Optional[str]:
+    """Get source URL from the Signal associated with a LeadEvent."""
+    if not lead_event.signal_id:
+        return None
+    
+    signal = session.exec(
+        select(Signal).where(Signal.id == lead_event.signal_id)
+    ).first()
+    
+    if not signal or not signal.raw_payload:
+        return None
+    
+    try:
+        payload = json.loads(signal.raw_payload)
+        return payload.get("url") or payload.get("source_url") or payload.get("link")
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 async def run_enrichment_pipeline(session: Session, max_events: int = None) -> dict:
     """
-    Process UNENRICHED LeadEvents through the enrichment pipeline.
+    Domain-first enrichment pipeline for LeadEvents.
     
-    Fetches LeadEvents with enrichment_status='UNENRICHED', attempts
-    enrichment for each, and updates their status.
+    Two-phase pipeline:
+    1. Domain Discovery: For UNENRICHED events, attempt to discover a domain
+    2. Email Enrichment: For WITH_DOMAIN_NO_EMAIL events, scrape for emails
     
-    Processes a limited batch per cycle to avoid blocking (default: 15).
-    Respects rate limits by adding delays between requests.
+    State transitions:
+    - UNENRICHED + domain found → WITH_DOMAIN_NO_EMAIL
+    - WITH_DOMAIN_NO_EMAIL + email found → ENRICHED_NO_OUTBOUND
+    - ENRICHED_NO_OUTBOUND → OUTBOUND_SENT (by BizDev cycle)
     
     Args:
         session: Database session
-        max_events: Maximum events to process per cycle (default from MAX_ENRICHMENT_PER_CYCLE env var)
+        max_events: Maximum events to process per cycle
         
     Returns:
-        Summary dict with stats:
-        - processed: Number of events processed
-        - enriched: Number successfully enriched
-        - failed: Number that failed enrichment
-        - skipped: Number skipped (no domain)
-        - pending: Number of events still awaiting enrichment
-        - by_source: Breakdown by enrichment source
+        Summary dict with enrichment stats
     """
     if max_events is None:
         max_events = MAX_ENRICHMENT_PER_CYCLE
@@ -998,71 +1045,146 @@ async def run_enrichment_pipeline(session: Session, max_events: int = None) -> d
     unenriched_events = session.exec(
         select(LeadEvent)
         .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_UNENRICHED)
-        .limit(max_events)
+        .order_by(LeadEvent.created_at.desc())
+        .limit(max_events // 2)
     ).all()
+    
+    with_domain_events = session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL)
+        .order_by(LeadEvent.created_at.desc())
+        .limit(max_events // 2)
+    ).all()
+    
+    legacy_events = session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.enrichment_status.in_([
+            ENRICHMENT_STATUS_SKIPPED, 
+            ENRICHMENT_STATUS_FAILED,
+            ENRICHMENT_STATUS_ENRICHED
+        ]))
+        .limit(max_events // 4)
+    ).all()
+    
+    for le in legacy_events:
+        if le.enrichment_status in [ENRICHMENT_STATUS_SKIPPED, ENRICHMENT_STATUS_FAILED]:
+            le.enrichment_status = ENRICHMENT_STATUS_UNENRICHED
+        elif le.enrichment_status == ENRICHMENT_STATUS_ENRICHED:
+            if le.lead_email:
+                le.enrichment_status = ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
+            elif le.lead_domain:
+                le.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
+            else:
+                le.enrichment_status = ENRICHMENT_STATUS_UNENRICHED
+        session.add(le)
+    if legacy_events:
+        session.commit()
+        log_enrichment("legacy_migration", details={"migrated": len(legacy_events)})
     
     total_unenriched = len(session.exec(
         select(LeadEvent).where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_UNENRICHED)
     ).all())
     
-    total = len(unenriched_events)
-    pending_after = total_unenriched - total
-    log_enrichment("pipeline_load", details={"batch_size": total, "total_unenriched": total_unenriched})
+    total_with_domain = len(session.exec(
+        select(LeadEvent).where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL)
+    ).all())
     
-    if total == 0:
-        log_enrichment("pipeline_complete", details={"message": "No unenriched events"})
-        return {
-            "processed": 0,
-            "enriched": 0,
-            "failed": 0,
-            "skipped": 0,
-            "pending": 0,
-            "by_source": {}
-        }
+    log_enrichment("pipeline_load", details={
+        "unenriched_batch": len(unenriched_events),
+        "with_domain_batch": len(with_domain_events),
+        "total_unenriched": total_unenriched,
+        "total_with_domain": total_with_domain
+    })
     
     stats = {
         "processed": 0,
+        "domains_discovered": 0,
         "enriched": 0,
-        "failed": 0,
-        "skipped": 0,
-        "pending": pending_after,
+        "with_domain_no_email": 0,
+        "still_unenriched": 0,
+        "pending_unenriched": total_unenriched - len(unenriched_events),
+        "pending_with_domain": total_with_domain - len(with_domain_events),
         "by_source": {
-            "hunter": 0,
-            "clearbit": 0,
+            "domain_discovery": 0,
             "scrape": 0,
+            "signal": 0,
             "none": 0
         }
     }
     
     for i, lead_event in enumerate(unenriched_events):
-        result = await enrich_lead_event(lead_event, session)
+        source_url = _get_source_url_for_event(lead_event, session)
+        
+        domain_result = discover_domain_for_lead_event(
+            lead_event_id=lead_event.id,
+            lead_domain=lead_event.lead_domain,
+            lead_email=lead_event.lead_email,
+            lead_company=lead_event.lead_company,
+            source_url=source_url,
+            geography=None,
+            niche=None,
+            summary=lead_event.summary
+        )
         
         stats["processed"] += 1
         
-        if result.source == "none" and result.error and "No domain" in result.error:
-            lead_event.enrichment_status = ENRICHMENT_STATUS_SKIPPED
+        if domain_result.success and domain_result.domain:
+            lead_event.lead_domain = domain_result.domain
+            lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
+            lead_event.enrichment_source = domain_result.source
+            lead_event.last_enrichment_at = datetime.utcnow()
             session.add(lead_event)
             session.commit()
-            stats["skipped"] += 1
-            stats["by_source"]["none"] += 1
-        elif result.success:
-            _apply_enrichment_to_lead_event(lead_event, result, session)
-            stats["enriched"] += 1
-            stats["by_source"][result.source] += 1
+            
+            stats["domains_discovered"] += 1
+            stats["by_source"]["domain_discovery"] += 1
+            
+            log_enrichment("domain_discovered", lead_event_id=lead_event.id,
+                           domain=domain_result.domain,
+                           details={"method": domain_result.discovery_method, 
+                                    "confidence": domain_result.confidence})
+            
+            with_domain_events.append(lead_event)
         else:
-            _apply_enrichment_to_lead_event(lead_event, result, session)
-            stats["failed"] += 1
+            lead_event.enrichment_attempts = (lead_event.enrichment_attempts or 0) + 1
+            lead_event.last_enrichment_at = datetime.utcnow()
+            session.add(lead_event)
+            session.commit()
+            
+            stats["still_unenriched"] += 1
             stats["by_source"]["none"] += 1
         
-        if (i + 1) % 10 == 0:
+        if i < len(unenriched_events) - 1:
+            await asyncio.sleep(0.5)
+    
+    for i, lead_event in enumerate(with_domain_events):
+        if lead_event.lead_email:
+            lead_event.enrichment_status = ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
+            session.add(lead_event)
+            session.commit()
+            stats["enriched"] += 1
+            stats["by_source"]["signal"] += 1
+            continue
+        
+        result = await enrich_lead_event(lead_event, session)
+        stats["processed"] += 1
+        
+        new_status = _apply_enrichment_to_lead_event(lead_event, result, session, domain_discovered=False)
+        
+        if new_status == ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND:
+            stats["enriched"] += 1
+            stats["by_source"]["scrape"] += 1
+        else:
+            stats["with_domain_no_email"] += 1
+        
+        if (i + 1) % 5 == 0:
             log_enrichment("pipeline_progress", details={
+                "phase": "email_enrichment",
                 "processed": i + 1,
-                "total": total,
-                "enriched": stats["enriched"],
-                "failed": stats["failed"]
+                "enriched": stats["enriched"]
             })
         
-        if i < total - 1:
+        if i < len(with_domain_events) - 1:
             await asyncio.sleep(RATE_LIMIT_DELAY)
     
     log_enrichment("pipeline_complete", details=stats)
