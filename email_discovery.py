@@ -68,7 +68,8 @@ MAILTO_REGEX = re.compile(
 GENERIC_EMAIL_PREFIXES = [
     "info", "contact", "hello", "support", "help", "sales", "enquiries",
     "inquiries", "admin", "office", "team", "general", "mail", "email",
-    "customerservice", "customer-service", "customercare", "feedback"
+    "customerservice", "customer-service", "customercare", "feedback",
+    "service", "helpdesk", "noreply", "no-reply", "webmaster", "enquiry"
 ]
 
 INVALID_EMAIL_PATTERNS = [

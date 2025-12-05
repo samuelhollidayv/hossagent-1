@@ -796,42 +796,49 @@ def generate_miami_contextual_email(
     if outreach_style == "transparent_ai":
         body = f"""Hi {first_name},
 
-I'm Sam Holliday, a founder based in {city}. I run a business intelligence service that monitors market signals for local businesses, and something relevant to {company_name} came across my radar:
+My name is Sam Holliday - I run HossAgent, an AI-powered business autopilot for local service companies in {city}.
+
+I built it so owners don't have to watch the news or babysit signals all day. It flags moments worth acting on and drafts clean outreach automatically.
+
+Today {company_name} popped onto my radar because of this specific event:
 
 {event_summary}{source_line}
-Here's why I'm reaching out: {market_context}.
+Here's why this matters: {market_context}.
 
 {recommendations}
 
-{product_tie}. I built HossAgent to automate this kind of market awareness - it watches public signals (news, competitor moves, local market shifts) and surfaces what's actionable.
+{product_tie}.
 
-If any of this resonates, I'd be happy to share a quick competitive snapshot of your space - no pitch, just useful intel. Reply "send it" and I'll put something together, or we can do a 15-minute call if that's easier.
+If any of this resonates, I'd be happy to share a quick competitive snapshot of your space - no pitch, just useful intel. Reply "send it" and I'll put something together, or grab 15 minutes on my calendar if that's easier.
 
-This email was drafted with AI assistance through HossAgent (transparency matters to me). You can see what we're building at {website_url} - we offer a 7-day trial if you'd rather have the system watching your market directly.
+You can see what we're building at {website_url} - we offer a 7-day free trial if you'd rather have the system watching the market for you.
 
 Reply "no thanks" if this isn't relevant and I won't reach out again.
 
 - Sam Holliday
+Founder, HossAgent
 {website_url}"""
 
     else:
         body = f"""Hi {first_name},
 
-I'm Sam Holliday - I run a market intelligence service in {city}. I noticed something that might be relevant to {company_name}:
+My name is Sam Holliday - I run a market intelligence service for local businesses in {city}.
+
+Today {company_name} came across my radar:
 
 {event_summary}{source_line}
-{market_context}.
+Here's why this matters: {market_context}.
 
 {recommendations}
 
-I track these patterns across {city} businesses and can share what's working in your space right now. Would a quick 15-minute call make sense? I can bring specific insights on your market and a few plays that are getting results for similar businesses.
+{product_tie}.
+
+Would a quick 15-minute call make sense? I can share what's working for similar businesses in your space right now.
 
 Reply "interested" and I'll send over some times, or "no thanks" if this isn't a fit.
 
 - Sam Holliday
-{website_url}
-
-(This message was sent via HossAgent, a market intelligence tool for local businesses.)"""
+{website_url}"""
 
     return subject, body
 

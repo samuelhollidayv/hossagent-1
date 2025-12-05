@@ -246,7 +246,8 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
         )
     
     GENERIC_PREFIXES = ['info', 'contact', 'hello', 'support', 'admin', 'sales', 'enquiry', 
-                        'enquiries', 'office', 'mail', 'help', 'general', 'team']
+                        'enquiries', 'office', 'mail', 'help', 'general', 'team', 'service',
+                        'customerservice', 'helpdesk', 'noreply', 'no-reply', 'webmaster']
     email_local = contact_email.split('@')[0].lower() if '@' in contact_email else ''
     is_generic_inbox = any(email_local == prefix or email_local.startswith(f"{prefix}.") 
                            for prefix in GENERIC_PREFIXES)
