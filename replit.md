@@ -53,8 +53,16 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
 
 **Outbound Email System:**
 - **Authenticated Domain**: hossagent.net (SendGrid authenticated)
+- **Recipient Selection**: Prefers person-like emails over generic inboxes; skips generic (info@, contact@) with confidence < 0.4.
 - **Subject Line Library**: 12 variants rotated per event/signal.
 - **Template Styles**: Customer-configurable (`transparent_ai` or `classic`).
+- **Email Copy Structure**: Intro sender first → market context → actionable recommendations → AI disclosure → CTA.
+- **Signal-Based Messaging**: Four strategic modes with tailored insights:
+  - `market_entry`: For businesses entering/expanding - provides "how to succeed in this market" playbook
+  - `competitor_intel`: For competitive moves - provides defensive strategy and differentiation advice
+  - `growth_opportunity`: For hiring/growth signals - provides timing and momentum guidance
+  - `market_shift`: Default - provides adaptation and proactive outreach guidance
+- **Actionable Recommendations**: Each email includes 3 numbered, specific recommendations tied to the signal type.
 - **Name Parsing**: Extracts first name only.
 - **Rate Limiting**: Per-lead (daily/weekly) and per-customer limits.
 - **Suppression Flow**: `do_not_contact` flag, `OPT_OUT_PHRASES` detection in replies, `check_opt_out()` and `mark_do_not_contact()` functions.
