@@ -1,18 +1,7 @@
 [
   {
     "event_type": "page_view",
-    "timestamp": "2025-12-05T19:55:01.941521",
-    "path": "/",
-    "referrer": null,
-    "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36",
-    "ip_hash": "12ca17b49af22894",
-    "customer_id": null,
-    "session_id": null,
-    "metadata": null
-  },
-  {
-    "event_type": "page_view",
-    "timestamp": "2025-12-05T19:56:35.916016",
+    "timestamp": "2025-12-05T20:35:29.573426",
     "path": "/",
     "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
     "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
@@ -23,29 +12,7 @@
   },
   {
     "event_type": "page_view",
-    "timestamp": "2025-12-05T19:56:35.917697",
-    "path": "/",
-    "referrer": "https://replit.com/",
-    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
-    "ip_hash": "396876dd2539260d",
-    "customer_id": null,
-    "session_id": null,
-    "metadata": null
-  },
-  {
-    "event_type": "page_view",
-    "timestamp": "2025-12-05T20:02:01.087826",
-    "path": "/",
-    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
-    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
-    "ip_hash": "396876dd2539260d",
-    "customer_id": null,
-    "session_id": null,
-    "metadata": null
-  },
-  {
-    "event_type": "page_view",
-    "timestamp": "2025-12-05T20:02:01.097133",
+    "timestamp": "2025-12-05T20:35:29.581932",
     "path": "/",
     "referrer": "https://replit.com/",
     "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
