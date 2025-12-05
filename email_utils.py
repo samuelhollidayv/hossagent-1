@@ -1,16 +1,23 @@
 """
 Outbound email infrastructure for HossAgent.
-Supports two modes: DRY_RUN, SENDGRID
+Supports three modes: DRY_RUN, SENDGRID, SES
 
-Domain: hossagent.net (authenticated via SendGrid)
+Domain: hossagent.net (authenticated)
 
 Environment Variables:
-  EMAIL_MODE = DRY_RUN | SENDGRID (defaults to DRY_RUN)
+  EMAIL_MODE = DRY_RUN | SENDGRID | SES (defaults to DRY_RUN)
   
   For SENDGRID (required when EMAIL_MODE=SENDGRID):
     SENDGRID_API_KEY       - SendGrid API key
     OUTBOUND_FROM          - Sending email (e.g., hello@hossagent.net)
     OUTBOUND_REPLY_TO      - Reply-to email address
+    OUTBOUND_DISPLAY_NAME  - Display name (e.g., HossAgent)
+    
+  For SES (required when EMAIL_MODE=SES):
+    AWS_SES_ACCESS_KEY     - AWS access key ID
+    AWS_SES_SECRET_KEY     - AWS secret access key
+    AWS_SES_REGION         - AWS region (e.g., us-east-1)
+    OUTBOUND_FROM          - Verified sending email (e.g., hello@hossagent.net)
     OUTBOUND_DISPLAY_NAME  - Display name (e.g., HossAgent)
     
   Throttling:
@@ -36,6 +43,7 @@ from pathlib import Path
 class EmailMode(str, Enum):
     DRY_RUN = "DRY_RUN"
     SENDGRID = "SENDGRID"
+    SES = "SES"
 
 
 @dataclass
@@ -246,13 +254,31 @@ def validate_sendgrid_config() -> Tuple[bool, List[str]]:
     return len(missing) == 0, missing
 
 
+def validate_ses_config() -> Tuple[bool, List[str]]:
+    """
+    Validate that all required SES environment variables are set.
+    
+    Returns:
+        (is_valid, missing_vars)
+    """
+    config = get_ses_config()
+    required_vars = {
+        "AWS_SES_ACCESS_KEY": config["access_key"],
+        "AWS_SES_SECRET_KEY": config["secret_key"],
+        "OUTBOUND_FROM": config["from_email"],
+    }
+    
+    missing = [var for var, value in required_vars.items() if not value]
+    return len(missing) == 0, missing
+
+
 def validate_email_config() -> tuple[EmailMode, bool, str]:
     """
     Validate email configuration for the selected mode.
     
     Returns:
         (effective_mode, is_valid, message)
-        If validation fails for SENDGRID, raises an error (no fallback to DRY_RUN).
+        If validation fails, returns DRY_RUN with error message (no silent fallback).
     """
     mode = get_email_mode()
     
@@ -265,12 +291,23 @@ def validate_email_config() -> tuple[EmailMode, bool, str]:
         if not is_valid:
             error_msg = f"SENDGRID mode requires these environment variables: {', '.join(missing)}"
             print(f"[EMAIL][ERROR] {error_msg}")
-            # Return error but don't silently fall back to DRY_RUN
             return EmailMode.DRY_RUN, False, error_msg
         
         config = get_sendgrid_config()
         domain = extract_domain(config["from_email"])
         return mode, True, f"SendGrid configured with domain: {domain}"
+    
+    if mode == EmailMode.SES:
+        is_valid, missing = validate_ses_config()
+        
+        if not is_valid:
+            error_msg = f"SES mode requires these environment variables: {', '.join(missing)}"
+            print(f"[EMAIL][ERROR] {error_msg}")
+            return EmailMode.DRY_RUN, False, error_msg
+        
+        config = get_ses_config()
+        domain = extract_domain(config["from_email"])
+        return mode, True, f"Amazon SES configured with domain: {domain} (region: {config['region']})"
     
     return EmailMode.DRY_RUN, True, "Default DRY_RUN mode"
 
@@ -548,6 +585,158 @@ def send_email_sendgrid(
         )
 
 
+def get_ses_config() -> Dict[str, str]:
+    """Get Amazon SES configuration from environment variables."""
+    return {
+        "access_key": os.getenv("AWS_SES_ACCESS_KEY", ""),
+        "secret_key": os.getenv("AWS_SES_SECRET_KEY", ""),
+        "region": os.getenv("AWS_SES_REGION", "us-east-1"),
+        "from_email": os.getenv("OUTBOUND_FROM", "hello@hossagent.net"),
+        "display_name": os.getenv("OUTBOUND_DISPLAY_NAME", "HossAgent"),
+    }
+
+
+def send_email_ses(
+    to_email: str,
+    subject: str,
+    body: str,
+    lead_name: str = "",
+    company: str = "",
+    cc_email: Optional[str] = None,
+    reply_to_override: Optional[str] = None
+) -> EmailResult:
+    """
+    Send email via Amazon SES API.
+    
+    Uses boto3 SES client with MIME multipart for HTML + plain text.
+    
+    Email headers:
+        From: OUTBOUND_DISPLAY_NAME <OUTBOUND_FROM>
+        To: lead_email (the prospect)
+        CC: customer.email (for visibility)
+        Reply-To: customer.email (or override)
+    """
+    try:
+        import boto3
+        from botocore.exceptions import ClientError
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        
+        config = get_ses_config()
+        access_key = config["access_key"]
+        secret_key = config["secret_key"]
+        region = config["region"]
+        from_email = config["from_email"]
+        display_name = config["display_name"]
+        
+        if not all([access_key, secret_key, from_email]):
+            raise ValueError("SES configuration incomplete. Required: AWS_SES_ACCESS_KEY, AWS_SES_SECRET_KEY, OUTBOUND_FROM")
+        
+        sending_domain = extract_domain(from_email)
+        actual_reply_to = reply_to_override or from_email
+        
+        ses_client = boto3.client(
+            'ses',
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region
+        )
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{display_name} <{from_email}>"
+        msg['To'] = to_email
+        if cc_email:
+            msg['Cc'] = cc_email
+        msg['Reply-To'] = actual_reply_to
+        
+        html_body = plain_to_html(body)
+        
+        part_text = MIMEText(body, 'plain')
+        part_html = MIMEText(html_body, 'html')
+        msg.attach(part_text)
+        msg.attach(part_html)
+        
+        destinations = [to_email]
+        if cc_email:
+            destinations.append(cc_email)
+        
+        print(f"\n[EMAIL][SES] Preparing send...")
+        print(f"  From: {display_name} <{from_email}>")
+        print(f"  To: {to_email}")
+        if cc_email:
+            print(f"  CC: {cc_email}")
+        print(f"  Reply-To: {actual_reply_to}")
+        print(f"  Subject: {subject[:60]}...")
+        print(f"  Domain: {sending_domain}")
+        
+        response = ses_client.send_raw_email(
+            Source=f"{display_name} <{from_email}>",
+            Destinations=destinations,
+            RawMessage={'Data': msg.as_string()}
+        )
+        
+        message_id = response.get('MessageId', '')
+        
+        print(f"[EMAIL][SUCCESS][SES] Sent to {to_email}")
+        print(f"  Message-ID: {message_id}")
+        print(f"  Domain: {sending_domain}")
+        
+        log_email_attempt(EmailAttempt(
+            timestamp=datetime.utcnow().isoformat(),
+            lead_name=lead_name,
+            company=company,
+            to_email=to_email,
+            subject=subject,
+            mode="SES",
+            result="success",
+            sending_domain=sending_domain
+        ))
+        
+        return EmailResult(
+            success=True,
+            mode="SES",
+            result="success",
+            error=None,
+            actually_sent=True,
+            sendgrid_response={"message_id": message_id}
+        )
+        
+    except ImportError:
+        error_msg = "'boto3' library not available"
+        print(f"[EMAIL][FAIL][SES] {error_msg}")
+        return EmailResult(
+            success=False,
+            mode="SES",
+            result="failed",
+            error=error_msg,
+            actually_sent=False
+        )
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[EMAIL][FAIL][SES] Exception: {error_msg}")
+        
+        log_email_attempt(EmailAttempt(
+            timestamp=datetime.utcnow().isoformat(),
+            lead_name=lead_name,
+            company=company,
+            to_email=to_email,
+            subject=subject,
+            mode="SES",
+            result="failed",
+            error=error_msg,
+            sending_domain=extract_domain(get_ses_config().get("from_email", ""))
+        ))
+        
+        return EmailResult(
+            success=False,
+            mode="SES",
+            result="failed",
+            error=error_msg,
+            actually_sent=False
+        )
+
+
 def send_email(
     to_email: str,
     subject: str,
@@ -623,11 +812,17 @@ def send_email(
         # Apply deliverability delay
         apply_send_delay()
         
-        # Send via SendGrid (the only production path)
-        result = send_email_sendgrid(
-            to_email, subject, body, lead_name, company,
-            cc_email=cc_email, reply_to_override=reply_to
-        )
+        # Route to appropriate email provider
+        if effective_mode == EmailMode.SES:
+            result = send_email_ses(
+                to_email, subject, body, lead_name, company,
+                cc_email=cc_email, reply_to_override=reply_to
+            )
+        else:
+            result = send_email_sendgrid(
+                to_email, subject, body, lead_name, company,
+                cc_email=cc_email, reply_to_override=reply_to
+            )
         
         # Increment hourly counter on successful send
         if result.actually_sent:

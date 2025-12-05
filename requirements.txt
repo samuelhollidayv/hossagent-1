@@ -12,3 +12,4 @@ bcrypt
 itsdangerous
 python-multipart
 psycopg2-binary
+boto3
