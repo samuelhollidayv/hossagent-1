@@ -329,6 +329,11 @@ class LeadEvent(SQLModel, table=True):
     enriched_company_name: Optional[str] = None
     enriched_social_links: Optional[str] = None  # JSON string of social links (legacy)
     enriched_at: Optional[datetime] = None
+    
+    # ARCHANGEL Confidence Scoring
+    company_name_candidate: Optional[str] = None  # Extracted company name from signal/title
+    domain_confidence: float = Field(default=0.0)  # 0-1.0, domain match confidence score
+    email_confidence: float = Field(default=0.0)  # 0-1.0, email validity and context score
     social_facebook: Optional[str] = None
     social_instagram: Optional[str] = None
     social_linkedin: Optional[str] = None

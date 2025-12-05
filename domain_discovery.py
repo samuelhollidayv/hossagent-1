@@ -79,7 +79,7 @@ VALID_TLDS = {
 
 @dataclass
 class DomainDiscoveryResult:
-    """Result of domain discovery attempt."""
+    """Result of domain discovery attempt - ARCHANGEL Discovery Engine."""
     success: bool
     domain: Optional[str] = None
     source: str = "none"
@@ -88,6 +88,7 @@ class DomainDiscoveryResult:
     discovery_method: str = ""
     attempts: int = 0
     error: Optional[str] = None
+    company_name_candidate: Optional[str] = None  # ARCHANGEL: extracted company name
     
     def to_dict(self) -> Dict:
         return {
@@ -109,8 +110,8 @@ def log_discovery(
     details: Optional[Dict] = None,
     error: Optional[str] = None
 ) -> None:
-    """Log domain discovery activity."""
-    msg_parts = [f"[DOMAIN_DISCOVERY][{action.upper()}]"]
+    """Log domain discovery activity - ARCHANGEL logging."""
+    msg_parts = [f"[ARCHANGEL][DOMAIN_DISCOVERY][{action.upper()}]"]
     if lead_event_id:
         msg_parts.append(f"event={lead_event_id}")
     if domain:
@@ -197,6 +198,39 @@ def _has_valid_tld(domain: str) -> bool:
             return True
     
     return False
+
+
+def extract_company_name_from_summary(summary: Optional[str]) -> Optional[str]:
+    """
+    ARCHANGEL: Extract probable company name from signal summary.
+    
+    Heuristics:
+    - Look for quoted strings: "Company Name"
+    - Extract first capitalized phrase
+    - Strip location markers (city, state)
+    """
+    if not summary:
+        return None
+    
+    summary = summary.strip()
+    
+    # Look for quoted company names first
+    quoted = re.search(r'"([^"]+)"', summary)
+    if quoted:
+        candidate = quoted.group(1).strip()
+        if 2 < len(candidate) < 100:
+            return candidate
+    
+    # Extract first capitalized phrase (potential company name)
+    match = re.match(r'^([A-Z][a-zA-Z\s&.,\'-]+?)(?:\s+in\s+|\s+at\s+|,|\s+is\s+|\s+has\s+)', summary)
+    if match:
+        candidate = match.group(1).strip()
+        # Remove location suffixes
+        candidate = re.sub(r'\s+(Miami|Florida|FL|Broward|Palm Beach|South Florida|USA|US).*', '', candidate, flags=re.IGNORECASE)
+        if 2 < len(candidate) < 100:
+            return candidate
+    
+    return None
 
 
 def _tokenize_company_name(company_name: str) -> Set[str]:

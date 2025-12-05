@@ -1,0 +1,114 @@
+You are executing OPERATION ARCHANGEL. This is a structured engineering order. 
+Implement all tasks exactly as written.
+
+============================================================
+1. SITUATION
+============================================================
+HossAgent requires a more aggressive and accurate autonomous enrichment pipeline.
+The current system relies on limited domain extraction and basic scraping, resulting in
+many UNENRICHED LeadEvents. ARCHANGEL upgrades domain discovery, crawling,
+email extraction, confidence scoring, and customer-facing filtering.
+
+============================================================
+2. MISSION
+============================================================
+Transform the enrichment pipeline into ARCHANGEL: a multi-layered domain 
+discovery + email extraction engine with explicit lifecycle states. Use no external
+paid APIs. Only surface actionable leads to customers.
+
+============================================================
+3. EXECUTION
+============================================================
+
+A. CONCEPT OF OPERATIONS
+Implement the following components:
+
+1. Company Name Extraction
+- Parse LeadEvent summary/title for probable company name.
+- Strip “LLC”, “Inc.” and geographic markers.
+- Store result as company_name_candidate.
+
+2. Domain Discovery Pipeline (multi-layered)
+Layer 1: If lead_domain or lead_email already exists, reuse it.
+Layer 2: Parse source_url; if the article page links to an external domain matching
+company_name_candidate, use that domain.
+Layer 3: Fetch article HTML and extract all outbound links. Reject any domains
+belonging to social media or directories (facebook.com, yelp.com, angi.com, etc.).
+Layer 4: Perform controlled search fallback (top 3–5 results) using:
+  - company_name_candidate
+  - geography
+  - niche category
+Select the best-matching domain using token matching and TLD priority. 
+Store domain_confidence (0–100).
+
+3. Deep-Crawl Email Harvest
+- Crawl up to MAX_PAGES_PER_DOMAIN (e.g., 50) prioritizing:
+  /contact, /about, /team, footer links, mailto links.
+- Extract all emails found with page_url + page_type.
+- Store results in a DomainDiscoveryResult model/table for caching.
+
+4. Email Pattern & Confidence Engine
+Classify emails:
+- generic (info@, hello@, contact@, support@)
+- person-like (firstname@, firstname.lastname@, etc.)
+Score emails using:
+- page context (contact page > footer > random page)
+- name match if article mentions a person
+- common pattern match reliability
+- domain_confidence
+Store email_confidence (0–100).
+Choose the highest-confidence email as lead_email.
+
+5. State Machine Enforcement
+Set enrichment_status using this lifecycle:
+- UNENRICHED → no domain
+- WITH_DOMAIN_NO_EMAIL → domain discovered
+- ENRICHED_NO_OUTBOUND → email discovered
+- OUTBOUND_SENT → outbound delivered
+- ARCHIVED → stale >30 days
+BizDev/outbound must run ONLY for ENRICHED_NO_OUTBOUND events.
+
+6. Customer Portal Filtering
+- Customer portal must show ONLY:
+  OUTBOUND_SENT (and ENRICHED_NO_OUTBOUND in REVIEW mode).
+- Hide UNENRICHED, WITH_DOMAIN_NO_EMAIL, and low-confidence results.
+- Only actionable leads are visible to the customer.
+
+B. TASKS
+MagicBox must:
+1. Implement domain_discovery.py with all layers listed.
+2. Update lead_enrichment.py to use ARCHANGEL logic.
+3. Add DomainDiscoveryResult model with caching.
+4. Add company_name_candidate field to LeadEvent (or compute on the fly).
+5. Add domain_confidence and email_confidence to LeadEvent.
+6. Update state transitions in enrichment lifecycle.
+7. Update BizDev gating to use ENRICHED_NO_OUTBOUND.
+8. Update customer portal queries to show only actionable leads.
+9. Add ARCHANGEL log tags for every major decision.
+
+C. COORDINATING INSTRUCTIONS
+- Do not reintroduce Apollo or any paid enrichment APIs.
+- Maintain correct outbound email direction (TO lead, CC customer).
+- Do not break SendGrid or Stripe operations.
+- Ensure enrichment remains non-blocking; failures should skip gracefully.
+
+============================================================
+4. SUSTAINMENT
+============================================================
+- Add caching for domain results; reuse discovery results for same domain.
+- Add archival logic for stale leads (>30 days in early states).
+- Limit crawl depth and requests per domain; enforce timeouts.
+- Logs must allow debugging of why enrichment succeeded or failed.
+
+============================================================
+5. COMMAND & SIGNAL
+============================================================
+- ARCHANGEL is now the ONLY enrichment system.
+- All enrichment states must map to the defined lifecycle.
+- Admin console will display all states; customer portal hides non-actionable data.
+- After implementation, restart system and verify:
+  - Domain discovery
+  - Email extraction
+  - State transitions
+  - Outbound gating
+  - Customer portal filtering

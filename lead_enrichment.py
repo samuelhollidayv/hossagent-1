@@ -46,7 +46,7 @@ from models import (
     ENRICHMENT_STATUS_FAILED,
     ENRICHMENT_STATUS_SKIPPED,
 )
-from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult
+from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -980,9 +980,13 @@ def _apply_enrichment_to_lead_event(
     elif lead_event.lead_domain:
         lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
         lead_event.enrichment_source = result.source if result else "none"
-        log_enrichment("status_transition", lead_event_id=lead_event.id,
+        # ARCHANGEL: Set domain confidence
+        if result and hasattr(result, 'confidence'):
+            lead_event.domain_confidence = result.confidence
+        log_enrichment("ARCHANGEL_STATUS_TRANSITION", lead_event_id=lead_event.id,
                        details={"new_status": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 
-                                "domain": lead_event.lead_domain})
+                                "domain": lead_event.lead_domain,
+                                "domain_confidence": lead_event.domain_confidence})
     
     else:
         lead_event.enrichment_status = ENRICHMENT_STATUS_UNENRICHED
@@ -1133,16 +1137,23 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
             lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
             lead_event.enrichment_source = domain_result.source
             lead_event.last_enrichment_at = datetime.utcnow()
+            lead_event.domain_confidence = domain_result.confidence
+            
+            # ARCHANGEL: Extract and store company name candidate
+            if not lead_event.company_name_candidate:
+                lead_event.company_name_candidate = extract_company_name_from_summary(lead_event.summary)
+            
             session.add(lead_event)
             session.commit()
             
             stats["domains_discovered"] += 1
             stats["by_source"]["domain_discovery"] += 1
             
-            log_enrichment("domain_discovered", lead_event_id=lead_event.id,
+            log_enrichment("ARCHANGEL_DOMAIN_DISCOVERED", lead_event_id=lead_event.id,
                            domain=domain_result.domain,
                            details={"method": domain_result.discovery_method, 
-                                    "confidence": domain_result.confidence})
+                                    "confidence": domain_result.confidence,
+                                    "company_candidate": lead_event.company_name_candidate})
             
             with_domain_events.append(lead_event)
         else:
@@ -1160,10 +1171,15 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
     for i, lead_event in enumerate(with_domain_events):
         if lead_event.lead_email:
             lead_event.enrichment_status = ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
+            # ARCHANGEL: Set email confidence for pre-enriched leads
+            lead_event.email_confidence = 0.95 if "@" in lead_event.lead_email else 0.0
             session.add(lead_event)
             session.commit()
             stats["enriched"] += 1
             stats["by_source"]["signal"] += 1
+            log_enrichment("ARCHANGEL_EMAIL_READY", lead_event_id=lead_event.id,
+                           details={"email": lead_event.lead_email, 
+                                    "email_confidence": lead_event.email_confidence})
             continue
         
         result = await enrich_lead_event(lead_event, session)

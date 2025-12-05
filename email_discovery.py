@@ -224,8 +224,33 @@ def _email_matches_domain(email: str, target_domain: str) -> bool:
     return email_domain == target or email_domain.endswith(f".{target}")
 
 
+def classify_email(email: str) -> str:
+    """
+    ARCHANGEL: Classify email type - generic vs person-like.
+    
+    Returns: 'generic', 'person', 'other'
+    """
+    local = email.split("@")[0].lower()
+    
+    if _is_generic_email(email):
+        return "generic"
+    
+    if "." in local or any(c.isupper() for c in local):
+        return "person"
+    
+    return "other"
+
+
 def _calculate_confidence(email: str, target_domain: str, source_url: str) -> float:
-    """Calculate confidence score for discovered email."""
+    """
+    ARCHANGEL: Calculate confidence score for discovered email.
+    
+    Factors:
+    - Domain match (30%)
+    - Email pattern (20%)
+    - Page context (10%)
+    - Email type (40% bonus for person-like)
+    """
     score = 0.5  
     
     if _email_matches_domain(email, target_domain):
@@ -233,10 +258,13 @@ def _calculate_confidence(email: str, target_domain: str, source_url: str) -> fl
     else:
         score -= 0.2
     
-    if _is_generic_email(email):
-        score += 0.1  
+    email_type = classify_email(email)
+    if email_type == "person":
+        score += 0.4
+    elif email_type == "generic":
+        score += 0.1
     else:
-        score += 0.2  
+        score += 0.0
     
     source_path = urlparse(source_url).path.lower()
     if any(pattern in source_path for pattern in ["/contact", "/about", "/team"]):

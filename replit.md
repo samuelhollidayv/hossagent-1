@@ -74,21 +74,29 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
   - **Email Validation**: Validates emails and filters invalid patterns.
   - **No External APIs**: Fully autonomous - no paid enrichment APIs required.
   - **ACTIVE_PROVIDERS**: `["HossNative"]` - the ONLY lead source.
-- **Four-State Enrichment Lifecycle:** Explicit state machine for LeadEvent processing.
-  - **UNENRICHED**: Raw signal, no domain or email yet.
-  - **WITH_DOMAIN_NO_EMAIL**: Domain discovered via layered pipeline, awaiting email scraping.
-  - **ENRICHED_NO_OUTBOUND**: Email found, ready for BizDev to send outbound.
-  - **OUTBOUND_SENT**: Email successfully sent (or dry-run recorded).
-  - **ARCHIVED**: Stale leads (30+ days without progress) are auto-archived.
-  - **State Transitions**: UNENRICHED → WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND → OUTBOUND_SENT.
-  - **Admin Console Filters**: Tab-based filtering by enrichment status with counts.
-  - **Customer Portal**: Only shows OUTBOUND_SENT leads (+ ENRICHED_NO_OUTBOUND in REVIEW mode).
-- **Domain Discovery Pipeline:** Layered approach to find company domains.
-  - **Layer 1**: Check existing lead_domain and lead_email fields.
-  - **Layer 2**: Parse signal source URL (skip aggregators like news.google.com).
-  - **Layer 3**: Fetch article page and extract linked domains.
-  - **Layer 4**: Web search fallback with domain guessing.
-  - **Guardrails**: Rejects social media, directory, and news aggregator domains.
+- **OPERATION ARCHANGEL: Multi-Layered Enrichment Engine** (v2 - ACTIVE)
+  - **Company Name Extraction**: Parses signal summary for quoted names and capitalized phrases, strips location markers.
+  - **Domain Discovery (Multi-Layered)**:
+    - Layer 1: Use existing lead_domain/lead_email fields
+    - Layer 2: Parse source URL for company websites
+    - Layer 3: Fetch articles and extract outbound links (blocks social/news/directories)
+    - Layer 4: Web search fallback with domain guessing and verification
+  - **Email Classification & Scoring**:
+    - Classifies emails as: generic (info@, contact@), person-like (firstname.lastname@), or other
+    - Confidence scoring factors: domain match (30%), email pattern (40% for person-like), page context (10%), TLD priority
+    - Scores range 0-1.0 with person-like emails prioritized
+  - **Confidence Scoring System**:
+    - `domain_confidence`: 0-1.0 score reflecting domain match quality
+    - `email_confidence`: 0-1.0 score reflecting email validity and context
+    - `company_name_candidate`: Extracted company name for matching validation
+  - **State Machine with Confidence**:
+    - UNENRICHED → WITH_DOMAIN_NO_EMAIL (with domain_confidence)
+    - WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND (with email_confidence)
+    - ENRICHED_NO_OUTBOUND → OUTBOUND_SENT (only high-confidence leads)
+    - ARCHIVED for stale leads (30+ days without progress)
+  - **Admin Console Filters**: Tab-based filtering with enrichment status and confidence metrics.
+  - **Customer Portal**: Shows only high-confidence OUTBOUND_SENT leads (ENRICHED_NO_OUTBOUND visible in REVIEW mode).
+  - **No Paid APIs**: HossNative only - no Apollo, Hunter, or Clearbit APIs.
 - **Autopilot:** Automates agent cycles every 15 minutes for paid plans.
 
 **Conversation Engine:**
