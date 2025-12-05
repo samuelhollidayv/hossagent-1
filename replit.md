@@ -74,6 +74,21 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
   - **Email Validation**: Validates emails and filters invalid patterns.
   - **No External APIs**: Fully autonomous - no paid enrichment APIs required.
   - **ACTIVE_PROVIDERS**: `["HossNative"]` - the ONLY lead source.
+- **Four-State Enrichment Lifecycle:** Explicit state machine for LeadEvent processing.
+  - **UNENRICHED**: Raw signal, no domain or email yet.
+  - **WITH_DOMAIN_NO_EMAIL**: Domain discovered via layered pipeline, awaiting email scraping.
+  - **ENRICHED_NO_OUTBOUND**: Email found, ready for BizDev to send outbound.
+  - **OUTBOUND_SENT**: Email successfully sent (or dry-run recorded).
+  - **ARCHIVED**: Stale leads (30+ days without progress) are auto-archived.
+  - **State Transitions**: UNENRICHED → WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND → OUTBOUND_SENT.
+  - **Admin Console Filters**: Tab-based filtering by enrichment status with counts.
+  - **Customer Portal**: Only shows OUTBOUND_SENT leads (+ ENRICHED_NO_OUTBOUND in REVIEW mode).
+- **Domain Discovery Pipeline:** Layered approach to find company domains.
+  - **Layer 1**: Check existing lead_domain and lead_email fields.
+  - **Layer 2**: Parse signal source URL (skip aggregators like news.google.com).
+  - **Layer 3**: Fetch article page and extract linked domains.
+  - **Layer 4**: Web search fallback with domain guessing.
+  - **Guardrails**: Rejects social media, directory, and news aggregator domains.
 - **Autopilot:** Automates agent cycles every 15 minutes for paid plans.
 
 **Conversation Engine:**
