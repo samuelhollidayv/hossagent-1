@@ -277,6 +277,14 @@
                     <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Top Traffic Sources (7d)</h3>
                     <div id="analytics-referrers" style="font-size: 0.85rem;"></div>
                 </div>
+
+                <!-- SendGrid Email Stats -->
+                <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Email Delivery Stats (7d)</h3>
+                    <div id="sendgrid-stats" style="font-size: 0.85rem;">
+                        <div style="color: var(--text-tertiary);">Loading...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -582,10 +590,71 @@
                 ).join('') || '<span style="color:var(--text-tertiary)">No referrer data yet</span>';
                 document.getElementById('analytics-referrers').innerHTML = referrerList;
                 
+                loadSendGridStats();
+                
                 document.getElementById('analytics-loading').style.display = 'none';
                 document.getElementById('analytics-content').style.display = 'block';
             } catch (e) {
                 document.getElementById('analytics-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadAnalytics()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+            }
+        }
+        
+        async function loadSendGridStats() {
+            const container = document.getElementById('sendgrid-stats');
+            try {
+                const resp = await fetch('/api/admin/sendgrid-stats?days=7');
+                const data = await resp.json();
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:var(--accent-red);">${data.error || 'Failed to load stats'}</div>`;
+                    return;
+                }
+                
+                const t = data.totals;
+                const r = data.rates;
+                
+                container.innerHTML = `
+                    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:1rem;margin-bottom:1.5rem;">
+                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
+                            <div style="font-size:1.5rem;font-weight:600;color:var(--accent-green);">${t.delivered}</div>
+                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Delivered</div>
+                        </div>
+                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
+                            <div style="font-size:1.5rem;font-weight:600;color:var(--accent-blue);">${r.open_rate}%</div>
+                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Open Rate</div>
+                        </div>
+                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
+                            <div style="font-size:1.5rem;font-weight:600;color:var(--accent-orange);">${r.click_rate}%</div>
+                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Click Rate</div>
+                        </div>
+                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
+                            <div style="font-size:1.5rem;font-weight:600;color:${t.bounces > 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${t.bounces}</div>
+                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Bounces</div>
+                        </div>
+                    </div>
+                    <div style="display:grid;gap:0.5rem;">
+                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                            <span>Total Requests</span><span>${t.requests}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                            <span>Opens (unique)</span><span style="color:var(--accent-blue);">${t.unique_opens}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                            <span>Clicks (unique)</span><span style="color:var(--accent-orange);">${t.unique_clicks}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                            <span>Blocks</span><span style="color:${t.blocks > 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${t.blocks}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
+                            <span>Spam Reports</span><span style="color:${t.spam_reports > 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${t.spam_reports}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;">
+                            <span>Period</span><span style="color:var(--text-tertiary);">${data.period.start} to ${data.period.end}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div style="color:var(--accent-red);">Error loading stats: ${e.message}</div>`;
             }
         }
 

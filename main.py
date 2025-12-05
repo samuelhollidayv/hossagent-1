@@ -64,7 +64,7 @@ from signals_agent import (
     get_lead_events_by_enrichment_status,
     get_lead_events_counts_by_status
 )
-from email_utils import send_email, get_email_status, get_email_log
+from email_utils import send_email, get_email_status, get_email_log, get_sendgrid_stats
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
 import signal_sources
@@ -5232,6 +5232,20 @@ def get_admin_funnel(request: Request, days: int = 30):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     return get_funnel_stats(days)
+
+
+@app.get("/api/admin/sendgrid-stats")
+def get_admin_sendgrid_stats(request: Request, days: int = 7):
+    """
+    Get SendGrid email delivery statistics.
+    
+    Returns opens, clicks, bounces, and delivery rates.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return get_sendgrid_stats(days)
 
 
 @app.get("/api/admin/signals")

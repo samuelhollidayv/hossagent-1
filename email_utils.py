@@ -891,3 +891,143 @@ def get_email_status() -> Dict[str, Any]:
         "max_per_hour": get_max_emails_per_hour(),
         "hourly": hourly_status
     }
+
+
+def get_sendgrid_stats(days: int = 7) -> Dict[str, Any]:
+    """
+    Fetch email delivery statistics from SendGrid Stats API.
+    
+    Returns aggregated stats for the specified number of days:
+        - requests: Total emails requested to send
+        - delivered: Emails confirmed delivered
+        - opens: Total opens
+        - unique_opens: Unique recipients who opened
+        - clicks: Total link clicks  
+        - unique_clicks: Unique recipients who clicked
+        - bounces: Hard bounces
+        - blocks: Blocked by ISP
+        - spam_reports: Marked as spam
+        - daily: List of daily breakdowns
+    
+    Args:
+        days: Number of days to fetch (default 7, max 30)
+    
+    Returns:
+        Dict with stats or error info
+    """
+    import requests
+    
+    api_key = os.getenv("SENDGRID_API_KEY", "")
+    if not api_key:
+        return {
+            "success": False,
+            "error": "SENDGRID_API_KEY not configured",
+            "stats": None
+        }
+    
+    days = min(days, 30)
+    end_date = datetime.utcnow().strftime("%Y-%m-%d")
+    start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    
+    try:
+        url = "https://api.sendgrid.com/v3/stats"
+        params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "aggregated_by": "day"
+        }
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.get(url, params=params, headers=headers, timeout=15)
+        
+        if response.status_code != 200:
+            return {
+                "success": False,
+                "error": f"SendGrid API error: {response.status_code} - {response.text[:200]}",
+                "stats": None
+            }
+        
+        data = response.json()
+        
+        totals = {
+            "requests": 0,
+            "delivered": 0,
+            "opens": 0,
+            "unique_opens": 0,
+            "clicks": 0,
+            "unique_clicks": 0,
+            "bounces": 0,
+            "blocks": 0,
+            "spam_reports": 0,
+            "deferred": 0,
+            "invalid_emails": 0
+        }
+        
+        daily = []
+        for day_data in data:
+            date = day_data.get("date", "")
+            stats_list = day_data.get("stats", [])
+            
+            if stats_list:
+                metrics = stats_list[0].get("metrics", {})
+                
+                day_stats = {
+                    "date": date,
+                    "requests": metrics.get("requests", 0),
+                    "delivered": metrics.get("delivered", 0),
+                    "opens": metrics.get("opens", 0),
+                    "unique_opens": metrics.get("unique_opens", 0),
+                    "clicks": metrics.get("clicks", 0),
+                    "unique_clicks": metrics.get("unique_clicks", 0),
+                    "bounces": metrics.get("bounces", 0),
+                    "blocks": metrics.get("blocks", 0),
+                    "spam_reports": metrics.get("spam_reports", 0)
+                }
+                daily.append(day_stats)
+                
+                for key in totals:
+                    totals[key] += metrics.get(key, 0)
+        
+        open_rate = 0.0
+        click_rate = 0.0
+        bounce_rate = 0.0
+        
+        if totals["delivered"] > 0:
+            open_rate = round((totals["unique_opens"] / totals["delivered"]) * 100, 1)
+            click_rate = round((totals["unique_clicks"] / totals["delivered"]) * 100, 1)
+        
+        if totals["requests"] > 0:
+            bounce_rate = round((totals["bounces"] / totals["requests"]) * 100, 1)
+        
+        return {
+            "success": True,
+            "error": None,
+            "period": {
+                "start": start_date,
+                "end": end_date,
+                "days": days
+            },
+            "totals": totals,
+            "rates": {
+                "open_rate": open_rate,
+                "click_rate": click_rate,
+                "bounce_rate": bounce_rate
+            },
+            "daily": sorted(daily, key=lambda x: x["date"], reverse=True)
+        }
+        
+    except requests.exceptions.Timeout:
+        return {
+            "success": False,
+            "error": "SendGrid API timeout",
+            "stats": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Error fetching SendGrid stats: {str(e)}",
+            "stats": None
+        }
