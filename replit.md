@@ -29,6 +29,7 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
   2. **Recent Opportunities & Outreach**: Enhanced expandable cards showing:
      - **Lead Contact Info**: Name, company, email (clickable mailto), domain link
      - **Why This Opportunity**: Contextual explanation (expansion signals, competitor shifts, new locations)
+     - **View Source Story**: Clickable hyperlink to original news article/signal source
      - **Full Email Content**: Subject line and complete body of sent email
      - **Recommended Next Steps**: Actionable guidance (wait time, follow-up info, manual outreach option)
      - REVIEW mode shows approval buttons for pending outreach
@@ -51,12 +52,13 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
 - **LeadEvent Identity Fields:** `lead_name`, `lead_email`, `lead_company`, `lead_domain`.
 
 **Outbound Email System:**
+- **Authenticated Domain**: hossagent.net (SendGrid authenticated)
 - **Subject Line Library**: 12 variants rotated per event/signal.
 - **Template Styles**: Customer-configurable (`transparent_ai` or `classic`).
 - **Name Parsing**: Extracts first name only.
 - **Rate Limiting**: Per-lead (daily/weekly) and per-customer limits.
 - **Suppression Flow**: `do_not_contact` flag, `OPT_OUT_PHRASES` detection in replies, `check_opt_out()` and `mark_do_not_contact()` functions.
-- **Email Content**: Includes opt-out instructions and website URL.
+- **Email Content**: Includes opt-out instructions, website URL, and source story hyperlink (when available).
 
 **Core Features:**
 - **Autonomous Agents:** SignalNet, BizDev, Onboarding, Ops, and Billing cycles.
