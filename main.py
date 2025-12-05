@@ -3992,10 +3992,10 @@ def get_enrichment_status_counts(
         "total": total,
         "counts": counts,
         "statuses": [
-            {"key": ENRICHMENT_STATUS_UNENRICHED, "label": "Unenriched", "count": counts.get(ENRICHMENT_STATUS_UNENRICHED, 0)},
-            {"key": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, "label": "With Domain", "count": counts.get(ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 0)},
-            {"key": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, "label": "Ready to Send", "count": counts.get(ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, 0)},
-            {"key": ENRICHMENT_STATUS_OUTBOUND_SENT, "label": "Outbound Sent", "count": counts.get(ENRICHMENT_STATUS_OUTBOUND_SENT, 0)},
+            {"key": ENRICHMENT_STATUS_UNENRICHED, "label": "Unenriched (No Domain)", "count": counts.get(ENRICHMENT_STATUS_UNENRICHED, 0)},
+            {"key": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, "label": "Domain Found (Email Pending)", "count": counts.get(ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 0)},
+            {"key": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, "label": "Email Ready (Awaiting Send)", "count": counts.get(ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, 0)},
+            {"key": ENRICHMENT_STATUS_OUTBOUND_SENT, "label": "Outbound Sent ✓", "count": counts.get(ENRICHMENT_STATUS_OUTBOUND_SENT, 0)},
         ]
     }
 
