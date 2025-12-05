@@ -120,7 +120,8 @@ BROWSER_HEADERS = {
 }
 
 
-_article_body_fetch_cache: Dict[str, Optional[str]] = {}
+_article_body_fetch_cache: Dict[str, tuple] = {}
+_CACHE_TTL_SECONDS = 3600
 
 def _extract_company_from_article_body(source_url: Optional[str], lead_event_id: Optional[int] = None) -> Optional[str]:
     """
@@ -136,7 +137,10 @@ def _extract_company_from_article_body(source_url: Optional[str], lead_event_id:
         return None
     
     if source_url in _article_body_fetch_cache:
-        return _article_body_fetch_cache[source_url]
+        cached_result, cached_time = _article_body_fetch_cache[source_url]
+        if time.time() - cached_time < _CACHE_TTL_SECONDS:
+            return cached_result
+        del _article_body_fetch_cache[source_url]
     
     try:
         start_time = time.time()
@@ -145,7 +149,7 @@ def _extract_company_from_article_body(source_url: Optional[str], lead_event_id:
         
         if response.status_code != 200:
             print(f"[ARCHANGEL][ARTICLE_BODY][SKIP] status={response.status_code} url={source_url[:60]}...")
-            _article_body_fetch_cache[source_url] = None
+            _article_body_fetch_cache[source_url] = (None, time.time())
             return None
         
         html = response.text[:50000]
@@ -161,7 +165,7 @@ def _extract_company_from_article_body(source_url: Optional[str], lead_event_id:
         
         if not text_content:
             print(f"[ARCHANGEL][ARTICLE_BODY][SKIP] no_text url={source_url[:60]}...")
-            _article_body_fetch_cache[source_url] = None
+            _article_body_fetch_cache[source_url] = (None, time.time())
             return None
         
         business_pattern = re.compile(
@@ -173,24 +177,24 @@ def _extract_company_from_article_body(source_url: Optional[str], lead_event_id:
         for match in matches:
             if _is_valid_branded_company(match):
                 print(f"[ARCHANGEL][ARTICLE_BODY][FOUND] company={match} fetch_time={fetch_time:.2f}s")
-                _article_body_fetch_cache[source_url] = match
+                _article_body_fetch_cache[source_url] = (match, time.time())
                 return match
         
         print(f"[ARCHANGEL][ARTICLE_BODY][NONE] no_branded_match fetch_time={fetch_time:.2f}s")
-        _article_body_fetch_cache[source_url] = None
+        _article_body_fetch_cache[source_url] = (None, time.time())
         return None
         
     except requests.Timeout:
         print(f"[ARCHANGEL][ARTICLE_BODY][TIMEOUT] url={source_url[:60]}...")
-        _article_body_fetch_cache[source_url] = None
+        _article_body_fetch_cache[source_url] = (None, time.time())
         return None
     except requests.RequestException as e:
         print(f"[ARCHANGEL][ARTICLE_BODY][ERROR] {str(e)[:50]} url={source_url[:60]}...")
-        _article_body_fetch_cache[source_url] = None
+        _article_body_fetch_cache[source_url] = (None, time.time())
         return None
     except Exception as e:
         print(f"[ARCHANGEL][ARTICLE_BODY][ERROR] unexpected: {str(e)[:50]}")
-        _article_body_fetch_cache[source_url] = None
+        _article_body_fetch_cache[source_url] = (None, time.time())
         return None
 
 
