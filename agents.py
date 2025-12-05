@@ -666,7 +666,8 @@ def generate_miami_contextual_email(
     outreach_style: str = "transparent_ai",
     event_id: int = 0,
     signal_id: int = None,
-    city: str = "Miami"
+    city: str = "Miami",
+    source_url: str = None
 ) -> tuple[str, str]:
     """
     Generate Miami-style contextual email based on signal event.
@@ -680,12 +681,13 @@ def generate_miami_contextual_email(
     - Non-clickbait subject lines from rotating library
     - Context-driven body with clear value proposition
     - Opt-out instructions in every email
+    - Source URL hyperlink when available
     
     Returns: (subject, body) tuple
     """
     import os
     
-    website_url = os.environ.get("HOSSAGENT_WEBSITE_URL", "https://hossagent.replit.app")
+    website_url = os.environ.get("HOSSAGENT_WEBSITE_URL", "https://hossagent.net")
     
     first_name = parse_first_name(contact_name)
     
@@ -725,6 +727,10 @@ def generate_miami_contextual_email(
     
     concrete_benefit = category_benefits.get(category, category_benefits["OPPORTUNITY"])
     
+    source_line = ""
+    if source_url:
+        source_line = f"\n(Source: {source_url})\n"
+    
     if outreach_style == "transparent_ai":
         body = f"""Hi {first_name},
 
@@ -732,8 +738,7 @@ I saw a recent {signal_handle} related to {company_name} and thought it might be
 
 I build tools that watch these kinds of signals so owners don't have to babysit feeds all day. Today your company popped onto my radar because of this specific event:
 
-{event_summary}
-
+{event_summary}{source_line}
 I think there's a short window where you could {concrete_benefit}. If it's useful, I can send you a short snapshot of what I'm seeing in your niche, plus a couple of concrete plays other local teams are running.
 
 If that sounds interesting, just reply "send it" and I'll follow up, or we can set up a quick 15-minute call.
@@ -753,8 +758,7 @@ Founder, HossAgent
 
 I noticed something that might be relevant to {company_name}:
 
-{event_summary}
-
+{event_summary}{source_line}
 Based on what I'm seeing in the local {niche} market, there may be a short window to {concrete_benefit}.
 
 My suggestion: {recommended_action}

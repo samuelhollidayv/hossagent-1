@@ -6,7 +6,37 @@ import json
 from typing import Optional, List
 from datetime import datetime
 from sqlmodel import Session, select
-from models import BusinessProfile, PendingOutbound, Customer
+from models import BusinessProfile, PendingOutbound, Customer, Signal
+
+
+def _get_source_url_for_lead_event(session: Session, lead_event) -> Optional[str]:
+    """
+    Get source URL from the Signal associated with a LeadEvent.
+    
+    Extracts URL from signal's raw_payload (stored as JSON).
+    
+    Args:
+        session: Database session
+        lead_event: LeadEvent object with signal_id
+        
+    Returns:
+        Source URL string if found, None otherwise
+    """
+    if not lead_event.signal_id:
+        return None
+    
+    signal = session.exec(
+        select(Signal).where(Signal.id == lead_event.signal_id)
+    ).first()
+    
+    if not signal or not signal.raw_payload:
+        return None
+    
+    try:
+        payload = json.loads(signal.raw_payload)
+        return payload.get("url") or payload.get("source_url") or payload.get("link")
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 def get_business_profile(session: Session, customer_id: int) -> Optional[BusinessProfile]:
@@ -267,6 +297,8 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
             reason=rate_reason
         )
     
+    source_url = _get_source_url_for_lead_event(session, lead_event)
+    
     from agents import generate_miami_contextual_email
     subject, body = generate_miami_contextual_email(
         contact_name=contact_name or "there",
@@ -279,7 +311,8 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
         outreach_style=outreach_style,
         event_id=lead_event.id,
         signal_id=lead_event.signal_id,
-        city=city
+        city=city,
+        source_url=source_url
     )
     
     if outreach_mode == OUTREACH_MODE_REVIEW and customer:

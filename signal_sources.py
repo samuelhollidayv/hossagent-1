@@ -2156,7 +2156,7 @@ class NewsSearchSignalSource(SignalSource):
             url = f"{self.GOOGLE_NEWS_RSS_BASE}?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
             
             headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; HossAgent/1.0; +https://hossagent.com)"
+                "User-Agent": "Mozilla/5.0 (compatible; HossAgent/1.0; +https://hossagent.net)"
             }
             
             response = requests.get(url, headers=headers, timeout=15)
@@ -2468,7 +2468,7 @@ class RedditSignalSource(SignalSource):
         url = f"{self.REDDIT_BASE_URL}/r/{subreddit}/new.json"
         params = {"limit": limit}
         headers = {
-            "User-Agent": "HossAgent/1.0 (Business Signal Detection; +https://hossagent.com)"
+            "User-Agent": "HossAgent/1.0 (Business Signal Detection; +https://hossagent.net)"
         }
         
         response = requests.get(url, params=params, headers=headers, timeout=15)
