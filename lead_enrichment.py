@@ -157,7 +157,7 @@ def log_enrichment(
 
 @dataclass
 class EnrichmentResult:
-    """Result of an enrichment attempt."""
+    """Result of an enrichment attempt - ARCHANGEL Enhanced."""
     success: bool
     source: str  # 'hunter', 'clearbit', 'scrape', 'none'
     email: Optional[str] = None
@@ -166,6 +166,7 @@ class EnrichmentResult:
     company_name: Optional[str] = None
     social_links: dict = field(default_factory=dict)
     error: Optional[str] = None
+    email_confidence: float = 0.0  # ARCHANGEL: email confidence score 0-1.0
 
 
 def extract_domain_from_url(url: str) -> Optional[str]:
@@ -966,23 +967,25 @@ def _apply_enrichment_to_lead_event(
         lead_event.enriched_social_links = json.dumps(result.social_links) if result.social_links else None
         lead_event.enriched_at = datetime.utcnow()
         
+        # ARCHANGEL: Set email confidence from result
+        lead_event.email_confidence = result.email_confidence if result.email_confidence > 0 else 0.75
+        
         if not lead_event.lead_email:
             lead_event.lead_email = result.email
-            log_enrichment("email_set", lead_event_id=lead_event.id,
-                           details={"lead_email": result.email, "source": result.source})
+            log_enrichment("ARCHANGEL_EMAIL_SET", lead_event_id=lead_event.id,
+                           details={"lead_email": result.email, "source": result.source, 
+                                    "email_confidence": lead_event.email_confidence})
         
         if result.contact_name and not lead_event.lead_name:
             lead_event.lead_name = result.contact_name
             
-        log_enrichment("status_transition", lead_event_id=lead_event.id,
-                       details={"new_status": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND})
+        log_enrichment("ARCHANGEL_STATUS_ENRICHED", lead_event_id=lead_event.id,
+                       details={"new_status": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+                                "email_confidence": lead_event.email_confidence})
     
     elif lead_event.lead_domain:
         lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
         lead_event.enrichment_source = result.source if result else "none"
-        # ARCHANGEL: Set domain confidence
-        if result and hasattr(result, 'confidence'):
-            lead_event.domain_confidence = result.confidence
         log_enrichment("ARCHANGEL_STATUS_TRANSITION", lead_event_id=lead_event.id,
                        details={"new_status": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 
                                 "domain": lead_event.lead_domain,
