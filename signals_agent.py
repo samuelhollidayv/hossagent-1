@@ -50,7 +50,13 @@ from datetime import datetime
 from typing import Optional, Dict, Sequence
 from sqlmodel import Session, select
 
-from models import Signal, LeadEvent, Customer, Lead
+from models import (
+    Signal, LeadEvent, Customer, Lead,
+    ENRICHMENT_STATUS_OUTBOUND_SENT,
+    ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+    ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+    ENRICHMENT_STATUS_UNENRICHED,
+)
 from subscription_utils import increment_leads_used
 from signal_sources import (
     run_signal_pipeline,
@@ -343,9 +349,18 @@ def run_signals_agent(session: Session, max_signals: int = 10) -> Dict:
     }
 
 
-def get_todays_opportunities(session: Session, company_id: Optional[int] = None, limit: int = 10) -> Sequence[LeadEvent]:
+def get_todays_opportunities(
+    session: Session, 
+    company_id: Optional[int] = None, 
+    limit: int = 10,
+    enrichment_status: Optional[str] = None,
+    include_review_mode: bool = False
+) -> Sequence[LeadEvent]:
     """
     Get today's opportunities (LeadEvents) for display in customer portal.
+    
+    By default, only shows OUTBOUND_SENT events (emails that have been sent).
+    If include_review_mode=True, also includes ENRICHED_NO_OUTBOUND (pending review).
     
     Sorted by urgency_score desc, then by created_at desc.
     """
@@ -357,7 +372,58 @@ def get_todays_opportunities(session: Session, company_id: Optional[int] = None,
     if company_id:
         query = query.where(LeadEvent.company_id == company_id)
     
+    if enrichment_status:
+        query = query.where(LeadEvent.enrichment_status == enrichment_status)
+    elif include_review_mode:
+        query = query.where(LeadEvent.enrichment_status.in_([
+            ENRICHMENT_STATUS_OUTBOUND_SENT,
+            ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
+        ]))
+    else:
+        query = query.where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_OUTBOUND_SENT)
+    
     return session.exec(query).all()
+
+
+def get_lead_events_by_enrichment_status(
+    session: Session, 
+    enrichment_status: str, 
+    limit: int = 50
+) -> Sequence[LeadEvent]:
+    """
+    Get LeadEvents filtered by enrichment status for admin console.
+    
+    Enrichment Status Flow:
+    - UNENRICHED: Raw signals, no domain/email yet
+    - WITH_DOMAIN_NO_EMAIL: Domain discovered, awaiting email scraping
+    - ENRICHED_NO_OUTBOUND: Ready to send (email found)
+    - OUTBOUND_SENT: Email sent
+    """
+    return session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.enrichment_status == enrichment_status)
+        .order_by(LeadEvent.created_at.desc())
+        .limit(limit)
+    ).all()
+
+
+def get_lead_events_counts_by_status(session: Session) -> Dict[str, int]:
+    """Get counts of LeadEvents by enrichment status for admin dashboard."""
+    statuses = [
+        ENRICHMENT_STATUS_UNENRICHED,
+        ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+        ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+        ENRICHMENT_STATUS_OUTBOUND_SENT,
+    ]
+    
+    counts = {}
+    for status in statuses:
+        count = len(session.exec(
+            select(LeadEvent).where(LeadEvent.enrichment_status == status)
+        ).all())
+        counts[status] = count
+    
+    return counts
 
 
 def get_signals_summary(session: Session, limit: int = 20) -> Sequence[Signal]:

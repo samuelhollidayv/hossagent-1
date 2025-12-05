@@ -1187,6 +1187,9 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
         if i < len(with_domain_events) - 1:
             await asyncio.sleep(RATE_LIMIT_DELAY)
     
+    archival_result = archive_stale_leads(session, max_to_archive=25)
+    stats["archived"] = archival_result.get("archived", 0)
+    
     log_enrichment("pipeline_complete", details=stats)
     
     return stats
@@ -1208,6 +1211,77 @@ def get_enrichment_status() -> dict:
         "clearbit_available": bool(CLEARBIT_API_KEY),
         "scrape_only_mode": not HUNTER_API_KEY and not CLEARBIT_API_KEY,
         "dry_run": ENRICHMENT_DRY_RUN
+    }
+
+
+STALE_LEAD_AGE_DAYS = int(os.environ.get("STALE_LEAD_AGE_DAYS", "30"))
+
+
+def archive_stale_leads(session: Session, max_to_archive: int = 50) -> dict:
+    """
+    Archive LeadEvents that have been stuck in non-actionable states for too long.
+    
+    Criteria for archival:
+    - Status is UNENRICHED or WITH_DOMAIN_NO_EMAIL (non-actionable)
+    - Created more than STALE_LEAD_AGE_DAYS days ago (default: 30)
+    
+    This prevents the pipeline from repeatedly trying to enrich stale leads
+    that are unlikely to ever be enriched successfully.
+    
+    Args:
+        session: Database session
+        max_to_archive: Maximum leads to archive per call
+        
+    Returns:
+        Dict with archival stats
+    """
+    from datetime import timedelta
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=STALE_LEAD_AGE_DAYS)
+    
+    stale_events = session.exec(
+        select(LeadEvent)
+        .where(LeadEvent.enrichment_status.in_([
+            ENRICHMENT_STATUS_UNENRICHED,
+            ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
+        ]))
+        .where(LeadEvent.created_at < cutoff_date)
+        .order_by(LeadEvent.created_at.asc())
+        .limit(max_to_archive)
+    ).all()
+    
+    if not stale_events:
+        return {"archived": 0, "message": "No stale leads to archive"}
+    
+    archived_count = 0
+    archived_by_status = {"UNENRICHED": 0, "WITH_DOMAIN_NO_EMAIL": 0}
+    
+    for event in stale_events:
+        old_status = event.enrichment_status
+        event.enrichment_status = ENRICHMENT_STATUS_ARCHIVED
+        event.last_enrichment_at = datetime.utcnow()
+        session.add(event)
+        
+        if old_status == ENRICHMENT_STATUS_UNENRICHED:
+            archived_by_status["UNENRICHED"] += 1
+        else:
+            archived_by_status["WITH_DOMAIN_NO_EMAIL"] += 1
+        
+        archived_count += 1
+    
+    session.commit()
+    
+    log_enrichment("stale_leads_archived", details={
+        "archived": archived_count,
+        "cutoff_days": STALE_LEAD_AGE_DAYS,
+        "by_status": archived_by_status
+    })
+    
+    return {
+        "archived": archived_count,
+        "cutoff_days": STALE_LEAD_AGE_DAYS,
+        "by_status": archived_by_status,
+        "message": f"Archived {archived_count} stale leads (>{STALE_LEAD_AGE_DAYS} days old)"
     }
 
 

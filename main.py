@@ -40,7 +40,12 @@ from models import (
     THREAD_STATUS_OPEN, THREAD_STATUS_HUMAN_OWNED, THREAD_STATUS_AUTO, THREAD_STATUS_CLOSED,
     MESSAGE_DIRECTION_INBOUND, MESSAGE_DIRECTION_OUTBOUND,
     MESSAGE_STATUS_QUEUED, MESSAGE_STATUS_SENT, MESSAGE_STATUS_DRAFT, MESSAGE_STATUS_FAILED, MESSAGE_STATUS_APPROVED,
-    MESSAGE_GENERATED_AI, MESSAGE_GENERATED_HUMAN, MESSAGE_GENERATED_SYSTEM
+    MESSAGE_GENERATED_AI, MESSAGE_GENERATED_HUMAN, MESSAGE_GENERATED_SYSTEM,
+    ENRICHMENT_STATUS_UNENRICHED,
+    ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+    ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+    ENRICHMENT_STATUS_OUTBOUND_SENT,
+    OUTREACH_MODE_REVIEW,
 )
 from agents import (
     run_bizdev_cycle,
@@ -49,7 +54,14 @@ from agents import (
     run_billing_cycle,
     run_event_driven_bizdev_cycle,
 )
-from signals_agent import run_signals_agent, get_signals_summary, get_lead_events_summary, get_todays_opportunities
+from signals_agent import (
+    run_signals_agent, 
+    get_signals_summary, 
+    get_lead_events_summary, 
+    get_todays_opportunities,
+    get_lead_events_by_enrichment_status,
+    get_lead_events_counts_by_status
+)
 from email_utils import send_email, get_email_status, get_email_log
 from lead_service import generate_new_leads_from_source, get_lead_source_log
 from lead_sources import get_lead_source_status
@@ -3206,10 +3218,28 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     elif query_params.get("reactivated") == "true":
         payment_banner = '<div class="payment-success">Your subscription has been reactivated!</div>'
     
-    total_opportunities = session.exec(select(func.count(LeadEvent.id)).where(LeadEvent.company_id == customer.id)).one()
+    business_profile = session.exec(
+        select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
+    ).first()
+    is_review_mode = business_profile and business_profile.outreach_mode == OUTREACH_MODE_REVIEW
+    
+    if is_review_mode:
+        allowed_statuses = [ENRICHMENT_STATUS_OUTBOUND_SENT, ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND]
+    else:
+        allowed_statuses = [ENRICHMENT_STATUS_OUTBOUND_SENT]
+    
+    total_opportunities = session.exec(
+        select(func.count(LeadEvent.id))
+        .where(LeadEvent.company_id == customer.id)
+        .where(LeadEvent.enrichment_status.in_(allowed_statuses))
+    ).one()
+    
     opportunities = session.exec(
-        select(LeadEvent).where(LeadEvent.company_id == customer.id)
-        .order_by(LeadEvent.created_at.desc()).limit(30)
+        select(LeadEvent)
+        .where(LeadEvent.company_id == customer.id)
+        .where(LeadEvent.enrichment_status.in_(allowed_statuses))
+        .order_by(LeadEvent.created_at.desc())
+        .limit(30)
     ).all()
     
     pending_outreach = session.exec(
@@ -3872,10 +3902,17 @@ def get_kpis(request: Request, session: Session = Depends(get_session)):
 def get_lead_events_detailed(
     request: Request,
     limit: int = Query(default=50, le=100),
+    enrichment_status: Optional[str] = Query(default=None),
     session: Session = Depends(get_session)
 ):
     """
     Get detailed lead events with related outbound and report info.
+    
+    Supports optional filtering by enrichment_status:
+    - UNENRICHED: Raw signals, no domain/email yet
+    - WITH_DOMAIN_NO_EMAIL: Domain discovered, awaiting email scraping
+    - ENRICHED_NO_OUTBOUND: Ready to send (email found)
+    - OUTBOUND_SENT: Email sent
     
     Returns lead events with has_outbound and has_report flags.
     """
@@ -3883,9 +3920,12 @@ def get_lead_events_detailed(
     if not verify_admin_session(admin_token):
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    events = session.exec(
-        select(LeadEvent).order_by(LeadEvent.created_at.desc()).limit(limit)
-    ).all()
+    query = select(LeadEvent).order_by(LeadEvent.created_at.desc())
+    
+    if enrichment_status:
+        query = query.where(LeadEvent.enrichment_status == enrichment_status)
+    
+    events = session.exec(query.limit(limit)).all()
     
     result = []
     for e in events:
@@ -3924,6 +3964,40 @@ def get_lead_events_detailed(
         })
     
     return result
+
+
+@app.get("/api/enrichment_status_counts")
+def get_enrichment_status_counts(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get counts of LeadEvents by enrichment status for admin dashboard.
+    
+    Returns counts for each enrichment status:
+    - UNENRICHED: Raw signals, no domain/email yet
+    - WITH_DOMAIN_NO_EMAIL: Domain discovered, awaiting email scraping
+    - ENRICHED_NO_OUTBOUND: Ready to send (email found)
+    - OUTBOUND_SENT: Email sent
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    counts = get_lead_events_counts_by_status(session)
+    
+    total = sum(counts.values())
+    
+    return {
+        "total": total,
+        "counts": counts,
+        "statuses": [
+            {"key": ENRICHMENT_STATUS_UNENRICHED, "label": "Unenriched", "count": counts.get(ENRICHMENT_STATUS_UNENRICHED, 0)},
+            {"key": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, "label": "With Domain", "count": counts.get(ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 0)},
+            {"key": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, "label": "Ready to Send", "count": counts.get(ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, 0)},
+            {"key": ENRICHMENT_STATUS_OUTBOUND_SENT, "label": "Outbound Sent", "count": counts.get(ENRICHMENT_STATUS_OUTBOUND_SENT, 0)},
+        ]
+    }
 
 
 @app.get("/api/output_history")
