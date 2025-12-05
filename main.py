@@ -1369,6 +1369,81 @@ def handle_outreach_action(
     return JSONResponse(status_code=400, content={"success": False, "error": "Invalid action"})
 
 
+@app.post("/api/message/{message_id}/{action}")
+def handle_message_draft_action(
+    message_id: int,
+    action: str,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Handle message draft actions: approve or discard.
+    
+    Actions:
+    - approve: Send the AI-generated draft email
+    - discard: Delete the draft message
+    """
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+    
+    message = session.exec(
+        select(Message).where(
+            Message.id == message_id,
+            Message.customer_id == customer.id
+        )
+    ).first()
+    
+    if not message:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Message not found"})
+    
+    if message.status != "DRAFT" or message.direction != "OUTBOUND":
+        return JSONResponse(content={"success": False, "error": "Not a draft message"})
+    
+    if action == "approve":
+        from email_utils import send_email
+        
+        email_success = send_email(
+            to_email=message.to_email,
+            subject=message.subject,
+            body=message.body,
+            lead_name="",
+            company=""
+        )
+        
+        if email_success:
+            message.status = "SENT"
+            message.sent_at = datetime.utcnow()
+            print(f"[MESSAGE] Draft approved and sent: {message.id} to {message.to_email}")
+        else:
+            message.status = "QUEUED"
+            print(f"[MESSAGE] Draft approved (queued): {message.id}")
+        
+        if message.thread_id:
+            thread = session.exec(select(Thread).where(Thread.id == message.thread_id)).first()
+            if thread:
+                thread.last_message_at = datetime.utcnow()
+                thread.last_direction = "OUTBOUND"
+                thread.last_summary = (message.subject or message.body[:100] if message.body else "")[:100]
+                thread.outbound_count += 1
+                thread.message_count += 1
+                session.add(thread)
+        
+        session.add(message)
+        session.commit()
+        return JSONResponse(content={"success": True, "action": "sent" if email_success else "queued"})
+    
+    elif action == "discard":
+        session.delete(message)
+        session.commit()
+        print(f"[MESSAGE] Draft discarded: {message_id}")
+        return JSONResponse(content={"success": True, "action": "discarded"})
+    
+    return JSONResponse(status_code=400, content={"success": False, "error": "Invalid action"})
+
+
 @app.post("/api/upgrade")
 def admin_upgrade_customer(
     customer_id: int = Query(..., description="Customer ID to upgrade"),
@@ -3344,6 +3419,113 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         </div>
         '''
     
+    threads = session.exec(
+        select(Thread).where(
+            Thread.customer_id == customer.id,
+            Thread.status != "CLOSED"
+        ).order_by(Thread.updated_at.desc()).limit(20)
+    ).all()
+    
+    total_threads = session.exec(
+        select(func.count(Thread.id)).where(
+            Thread.customer_id == customer.id,
+            Thread.status != "CLOSED"
+        )
+    ).one()
+    
+    if threads:
+        conv_cards = ""
+        for thread in threads:
+            lead_display = html_module.escape(thread.lead_name or thread.lead_email or "Unknown Lead")
+            company_display = f" ({html_module.escape(thread.lead_company)})" if thread.lead_company else ""
+            preview = html_module.escape(thread.last_summary[:100] if thread.last_summary else "No messages yet")
+            timestamp = thread.updated_at.strftime("%b %d") if thread.updated_at else "-"
+            
+            messages = session.exec(
+                select(Message).where(Message.thread_id == thread.id)
+                .order_by(Message.created_at.desc()).limit(5)
+            ).all()
+            
+            has_drafts = any(m.status == "DRAFT" and m.direction == "OUTBOUND" for m in messages)
+            
+            if has_drafts:
+                status_class_conv = "draft"
+                status_text = "Draft Ready"
+            elif thread.status == "HUMAN_OWNED":
+                status_class_conv = "open"
+                status_text = "Your Turn"
+            elif thread.status == "AUTO":
+                status_class_conv = "open"
+                status_text = "Auto"
+            else:
+                status_class_conv = "open"
+                status_text = "Open"
+            
+            messages_html = ""
+            for msg in reversed(messages):
+                msg_time = msg.created_at.strftime("%b %d %H:%M") if msg.created_at else "-"
+                msg_body = html_module.escape(msg.body[:500] if msg.body else "")
+                is_draft = msg.status == "DRAFT" and msg.direction == "OUTBOUND"
+                
+                if is_draft:
+                    msg_class = "msg-draft"
+                    msg_label = "AI Draft"
+                    draft_actions = f'''
+                    <div class="draft-actions">
+                        <button class="draft-btn approve" onclick="event.stopPropagation(); handleDraft({msg.id}, 'approve')">Approve & Send</button>
+                        <button class="draft-btn discard" onclick="event.stopPropagation(); handleDraft({msg.id}, 'discard')">Discard</button>
+                    </div>
+                    '''
+                elif msg.direction == "INBOUND":
+                    msg_class = "msg-inbound"
+                    msg_label = f"From: {html_module.escape(msg.from_email)}"
+                    draft_actions = ""
+                else:
+                    msg_class = "msg-outbound"
+                    msg_label = f"Sent: {html_module.escape(msg.to_email)}"
+                    draft_actions = ""
+                
+                messages_html += f'''
+                <div class="msg-item {msg_class}">
+                    <div class="msg-header">
+                        <span>{msg_label}</span>
+                        <span>{msg_time}</span>
+                    </div>
+                    <div class="msg-body">{msg_body}</div>
+                    {draft_actions}
+                </div>
+                '''
+            
+            if not messages_html:
+                messages_html = '<div class="empty-state" style="padding: 1rem;"><div class="empty-state-sub">No messages in this thread yet</div></div>'
+            
+            conv_cards += f'''
+            <div class="conv-card" id="conv-{thread.id}" onclick="toggleConv('conv-{thread.id}')">
+                <div class="conv-header">
+                    <div>
+                        <div class="conv-lead">{lead_display}{company_display}</div>
+                        <div class="conv-preview">{preview}</div>
+                    </div>
+                    <div class="conv-meta">
+                        <span class="opp-date">{timestamp}</span>
+                        <span class="conv-status {status_class_conv}">{status_text}</span>
+                    </div>
+                </div>
+                <div class="conv-messages">
+                    {messages_html}
+                </div>
+            </div>
+            '''
+        
+        conversations_content = conv_cards
+    else:
+        conversations_content = '''
+        <div class="empty-state">
+            <div class="empty-state-title">No conversations yet</div>
+            <div class="empty-state-sub">When leads reply to your outreach, their conversations will appear here.</div>
+        </div>
+        '''
+    
     reports = session.exec(
         select(Report).where(Report.customer_id == customer.id).order_by(Report.created_at.desc()).limit(15)
     ).all()
@@ -3392,6 +3574,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         account_cta=account_cta,
         opportunities_count=total_opportunities,
         opportunities_content=opportunities_content,
+        conversations_count=total_threads,
+        conversations_content=conversations_content,
         reports_count=len(reports),
         reports_content=reports_content
     )
