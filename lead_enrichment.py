@@ -931,6 +931,9 @@ def _apply_enrichment_to_lead_event(
     """
     Apply enrichment results to LeadEvent and persist to database.
     
+    IMPORTANT: Sets both lead_email (for outbound) and enriched_email (for tracking).
+    The Event-Driven BizDev cycle checks lead_email for sending.
+    
     Args:
         lead_event: LeadEvent to update
         result: EnrichmentResult with data
@@ -945,6 +948,14 @@ def _apply_enrichment_to_lead_event(
         lead_event.enriched_company_name = result.company_name
         lead_event.enriched_social_links = json.dumps(result.social_links) if result.social_links else None
         lead_event.enriched_at = datetime.utcnow()
+        
+        if result.email and not lead_event.lead_email:
+            lead_event.lead_email = result.email
+            log_enrichment("email_set", lead_event_id=lead_event.id,
+                           details={"lead_email": result.email, "source": result.source})
+        
+        if result.contact_name and not lead_event.lead_name:
+            lead_event.lead_name = result.contact_name
     else:
         lead_event.enrichment_status = ENRICHMENT_STATUS_FAILED
         lead_event.enrichment_source = "none"

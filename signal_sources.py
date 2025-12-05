@@ -1100,9 +1100,6 @@ def create_lead_event_from_signal(
         parsed.context_summary
     )
     
-    has_contact = _has_contact_info(parsed.context_summary, parsed.raw_payload)
-    enrichment_status = ENRICHMENT_STATUS_ENRICHED if has_contact else ENRICHMENT_STATUS_UNENRICHED
-    
     company_name = _extract_company_from_context(parsed.context_summary)
     domain = _extract_domain_from_context(parsed.context_summary, parsed.raw_payload)
     
@@ -1117,7 +1114,8 @@ def create_lead_event_from_signal(
     
     if extracted_emails:
         lead_email = extracted_emails[0]
-        enrichment_status = ENRICHMENT_STATUS_ENRICHED
+    
+    enrichment_status = ENRICHMENT_STATUS_ENRICHED if lead_email else ENRICHMENT_STATUS_UNENRICHED
     
     recommended_action = _generate_recommended_action(category, parsed.context_summary)
     
