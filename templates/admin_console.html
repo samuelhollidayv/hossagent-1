@@ -746,98 +746,6 @@
             }
         }
 
-        .apollo-panel {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .apollo-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .apollo-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            letter-spacing: 0.05em;
-        }
-
-        .apollo-status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .apollo-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent-red);
-        }
-
-        .apollo-dot.connected {
-            background: var(--accent-green);
-        }
-
-        .apollo-controls {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .apollo-btn {
-            padding: 0.5rem 1rem;
-            font-size: 0.75rem;
-            font-family: inherit;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-medium);
-            background: var(--bg-primary);
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-
-        .apollo-btn:hover {
-            border-color: var(--accent-green);
-            color: var(--text-primary);
-        }
-
-        .apollo-btn.primary {
-            background: var(--accent-green);
-            color: var(--bg-primary);
-            border-color: var(--accent-green);
-            font-weight: 600;
-        }
-
-        .apollo-btn.primary:hover {
-            background: #1ea550;
-        }
-
-        .apollo-stats {
-            display: flex;
-            gap: 2rem;
-            margin-top: 1rem;
-            font-size: 0.75rem;
-            color: var(--text-tertiary);
-        }
-
-        .apollo-stat {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .apollo-stat-value {
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
         .lead-sources-panel {
             background: var(--bg-secondary);
             border: 1px solid var(--border-subtle);
@@ -933,51 +841,6 @@
         .enrichment-badge.failed {
             background: rgba(239, 68, 68, 0.15);
             color: var(--accent-red);
-        }
-
-        .apollo-connect-form {
-            display: none;
-            margin-top: 1rem;
-            padding: 1rem;
-            background: var(--bg-primary);
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-md);
-        }
-
-        .apollo-connect-form.visible {
-            display: block;
-        }
-
-        .apollo-input {
-            width: 100%;
-            padding: 0.625rem;
-            font-size: 0.8rem;
-            font-family: inherit;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm);
-            color: var(--text-primary);
-            margin-bottom: 0.75rem;
-        }
-
-        .apollo-input:focus {
-            outline: none;
-            border-color: var(--accent-green);
-        }
-
-        .apollo-hint {
-            font-size: 0.7rem;
-            color: var(--text-tertiary);
-            margin-bottom: 0.75rem;
-        }
-
-        .apollo-hint a {
-            color: var(--accent-green);
-            text-decoration: none;
-        }
-
-        .apollo-hint a:hover {
-            text-decoration: underline;
         }
 
         .signalnet-panel {
@@ -1502,43 +1365,39 @@
     </div>
 
     <div class="lead-sources-panel" id="lead-sources-panel">
-        <h3>LEAD SOURCES</h3>
+        <h3>LEAD DISCOVERY</h3>
         <div class="source-toggle">
             <label>
-                <input type="radio" name="lead_source" value="signalnet" checked>
-                SignalNet (Primary - Recommended)
-            </label>
-            <label>
-                <input type="radio" name="lead_source" value="apollo_metadata">
-                Apollo Metadata Only
+                <input type="radio" name="lead_source" value="hossnative" checked>
+                HossNative (Autonomous Discovery)
             </label>
         </div>
-        <p class="source-status" id="lead-source-status">Current: SignalNet generating leads from real-time signals</p>
+        <p class="source-status" id="lead-source-status">Current: HossNative generating leads via SignalNet + web scraping</p>
     </div>
 
-    <div class="apollo-panel" id="apollo-panel">
-        <div class="apollo-header">
-            <div class="apollo-title">APOLLO.IO STATUS</div>
-            <div class="apollo-status">
-                <div class="apollo-dot" id="apollo-dot"></div>
-                <span id="apollo-status-text">Metadata Only</span>
+    <div class="hossnative-panel" id="hossnative-panel" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div style="font-weight: 600; color: var(--text-primary); font-size: 0.8rem; letter-spacing: 0.05em;">HOSSNATIVE STATUS</div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green);"></div>
+                <span style="color: var(--accent-green); font-size: 0.75rem;">Active</span>
             </div>
         </div>
-        <div id="apollo-message" style="margin-bottom: 1rem; font-size: 0.75rem; color: var(--text-secondary); padding: 0.75rem; background: var(--bg-primary); border-radius: var(--radius-sm); border-left: 3px solid var(--accent-green);">
-            <span style="color: var(--accent-green);">✓ Metadata Only</span> — Company enrichment active. People Search disabled, using SignalNet for leads.
+        <div style="margin-bottom: 1rem; font-size: 0.75rem; color: var(--text-secondary); padding: 0.75rem; background: var(--bg-primary); border-radius: var(--radius-sm); border-left: 3px solid var(--accent-green);">
+            <span style="color: var(--accent-green);">Autonomous Discovery</span> — SignalNet detects opportunities, web scraping discovers contact emails. No external APIs.
         </div>
-        <div class="apollo-stats">
-            <div class="apollo-stat">
-                <span>Mode:</span>
-                <span class="apollo-stat-value" id="apollo-provider">Metadata Only</span>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+            <div style="background: var(--bg-primary); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <span style="display: block; font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Mode:</span>
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 0.8rem;">Autonomous</span>
             </div>
-            <div class="apollo-stat">
-                <span>Calls Today:</span>
-                <span class="apollo-stat-value" id="apollo-calls">-/100</span>
+            <div style="background: var(--bg-primary); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <span style="display: block; font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Discovery:</span>
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 0.8rem;">Web Scraping</span>
             </div>
-            <div class="apollo-stat">
-                <span>Enrichment Status:</span>
-                <span class="apollo-stat-value" id="apollo-total">Active</span>
+            <div style="background: var(--bg-primary); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <span style="display: block; font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">External APIs:</span>
+                <span style="font-weight: 600; color: var(--accent-green); font-size: 0.8rem;">None</span>
             </div>
         </div>
     </div>
@@ -2467,59 +2326,8 @@
                 refreshSignals(),
                 refreshOutputHistory(),
                 refreshCustomers(),
-                refreshPendingOutreach(),
-                refreshApolloStatus()
+                refreshPendingOutreach()
             ]);
-        }
-
-        async function refreshApolloStatus() {
-            try {
-                const [statusRes, leadSourceRes] = await Promise.all([
-                    fetch('/api/apollo/status'),
-                    fetch('/api/lead-source')
-                ]);
-                const status = await statusRes.json();
-                const leadSource = await leadSourceRes.json();
-                
-                const dot = document.getElementById('apollo-dot');
-                const statusText = document.getElementById('apollo-status-text');
-                const messageBox = document.getElementById('apollo-message');
-                const provider = document.getElementById('apollo-provider');
-                const calls = document.getElementById('apollo-calls');
-                const total = document.getElementById('apollo-total');
-                
-                if (status.connected) {
-                    dot.classList.add('connected');
-                    if (status.rate_limit_ok === false) {
-                        statusText.textContent = 'Quota Exceeded';
-                        statusText.style.color = 'var(--accent-orange)';
-                        messageBox.style.borderLeftColor = 'var(--accent-orange)';
-                        messageBox.innerHTML = 'Daily API quota exceeded. Resets at midnight UTC.';
-                    } else {
-                        statusText.textContent = 'Metadata Only';
-                        statusText.style.color = 'var(--accent-green)';
-                        messageBox.style.borderLeftColor = 'var(--accent-green)';
-                        if (status.connection_source === 'environment_secret') {
-                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Connected via environment secret (Metadata Only)</span> — Company enrichment active. People Search disabled, using SignalNet for leads.';
-                        } else {
-                            messageBox.innerHTML = '<span style="color: var(--accent-green);">✓ Metadata Only</span> — Company enrichment active. People Search disabled, using SignalNet for leads.';
-                        }
-                    }
-                } else {
-                    dot.classList.remove('connected');
-                    statusText.textContent = 'Not Connected';
-                    statusText.style.color = 'var(--accent-red)';
-                    messageBox.style.borderLeftColor = 'var(--accent-red)';
-                    messageBox.innerHTML = '<span style="color: var(--accent-orange);">Metadata enrichment paused.</span> Set <code style="background: var(--bg-tertiary); padding: 0.15rem 0.4rem; border-radius: 3px;">APOLLO_API_KEY</code> in Secrets tab to enable company data enrichment.';
-                }
-                
-                provider.textContent = 'Apollo.io';
-                calls.textContent = `${status.calls_today || 0}/100`;
-                total.textContent = status.total_leads_fetched || '-';
-                
-            } catch (e) {
-                console.error('Apollo status error:', e);
-            }
         }
 
         // ======================================

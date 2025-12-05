@@ -52,5 +52,23 @@
       "date": "Fri, 05 Dec 2025 02:02:55 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-05T06:16:38.114297",
+    "lead_name": null,
+    "company": "Developer",
+    "to_email": "info@developer.com",
+    "subject": "Local lead-gen idea for Developer",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "1H75OwefR568YixiS29hIA",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 06:16:38 GMT",
+      "response_body": "{}"
+    }
   }
 ]

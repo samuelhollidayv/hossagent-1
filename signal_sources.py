@@ -3,7 +3,7 @@ SignalNet Framework for HossAgent
 
 A modular signal ingestion system that transforms HossAgent from generic lead gen
 into a context-aware intelligence engine. Signal sources detect timing/context
-signals, not contact data - Apollo remains the only lead source.
+signals, not contact data - HossNative handles lead discovery via web scraping.
 
 ============================================================================
 SIGNAL_MODE CONFIGURATION
@@ -234,7 +234,7 @@ class SignalSource(ABC):
     
     Each signal source represents a data feed that provides context/timing
     information about companies and markets. Signal sources do NOT provide
-    contact data - Apollo is the only lead source.
+    contact data - HossNative handles lead discovery via autonomous web scraping.
     
     Subclasses must implement:
       - fetch() -> List[RawSignal]: Get raw signals from the source

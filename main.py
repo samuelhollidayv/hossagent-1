@@ -504,16 +504,8 @@ async def startup_event():
     
     run_retroactive_payment_links()
     
-    apollo_key = os.getenv("APOLLO_API_KEY")
-    if apollo_key:
-        from apollo_integration import connect_apollo_with_key
-        result = connect_apollo_with_key(apollo_key)
-        if result.get("connected"):
-            print("[APOLLO][STARTUP] Auto-connected from APOLLO_API_KEY secret")
-        else:
-            print(f"[APOLLO][STARTUP] Failed to auto-connect: {result.get('error', 'Unknown error')}")
-    else:
-        print("[APOLLO][STARTUP] APOLLO_API_KEY not set - lead generation paused until configured")
+    print("[LEADS][STARTUP] HossNative (Autonomous Discovery) active")
+    print("[LEADS][STARTUP] Lead discovery via SignalNet + web scraping - no external APIs")
     
     asyncio.create_task(autopilot_loop())
     print("[STARTUP] HossAgent initialized. Autopilot loop active.")
@@ -1784,7 +1776,7 @@ def get_lead_source_endpoint():
     Returns:
         - niche: Target ICP description
         - geography: Geographic constraint (if any)
-        - provider: Current provider (Apollo)
+        - provider: Current provider (HossNative)
         - max_new_leads_per_cycle: Lead generation cap
         - last_run: Timestamp of last lead generation run
         - last_created_count: Number of leads created in last run
@@ -1806,88 +1798,6 @@ def run_lead_source_manual(session: Session = Depends(get_session)):
     """Manually trigger lead source generation cycle."""
     message = generate_new_leads_from_source(session)
     return {"message": message}
-
-
-# ============================================================================
-# API ENDPOINTS - APOLLO.IO INTEGRATION
-# ============================================================================
-
-
-@app.get("/api/apollo/status")
-def get_apollo_status_endpoint(request: Request):
-    """Get Apollo.io connection status and usage stats."""
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        from apollo_integration import get_apollo_status
-        return get_apollo_status()
-    except ImportError:
-        return {"connected": False, "error": "Apollo module not available"}
-
-
-@app.post("/api/apollo/connect")
-def connect_apollo_endpoint(request: Request, api_key: str = Query(...)):
-    """
-    Connect Apollo.io with API key.
-    Validates key before saving.
-    """
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        from apollo_integration import connect_apollo_with_key
-        result = connect_apollo_with_key(api_key)
-        return result
-    except ImportError:
-        return {"success": False, "error": "Apollo module not available"}
-
-
-@app.post("/api/apollo/disconnect")
-def disconnect_apollo_endpoint(request: Request):
-    """Disconnect Apollo.io integration."""
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        from apollo_integration import disconnect_apollo
-        return disconnect_apollo()
-    except ImportError:
-        return {"success": False, "error": "Apollo module not available"}
-
-
-@app.post("/api/apollo/test")
-def test_apollo_endpoint(request: Request):
-    """
-    Test Apollo connection by fetching sample leads.
-    Returns first 5 leads from Miami HVAC search.
-    """
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        from apollo_integration import test_apollo_connection
-        return test_apollo_connection()
-    except ImportError:
-        return {"success": False, "error": "Apollo module not available"}
-
-
-@app.get("/api/apollo/log")
-def get_apollo_log_endpoint(request: Request, limit: int = Query(default=20, le=100)):
-    """Get Apollo.io fetch log entries."""
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        from apollo_integration import get_fetch_log
-        return {"entries": get_fetch_log(limit)}
-    except ImportError:
-        return {"entries": [], "error": "Apollo module not available"}
 
 
 # ============================================================================
