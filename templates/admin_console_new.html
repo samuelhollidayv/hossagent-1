@@ -27,7 +27,12 @@
         .container { max-width: 1400px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); padding-bottom: 1.5rem; }
         h1 { font-size: 1.75rem; font-weight: 600; }
-        .logout-btn { background: var(--accent-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+        .header-actions { display: flex; gap: 1rem; align-items: center; }
+        .logout-btn { background: var(--accent-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; text-decoration: none; font-family: inherit; }
+        .stats-bar { display: flex; gap: 2rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-subtle); }
+        .stat { display: flex; flex-direction: column; }
+        .stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-green); }
+        .stat-label { font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; }
         .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); }
         .tab { padding: 1rem; cursor: pointer; border: none; background: transparent; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; border-bottom: 2px solid transparent; transition: all 0.2s; }
         .tab:hover { color: var(--text-primary); }
@@ -36,77 +41,149 @@
         .tab-content.active { display: block; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-subtle); }
-        th { font-weight: 600; background: var(--bg-secondary); color: var(--accent-green); }
+        th { font-weight: 600; background: var(--bg-secondary); color: var(--accent-green); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
         tr:hover { background: var(--bg-secondary); }
-        .status { font-weight: 500; }
-        .sent { color: var(--accent-green); }
-        .pending { color: var(--accent-orange); }
-        .error { color: var(--accent-red); }
-        .new { color: var(--accent-blue); }
+        .status { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
+        .sent, .active { color: var(--accent-green); background: rgba(34, 197, 94, 0.1); }
+        .pending, .trial { color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
+        .error, .failed { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
+        .new { color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); }
+        .draft { color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
         .empty { text-align: center; padding: 2rem; color: var(--text-tertiary); }
         .loading { text-align: center; padding: 2rem; }
+        .score { display: inline-block; min-width: 40px; text-align: center; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; }
+        .score-high { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
+        .score-medium { background: rgba(249, 115, 22, 0.2); color: var(--accent-orange); }
+        .score-low { background: rgba(102, 102, 102, 0.2); color: var(--text-tertiary); }
+        .truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .section-header h2 { font-size: 1.1rem; font-weight: 500; }
+        .filter-input { padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; width: 250px; font-family: inherit; }
+        .refresh-btn { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
+        .refresh-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        @media (max-width: 768px) {
+            .stats-bar { flex-wrap: wrap; gap: 1rem; }
+            .tabs { overflow-x: auto; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem; }
+            .truncate { max-width: 150px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>HossAgent Admin</h1>
-            <a href="/admin/logout" class="logout-btn">Logout</a>
+            <div class="header-actions">
+                <span id="email-mode" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                <a href="/admin/logout" class="logout-btn">Logout</a>
+            </div>
+        </div>
+
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat">
+                <span class="stat-value" id="stat-signals">-</span>
+                <span class="stat-label">Signals Today</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-events">-</span>
+                <span class="stat-label">LeadEvents</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-emails">-</span>
+                <span class="stat-label">Emails Sent</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-customers">-</span>
+                <span class="stat-label">Customers</span>
+            </div>
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('pipeline')">PIPELINE</button>
-            <button class="tab" onclick="showTab('activity')">ACTIVITY LOG</button>
+            <button class="tab active" onclick="showTab('signals')">SIGNALS</button>
+            <button class="tab" onclick="showTab('leadevents')">LEAD EVENTS</button>
+            <button class="tab" onclick="showTab('outbound')">OUTBOUND</button>
             <button class="tab" onclick="showTab('customers')">CUSTOMERS</button>
-            <button class="tab" onclick="showTab('advanced')">ADVANCED</button>
         </div>
 
-        <!-- PIPELINE VIEW -->
-        <div id="pipeline" class="tab-content active">
-            <h2 style="margin-bottom: 1.5rem;">Opportunity Pipeline</h2>
-            <div id="pipeline-loading" class="loading">Loading pipeline...</div>
-            <div id="pipeline-table" style="display: none;">
+        <!-- SIGNALS VIEW -->
+        <div id="signals" class="tab-content active">
+            <div class="section-header">
+                <h2>Raw Signals from SignalNet</h2>
+                <button class="refresh-btn" onclick="loadSignals()">Refresh</button>
+            </div>
+            <div id="signals-loading" class="loading">Loading signals...</div>
+            <div id="signals-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Source</th>
+                            <th>Geography</th>
+                            <th>Score</th>
+                            <th>Summary</th>
+                            <th>Event Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="signals-rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- LEAD EVENTS VIEW -->
+        <div id="leadevents" class="tab-content">
+            <div class="section-header">
+                <h2>Converted Opportunities</h2>
+                <button class="refresh-btn" onclick="loadLeadEvents()">Refresh</button>
+            </div>
+            <div id="leadevents-loading" class="loading">Loading lead events...</div>
+            <div id="leadevents-table" style="display: none;">
                 <table>
                     <thead>
                         <tr>
                             <th>Time</th>
                             <th>Customer</th>
                             <th>Lead Company</th>
-                            <th>Signal Type</th>
-                            <th>Stage</th>
-                            <th>Result</th>
+                            <th>Lead Email</th>
+                            <th>Category</th>
+                            <th>Score</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody id="pipeline-rows"></tbody>
+                    <tbody id="leadevents-rows"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ACTIVITY LOG VIEW -->
-        <div id="activity" class="tab-content">
-            <h2 style="margin-bottom: 1.5rem;">Activity Log</h2>
-            <div style="margin-bottom: 1rem;">
-                <input type="text" id="filter-customer" placeholder="Filter by customer..." style="padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; width: 100%; max-width: 300px;">
+        <!-- OUTBOUND MESSAGES VIEW -->
+        <div id="outbound" class="tab-content">
+            <div class="section-header">
+                <h2>Outbound Email Activity</h2>
+                <button class="refresh-btn" onclick="loadOutbound()">Refresh</button>
             </div>
-            <div id="activity-loading" class="loading">Loading activity...</div>
-            <div id="activity-table" style="display: none;">
+            <div id="outbound-loading" class="loading">Loading outbound messages...</div>
+            <div id="outbound-table" style="display: none;">
                 <table>
                     <thead>
                         <tr>
                             <th>Time</th>
-                            <th>Event</th>
                             <th>Customer</th>
-                            <th>Details</th>
+                            <th>To</th>
+                            <th>Subject</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody id="activity-rows"></tbody>
+                    <tbody id="outbound-rows"></tbody>
                 </table>
             </div>
         </div>
 
         <!-- CUSTOMERS VIEW -->
         <div id="customers" class="tab-content">
-            <h2 style="margin-bottom: 1.5rem;">Customers</h2>
+            <div class="section-header">
+                <h2>Customer Accounts</h2>
+                <button class="refresh-btn" onclick="loadCustomers()">Refresh</button>
+            </div>
             <div id="customers-loading" class="loading">Loading customers...</div>
             <div id="customers-table" style="display: none;">
                 <table>
@@ -117,22 +194,14 @@
                             <th>Plan</th>
                             <th>Status</th>
                             <th>Autopilot</th>
-                            <th>Tasks Used</th>
-                            <th>Leads Used</th>
+                            <th>Mode</th>
+                            <th>Tasks</th>
+                            <th>Leads</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="customers-rows"></tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- ADVANCED VIEW -->
-        <div id="advanced" class="tab-content">
-            <h2 style="margin-bottom: 1.5rem;">Advanced - System Debug</h2>
-            <div style="color: var(--text-secondary);">
-                <p>Original detailed views have been consolidated into the main Pipeline, Activity Log, and Customers tabs for operational efficiency.</p>
-                <p style="margin-top: 1rem; font-size: 0.9rem;">For detailed signal/event inspection, use the Pipeline view and click on individual opportunities.</p>
             </div>
         </div>
     </div>
@@ -144,62 +213,113 @@
             document.getElementById(name).classList.add('active');
             event.target.classList.add('active');
             
-            if (name === 'pipeline') loadPipeline();
-            else if (name === 'activity') loadActivity();
+            if (name === 'signals') loadSignals();
+            else if (name === 'leadevents') loadLeadEvents();
+            else if (name === 'outbound') loadOutbound();
             else if (name === 'customers') loadCustomers();
         }
 
-        async function loadPipeline() {
+        function scoreClass(score) {
+            if (score >= 70) return 'score-high';
+            if (score >= 50) return 'score-medium';
+            return 'score-low';
+        }
+
+        async function loadStats() {
             try {
-                const resp = await fetch('/api/admin/pipeline');
+                const resp = await fetch('/api/admin/stats');
                 const data = await resp.json();
-                
-                if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Server returned invalid data');
-                }
-                
-                const rows = data.map(item => `
-                    <tr>
-                        <td>${new Date(item.timestamp).toLocaleString()}</td>
-                        <td>${item.customer}</td>
-                        <td>${item.lead_company}</td>
-                        <td>${item.signal_type}</td>
-                        <td>${item.stage}</td>
-                        <td><span class="status ${item.result.toLowerCase()}">${item.result}</span></td>
-                    </tr>
-                `).join('');
-                
-                document.getElementById('pipeline-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No opportunities yet</td></tr>';
-                document.getElementById('pipeline-loading').style.display = 'none';
-                document.getElementById('pipeline-table').style.display = 'block';
+                document.getElementById('stat-signals').textContent = data.signals_today || 0;
+                document.getElementById('stat-events').textContent = data.lead_events || 0;
+                document.getElementById('stat-emails').textContent = data.emails_sent || 0;
+                document.getElementById('stat-customers').textContent = data.customers || 0;
+                document.getElementById('email-mode').textContent = data.email_mode || '';
             } catch (e) {
-                document.getElementById('pipeline-loading').innerHTML = 'Error loading pipeline: ' + e.message + ' <button onclick="loadPipeline()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+                console.error('Failed to load stats:', e);
             }
         }
 
-        async function loadActivity() {
+        async function loadSignals() {
             try {
-                const resp = await fetch('/api/admin/activity-log');
+                const resp = await fetch('/api/admin/signals');
                 const data = await resp.json();
                 
                 if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Server returned invalid data');
+                    throw new Error(data.detail || data.error || 'Invalid response');
                 }
                 
-                const rows = data.map(item => `
+                const rows = data.map(s => `
                     <tr>
-                        <td>${new Date(item.timestamp).toLocaleString()}</td>
-                        <td>${item.event}</td>
-                        <td>${item.customer || '-'}</td>
-                        <td style="font-size: 0.85rem; color: var(--text-secondary);">${item.details}</td>
+                        <td>${new Date(s.created_at).toLocaleString()}</td>
+                        <td>${s.source_type}</td>
+                        <td>${s.geography || '-'}</td>
+                        <td><span class="score ${scoreClass(s.score)}">${s.score}</span></td>
+                        <td class="truncate" title="${s.summary}">${s.summary}</td>
+                        <td>${s.event_created ? '<span class="status sent">Yes</span>' : '<span class="status" style="opacity:0.5">No</span>'}</td>
                     </tr>
                 `).join('');
                 
-                document.getElementById('activity-rows').innerHTML = rows || '<tr><td colspan="4" class="empty">No activity yet</td></tr>';
-                document.getElementById('activity-loading').style.display = 'none';
-                document.getElementById('activity-table').style.display = 'block';
+                document.getElementById('signals-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No signals yet</td></tr>';
+                document.getElementById('signals-loading').style.display = 'none';
+                document.getElementById('signals-table').style.display = 'block';
             } catch (e) {
-                document.getElementById('activity-loading').innerHTML = 'Error loading activity: ' + e.message + ' <button onclick="loadActivity()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+                document.getElementById('signals-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadSignals()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+            }
+        }
+
+        async function loadLeadEvents() {
+            try {
+                const resp = await fetch('/api/admin/lead-events');
+                const data = await resp.json();
+                
+                if (!Array.isArray(data)) {
+                    throw new Error(data.detail || data.error || 'Invalid response');
+                }
+                
+                const rows = data.map(e => `
+                    <tr>
+                        <td>${new Date(e.created_at).toLocaleString()}</td>
+                        <td>${e.customer || '-'}</td>
+                        <td>${e.lead_company || '-'}</td>
+                        <td>${e.lead_email || '<span style="color:var(--text-tertiary)">Not enriched</span>'}</td>
+                        <td>${e.category || '-'}</td>
+                        <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
+                        <td><span class="status ${e.status.toLowerCase()}">${e.status}</span></td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="7" class="empty">No lead events yet</td></tr>';
+                document.getElementById('leadevents-loading').style.display = 'none';
+                document.getElementById('leadevents-table').style.display = 'block';
+            } catch (e) {
+                document.getElementById('leadevents-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadLeadEvents()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+            }
+        }
+
+        async function loadOutbound() {
+            try {
+                const resp = await fetch('/api/admin/outbound-messages');
+                const data = await resp.json();
+                
+                if (!Array.isArray(data)) {
+                    throw new Error(data.detail || data.error || 'Invalid response');
+                }
+                
+                const rows = data.map(m => `
+                    <tr>
+                        <td>${new Date(m.created_at).toLocaleString()}</td>
+                        <td>${m.customer || '-'}</td>
+                        <td>${m.to_email}</td>
+                        <td class="truncate" title="${m.subject}">${m.subject}</td>
+                        <td><span class="status ${m.status.toLowerCase()}">${m.status}</span></td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('outbound-rows').innerHTML = rows || '<tr><td colspan="5" class="empty">No outbound messages yet</td></tr>';
+                document.getElementById('outbound-loading').style.display = 'none';
+                document.getElementById('outbound-table').style.display = 'block';
+            } catch (e) {
+                document.getElementById('outbound-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadOutbound()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 
@@ -209,31 +329,35 @@
                 const data = await resp.json();
                 
                 if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Server returned invalid data');
+                    throw new Error(data.detail || data.error || 'Invalid response');
                 }
                 
-                const rows = data.map(customer => `
+                const rows = data.map(c => `
                     <tr>
-                        <td>${customer.company}</td>
-                        <td>${customer.contact_name}</td>
-                        <td>${customer.plan}</td>
-                        <td><span class="status ${customer.status.toLowerCase()}">${customer.status}</span></td>
-                        <td>${customer.autopilot ? 'ON' : 'OFF'}</td>
-                        <td>${customer.tasks_used}/${customer.tasks_limit}</td>
-                        <td>${customer.leads_used}/${customer.leads_limit}</td>
-                        <td><a href="/portal/${customer.public_token}" style="color: var(--accent-blue); text-decoration: none;">View</a></td>
+                        <td>${c.company}</td>
+                        <td>${c.contact_name}</td>
+                        <td><span class="status ${c.plan === 'paid' ? 'active' : 'trial'}">${c.plan}</span></td>
+                        <td><span class="status ${c.status.toLowerCase()}">${c.status}</span></td>
+                        <td>${c.autopilot ? '<span style="color:var(--accent-green)">ON</span>' : '<span style="color:var(--text-tertiary)">OFF</span>'}</td>
+                        <td>${c.outreach_mode || 'AUTO'}</td>
+                        <td>${c.tasks_used}/${c.tasks_limit}</td>
+                        <td>${c.leads_used}/${c.leads_limit}</td>
+                        <td><a href="/portal/${c.public_token}" style="color: var(--accent-blue); text-decoration: none;">Portal</a></td>
                     </tr>
                 `).join('');
                 
-                document.getElementById('customers-rows').innerHTML = rows || '<tr><td colspan="8" class="empty">No customers yet</td></tr>';
+                document.getElementById('customers-rows').innerHTML = rows || '<tr><td colspan="9" class="empty">No customers yet</td></tr>';
                 document.getElementById('customers-loading').style.display = 'none';
                 document.getElementById('customers-table').style.display = 'block';
             } catch (e) {
-                document.getElementById('customers-loading').innerHTML = 'Error loading customers: ' + e.message + ' <button onclick="loadCustomers()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+                document.getElementById('customers-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadCustomers()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 
-        window.addEventListener('load', loadPipeline);
+        window.addEventListener('load', () => {
+            loadStats();
+            loadSignals();
+        });
     </script>
 </body>
 </html>

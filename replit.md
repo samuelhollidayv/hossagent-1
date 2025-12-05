@@ -19,11 +19,16 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
 - **Marketing Landing Page (`/`)**: Public homepage.
 - **About Page (`/about`)**: Explains the "Ethical Briefcase System" concept.
 - **How It Works Page (`/how-it-works`)**: 10-step user journey.
-- **Admin Console (`/admin`)**: Operator dashboard with KPIs, Lead Events, Output History, Signals, Customers, and Pending Outreach.
-- **Customer Portal (`/portal`)**: Session-authenticated portal with clean 3-section layout:
+- **Admin Console (`/admin`)**: Consolidated operator dashboard with 4 clean tables:
+  1. **Signals**: Raw signals from SignalNet with source, geography, score, and event creation status.
+  2. **LeadEvents**: Converted opportunities with customer, lead company, email, category, and status.
+  3. **Outbound Messages**: All sent emails with customer, recipient, subject, and status.
+  4. **Customers**: Customer accounts with plan, status, autopilot, outreach mode, and usage limits.
+- **Customer Portal (`/portal`)**: Session-authenticated portal with clean 4-section layout:
   1. **Account Status Card**: Plan name, status pill, autopilot indicator, billing info, and CTA buttons (upgrade/manage/cancel/reactivate).
   2. **Recent Opportunities & Outreach**: Combined view showing opportunities with expandable email details (to/subject/body). REVIEW mode shows approval buttons for pending outreach.
-  3. **Reports & Deep Dives**: Clickable report cards with expandable content.
+  3. **Conversations**: Email threads with leads showing message history, AI-generated drafts with Approve/Discard buttons, and thread status (Open, Your Turn, Auto, Draft Ready).
+  4. **Reports & Deep Dives**: Clickable report cards with expandable content.
 - **Customer Portal - Admin View (`/portal/<token>`)**: Token-based access for admin impersonation.
 - **Customer Settings (`/portal/settings`)**: Business profile configuration, outreach preferences, and do-not-contact list management.
 
@@ -57,8 +62,12 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
   - **Admin Panel**: Provides SignalNet status, controls, and recent signal stream.
 - **Reports System:** Auto-generated from completed tasks.
 - **Data Models:** Comprehensive models for system settings, leads, customers, tasks, invoices, and more.
-- **Email Infrastructure:** Supports SendGrid with CC/Reply-To and DRY_RUN mode.
-- **Lead Generation:** Configurable sourcing with domain-based deduplication.
+- **Email Infrastructure:** Supports multiple providers with CC/Reply-To and DRY_RUN mode.
+  - **SendGrid**: Primary email provider with full feature support (outbound + inbound webhooks).
+  - **Amazon SES**: Alternative email provider via boto3 (outbound only).
+  - **Email Routing**: TO: lead email, CC: customer email, REPLY-TO: customer email.
+  - **Configuration**: `EMAIL_MODE` environment variable (`DRY_RUN`, `SENDGRID`, `SES`).
+- **Lead Generation:** SignalNet-powered autonomous lead discovery (no paid enrichment APIs).
 - **Autopilot:** Automates agent cycles every 15 minutes for paid plans.
 
 **Conversation Engine:**

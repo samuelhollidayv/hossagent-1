@@ -4966,9 +4966,10 @@ def get_admin_customers_list(request: Request, session: Session = Depends(get_se
         result.append({
             "company": cust.company,
             "contact_name": cust.contact_name,
-            "plan": "Pro" if plan_status.is_paid else "Trial",
+            "plan": "paid" if plan_status.is_paid else "trial",
             "status": "Active" if plan_status.is_paid else ("Expired" if plan_status.is_expired else "Active"),
             "autopilot": cust.autopilot_enabled,
+            "outreach_mode": cust.outreach_mode,
             "tasks_used": plan_status.tasks_used,
             "tasks_limit": plan_status.tasks_limit,
             "leads_used": plan_status.leads_used,
@@ -4977,6 +4978,164 @@ def get_admin_customers_list(request: Request, session: Session = Depends(get_se
         })
     
     return result
+
+
+@app.get("/api/admin/stats")
+def get_admin_stats(request: Request, session: Session = Depends(get_session)):
+    """Get admin dashboard stats."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from email_utils import get_email_mode
+    
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    signals_today = session.exec(
+        select(func.count(Signal.id)).where(Signal.created_at >= today_start)
+    ).one()
+    
+    lead_events = session.exec(select(func.count(LeadEvent.id))).one()
+    
+    emails_sent = session.exec(
+        select(func.count(PendingOutbound.id)).where(PendingOutbound.status == "SENT")
+    ).one()
+    
+    messages_sent = session.exec(
+        select(func.count(Message.id)).where(
+            Message.direction == "OUTBOUND",
+            Message.status == "SENT"
+        )
+    ).one()
+    
+    customers = session.exec(select(func.count(Customer.id))).one()
+    
+    email_mode = get_email_mode()
+    
+    return {
+        "signals_today": signals_today,
+        "lead_events": lead_events,
+        "emails_sent": emails_sent + messages_sent,
+        "customers": customers,
+        "email_mode": f"Email: {email_mode.value}"
+    }
+
+
+@app.get("/api/admin/signals")
+def get_admin_signals(request: Request, session: Session = Depends(get_session)):
+    """Get raw signals from SignalNet."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    signals = session.exec(
+        select(Signal).order_by(Signal.created_at.desc()).limit(100)
+    ).all()
+    
+    result = []
+    for sig in signals:
+        lead_event = session.exec(
+            select(LeadEvent).where(LeadEvent.signal_id == sig.id)
+        ).first()
+        
+        score = lead_event.urgency_score if lead_event else 0
+        event_created = lead_event is not None
+        
+        result.append({
+            "id": sig.id,
+            "source_type": sig.source_type or "",
+            "geography": sig.geography or "",
+            "score": score,
+            "summary": (sig.context_summary[:150] if sig.context_summary else "") or "",
+            "event_created": event_created,
+            "created_at": sig.created_at.isoformat() if sig.created_at else None
+        })
+    
+    return result
+
+
+@app.get("/api/admin/lead-events")
+def get_admin_lead_events(request: Request, session: Session = Depends(get_session)):
+    """Get converted lead events."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    events = session.exec(
+        select(LeadEvent).order_by(LeadEvent.created_at.desc()).limit(100)
+    ).all()
+    
+    result = []
+    for evt in events:
+        customer = session.exec(
+            select(Customer).where(Customer.id == evt.company_id)
+        ).first()
+        
+        result.append({
+            "id": evt.id,
+            "customer": customer.company if customer else None,
+            "lead_company": evt.lead_company,
+            "lead_email": evt.lead_email,
+            "lead_domain": evt.lead_domain,
+            "category": evt.category,
+            "urgency_score": evt.urgency_score or 0,
+            "status": evt.status,
+            "enrichment_status": evt.enrichment_status,
+            "created_at": evt.created_at.isoformat() if evt.created_at else None
+        })
+    
+    return result
+
+
+@app.get("/api/admin/outbound-messages")
+def get_admin_outbound_messages(request: Request, session: Session = Depends(get_session)):
+    """Get outbound email messages."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    outbound_pending = session.exec(
+        select(PendingOutbound).order_by(PendingOutbound.created_at.desc()).limit(50)
+    ).all()
+    
+    outbound_messages = session.exec(
+        select(Message).where(Message.direction == "OUTBOUND")
+        .order_by(Message.created_at.desc()).limit(50)
+    ).all()
+    
+    result = []
+    
+    for out in outbound_pending:
+        customer = session.exec(
+            select(Customer).where(Customer.id == out.customer_id)
+        ).first()
+        result.append({
+            "id": out.id,
+            "type": "pending",
+            "customer": customer.company if customer else None,
+            "to_email": out.to_email,
+            "subject": out.subject or "",
+            "status": out.status,
+            "created_at": out.created_at.isoformat() if out.created_at else None
+        })
+    
+    for msg in outbound_messages:
+        customer = session.exec(
+            select(Customer).where(Customer.id == msg.customer_id)
+        ).first()
+        if not any(r["to_email"] == msg.to_email and r["subject"] == msg.subject for r in result):
+            result.append({
+                "id": msg.id,
+                "type": "message",
+                "customer": customer.company if customer else None,
+                "to_email": msg.to_email,
+                "subject": msg.subject or "",
+                "status": msg.status,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None
+            })
+    
+    result.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    return result[:100]
 
 
 @app.get("/admin/logout")
