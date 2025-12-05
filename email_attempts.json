@@ -322,5 +322,23 @@
       "date": "Fri, 05 Dec 2025 20:55:34 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-05T23:48:03.744536",
+    "lead_name": null,
+    "company": "Security businesses in South Florida",
+    "to_email": "info@consumervoice.org",
+    "subject": "Quick heads-up for Security businesses in South Florida",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "YnWIawo4Q2eYLqYqrxopjg",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 23:48:03 GMT",
+      "response_body": "{}"
+    }
   }
 ]
