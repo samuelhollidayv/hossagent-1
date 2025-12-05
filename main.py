@@ -1043,7 +1043,7 @@ def serve_admin_console(request: Request, session: Session = Depends(get_session
     if not verify_admin_session(admin_token):
         return RedirectResponse(url="/admin/login", status_code=303)
     
-    with open("templates/admin_console.html", "r") as f:
+    with open("templates/admin_console_new.html", "r") as f:
         return f.read()
 
 
@@ -4676,3 +4676,134 @@ def get_admin_drafts(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)
+
+
+# ============================================================================
+# ADMIN CONSOLE - CONSOLIDATED API ENDPOINTS
+# ============================================================================
+
+
+@app.get("/api/admin/pipeline")
+def get_admin_pipeline(request: Request, session: Session = Depends(get_session)):
+    """Get unified pipeline of all opportunities (Signal → LeadEvent → Email)."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    pipeline = []
+    events = session.exec(
+        select(LeadEvent).order_by(LeadEvent.created_at.desc()).limit(100)
+    ).all()
+    
+    for event in events:
+        customer = session.exec(select(Customer).where(Customer.id == event.company_id)).first()
+        outbound = session.exec(
+            select(PendingOutbound).where(PendingOutbound.lead_event_id == event.id)
+            .order_by(PendingOutbound.created_at.desc()).limit(1)
+        ).first()
+        
+        stage = "Signal"
+        if event.enriched_at:
+            stage = "Enriched"
+        if outbound:
+            stage = "Email Generated"
+        if outbound and outbound.status == "SENT":
+            stage = "Email Sent"
+        
+        result = "Sent" if (outbound and outbound.status == "SENT") else "Skipped" if (outbound and outbound.status == "SKIPPED") else "Suppressed" if event.do_not_contact else "Pending"
+        
+        pipeline.append({
+            "timestamp": event.created_at.isoformat(),
+            "customer": customer.company if customer else "Unknown",
+            "lead_company": event.lead_company or "Unknown",
+            "signal_type": "News/Social" if event.signal_source else "Manual",
+            "stage": stage,
+            "result": result
+        })
+    
+    return pipeline
+
+
+@app.get("/api/admin/activity-log")
+def get_admin_activity_log(request: Request, session: Session = Depends(get_session)):
+    """Get chronological activity log of all events."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    activities = []
+    
+    signals = session.exec(
+        select(Signal).order_by(Signal.created_at.desc()).limit(50)
+    ).all()
+    for sig in signals:
+        activities.append({
+            "timestamp": sig.created_at.isoformat(),
+            "event": "Signal Detected",
+            "customer": None,
+            "details": f"{sig.source_type}: {sig.summary[:60] if sig.summary else 'N/A'}"
+        })
+    
+    events = session.exec(
+        select(LeadEvent).order_by(LeadEvent.created_at.desc()).limit(50)
+    ).all()
+    for evt in events:
+        cust = session.exec(select(Customer).where(Customer.id == evt.company_id)).first()
+        activities.append({
+            "timestamp": evt.created_at.isoformat(),
+            "event": "LeadEvent Created",
+            "customer": cust.company if cust else None,
+            "details": f"{evt.lead_company}: {evt.summary[:60] if evt.summary else 'N/A'}"
+        })
+    
+    outbounds = session.exec(
+        select(PendingOutbound).order_by(PendingOutbound.created_at.desc()).limit(50)
+    ).all()
+    for out in outbounds:
+        cust = session.exec(select(Customer).where(Customer.id == out.customer_id)).first()
+        activities.append({
+            "timestamp": out.created_at.isoformat(),
+            "event": f"Email {out.status}",
+            "customer": cust.company if cust else None,
+            "details": f"To: {out.to_email}"
+        })
+    
+    activities.sort(key=lambda x: x["timestamp"], reverse=True)
+    return activities[:100]
+
+
+@app.get("/api/admin/customers-list")
+def get_admin_customers_list(request: Request, session: Session = Depends(get_session)):
+    """Get all customers with plan/usage info."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    customers = session.exec(select(Customer)).all()
+    result = []
+    
+    for cust in customers:
+        plan_status = get_customer_plan_status(cust)
+        result.append({
+            "company": cust.company,
+            "contact_name": cust.contact_name,
+            "plan": "Pro" if plan_status.is_paid else "Trial",
+            "status": "Active" if plan_status.is_paid else ("Expired" if plan_status.is_expired else "Active"),
+            "autopilot": cust.autopilot_enabled,
+            "tasks_used": plan_status.tasks_used,
+            "tasks_limit": plan_status.tasks_limit,
+            "leads_used": plan_status.leads_used,
+            "leads_limit": plan_status.leads_limit,
+            "public_token": cust.public_token
+        })
+    
+    return result
+
+
+@app.get("/admin/logout")
+def admin_logout():
+    """Logout admin and clear cookie."""
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie(ADMIN_COOKIE_NAME)
+    return response
+

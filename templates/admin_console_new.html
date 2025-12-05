@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HossAgent - Admin Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --accent-blue: #3b82f6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: 'JetBrains Mono', monospace; padding: 2rem; line-height: 1.5; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); padding-bottom: 1.5rem; }
+        h1 { font-size: 1.75rem; font-weight: 600; }
+        .logout-btn { background: var(--accent-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); }
+        .tab { padding: 1rem; cursor: pointer; border: none; background: transparent; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab:hover { color: var(--text-primary); }
+        .tab.active { color: var(--accent-green); border-bottom-color: var(--accent-green); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        th { font-weight: 600; background: var(--bg-secondary); color: var(--accent-green); }
+        tr:hover { background: var(--bg-secondary); }
+        .status { font-weight: 500; }
+        .sent { color: var(--accent-green); }
+        .pending { color: var(--accent-orange); }
+        .error { color: var(--accent-red); }
+        .new { color: var(--accent-blue); }
+        .empty { text-align: center; padding: 2rem; color: var(--text-tertiary); }
+        .loading { text-align: center; padding: 2rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HossAgent Admin</h1>
+            <a href="/admin/logout" class="logout-btn">Logout</a>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('pipeline')">PIPELINE</button>
+            <button class="tab" onclick="showTab('activity')">ACTIVITY LOG</button>
+            <button class="tab" onclick="showTab('customers')">CUSTOMERS</button>
+            <button class="tab" onclick="showTab('advanced')">ADVANCED</button>
+        </div>
+
+        <!-- PIPELINE VIEW -->
+        <div id="pipeline" class="tab-content active">
+            <h2 style="margin-bottom: 1.5rem;">Opportunity Pipeline</h2>
+            <div id="pipeline-loading" class="loading">Loading pipeline...</div>
+            <div id="pipeline-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Customer</th>
+                            <th>Lead Company</th>
+                            <th>Signal Type</th>
+                            <th>Stage</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pipeline-rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ACTIVITY LOG VIEW -->
+        <div id="activity" class="tab-content">
+            <h2 style="margin-bottom: 1.5rem;">Activity Log</h2>
+            <div style="margin-bottom: 1rem;">
+                <input type="text" id="filter-customer" placeholder="Filter by customer..." style="padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; width: 100%; max-width: 300px;">
+            </div>
+            <div id="activity-loading" class="loading">Loading activity...</div>
+            <div id="activity-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>Customer</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activity-rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CUSTOMERS VIEW -->
+        <div id="customers" class="tab-content">
+            <h2 style="margin-bottom: 1.5rem;">Customers</h2>
+            <div id="customers-loading" class="loading">Loading customers...</div>
+            <div id="customers-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Contact</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Autopilot</th>
+                            <th>Tasks Used</th>
+                            <th>Leads Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ADVANCED VIEW -->
+        <div id="advanced" class="tab-content">
+            <h2 style="margin-bottom: 1.5rem;">Advanced - System Debug</h2>
+            <div style="color: var(--text-secondary);">
+                <p>Original detailed views have been consolidated into the main Pipeline, Activity Log, and Customers tabs for operational efficiency.</p>
+                <p style="margin-top: 1rem; font-size: 0.9rem;">For detailed signal/event inspection, use the Pipeline view and click on individual opportunities.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(name) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(name).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (name === 'pipeline') loadPipeline();
+            else if (name === 'activity') loadActivity();
+            else if (name === 'customers') loadCustomers();
+        }
+
+        async function loadPipeline() {
+            try {
+                const resp = await fetch('/api/admin/pipeline');
+                const data = await resp.json();
+                
+                const rows = data.map(item => `
+                    <tr>
+                        <td>${new Date(item.timestamp).toLocaleString()}</td>
+                        <td>${item.customer}</td>
+                        <td>${item.lead_company}</td>
+                        <td>${item.signal_type}</td>
+                        <td>${item.stage}</td>
+                        <td><span class="status ${item.result.toLowerCase()}">${item.result}</span></td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('pipeline-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No opportunities yet</td></tr>';
+                document.getElementById('pipeline-loading').style.display = 'none';
+                document.getElementById('pipeline-table').style.display = 'block';
+            } catch (e) {
+                document.getElementById('pipeline-loading').innerHTML = 'Error loading pipeline: ' + e.message;
+            }
+        }
+
+        async function loadActivity() {
+            try {
+                const resp = await fetch('/api/admin/activity-log');
+                const data = await resp.json();
+                
+                const rows = data.map(item => `
+                    <tr>
+                        <td>${new Date(item.timestamp).toLocaleString()}</td>
+                        <td>${item.event}</td>
+                        <td>${item.customer || '-'}</td>
+                        <td style="font-size: 0.85rem; color: var(--text-secondary);">${item.details}</td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('activity-rows').innerHTML = rows || '<tr><td colspan="4" class="empty">No activity yet</td></tr>';
+                document.getElementById('activity-loading').style.display = 'none';
+                document.getElementById('activity-table').style.display = 'block';
+            } catch (e) {
+                document.getElementById('activity-loading').innerHTML = 'Error loading activity: ' + e.message;
+            }
+        }
+
+        async function loadCustomers() {
+            try {
+                const resp = await fetch('/api/admin/customers-list');
+                const data = await resp.json();
+                
+                const rows = data.map(customer => `
+                    <tr>
+                        <td>${customer.company}</td>
+                        <td>${customer.contact_name}</td>
+                        <td>${customer.plan}</td>
+                        <td><span class="status ${customer.status.toLowerCase()}">${customer.status}</span></td>
+                        <td>${customer.autopilot ? 'ON' : 'OFF'}</td>
+                        <td>${customer.tasks_used}/${customer.tasks_limit}</td>
+                        <td>${customer.leads_used}/${customer.leads_limit}</td>
+                        <td><a href="/portal/${customer.public_token}" style="color: var(--accent-blue); text-decoration: none;">View</a></td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('customers-rows').innerHTML = rows || '<tr><td colspan="8" class="empty">No customers yet</td></tr>';
+                document.getElementById('customers-loading').style.display = 'none';
+                document.getElementById('customers-table').style.display = 'block';
+            } catch (e) {
+                document.getElementById('customers-loading').innerHTML = 'Error loading customers: ' + e.message;
+            }
+        }
+
+        window.addEventListener('load', loadPipeline);
+    </script>
+</body>
+</html>
