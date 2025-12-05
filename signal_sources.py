@@ -2566,8 +2566,92 @@ class RedditSignalSource(SignalSource):
         )
 
 
+class JobBoardSignalSource(SignalSource):
+    """
+    Job Board signal source for SMB hiring signals (EPIC 3.2).
+    
+    Ingests job postings from public job boards to identify SMBs that are hiring.
+    Hiring signals indicate business growth and potential need for B2B services.
+    """
+    
+    name = "job_board"
+    source_type = "job_board"
+    
+    NICHES = ["hvac", "plumbing", "roofing", "electrical", "landscaping"]
+    REGIONS = ["miami", "fort_lauderdale", "west_palm"]
+    
+    def is_enabled(self) -> bool:
+        """Enable in both SANDBOX and PRODUCTION."""
+        return SIGNAL_MODE in ("SANDBOX", "PRODUCTION")
+    
+    def fetch(self) -> List[RawSignal]:
+        """Fetch job postings from job boards."""
+        try:
+            from job_board_connector import fetch_job_postings, REGIONS as JB_REGIONS
+            
+            print(f"[SIGNALNET][JOB_BOARD][FETCH] Starting job board search")
+            
+            jobs = fetch_job_postings(
+                niches=self.NICHES[:3],
+                regions=self.REGIONS,
+                max_per_niche=3
+            )
+            
+            signals = []
+            for job in jobs:
+                geography = job.geography or "South Florida"
+                niche = job.niche or ""
+                
+                raw_signal = RawSignal(
+                    source_name=self.name,
+                    source_type=self.source_type,
+                    geography=geography,
+                    raw_data={
+                        "title": job.title,
+                        "company_name": job.company_name,
+                        "location": job.location,
+                        "description": job.description or "",
+                        "url": job.url or "",
+                        "posted_date": job.posted_date or "",
+                        "niche": niche,
+                        "geography": geography,
+                        "source": job.source,
+                    }
+                )
+                signals.append(raw_signal)
+            
+            print(f"[SIGNALNET][JOB_BOARD][FETCH_COMPLETE] Found {len(signals)} job postings")
+            return signals
+            
+        except Exception as e:
+            print(f"[SIGNALNET][JOB_BOARD][ERROR] Fetch failed: {str(e)}")
+            return []
+    
+    def parse(self, raw: RawSignal) -> ParsedSignal:
+        """Parse job posting into standardized format."""
+        data = raw.raw_data
+        company_name = data.get("company_name", "Unknown Company")
+        title = data.get("title", "Job Posting")
+        location = data.get("location", "South Florida")
+        niche = data.get("niche", "trades")
+        
+        summary = f"{company_name} is hiring: {title} in {location}"
+        if niche:
+            summary += f" ({niche.upper()} sector)"
+        
+        return ParsedSignal(
+            source_type="job_board",
+            raw_payload=json.dumps(data),
+            context_summary=summary[:500],
+            geography=raw.geography,
+            category_hint="JOB_POSTING",
+            niche_hint=niche,
+        )
+
+
 register_source_class(WeatherSignalSource)
 register_source_class(NewsSearchSignalSource)
 register_source_class(RedditSignalSource)
+register_source_class(JobBoardSignalSource)
 
-print("[SIGNALNET][STARTUP] Signal sources registered: weather_openweather, news_search, reddit_local")
+print("[SIGNALNET][STARTUP] Signal sources registered: weather_openweather, news_search, reddit_local, job_board")

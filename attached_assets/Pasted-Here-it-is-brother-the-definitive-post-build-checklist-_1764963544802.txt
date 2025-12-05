@@ -1,0 +1,436 @@
+Here it is, brother — the definitive post-build checklist.
+This is the list Melissa should run after implementing everything to verify nothing from the architecture, enrichment engine, SignalStorm, or MacroStorm intelligence layer got missed.
+
+This is not a “nice-to-have” list.
+This is the we are going to war with this product checklist.
+
+Every checkbox must be green or we don’t ship.
+
+⸻
+
+✅ HOSSAGENT — POST-BUILD SYSTEM VALIDATION CHECKLIST
+
+(Melissa’s Complete Engineering Verification Guide)
+
+⸻
+
+SECTION 1 — ENRICHMENT ENGINE (ARCHANGEL v2/v3)
+
+1.0 Lead State Machine
+
+Confirm all these states exist and behave correctly:
+	•	UNENRICHED
+	•	WITH_DOMAIN_NO_EMAIL
+	•	ENRICHED_NO_OUTBOUND
+	•	OUTBOUND_SENT
+	•	ARCHIVED_UNENRICHABLE
+
+Checks:
+
+☐ enrichment_attempts increments per pass
+☐ max_enrichment_attempts enforced
+☐ Leads automatically transition to ARCHIVED_UNENRICHABLE when budget exhausted
+☐ unenrichable_reason stored
+
+⸻
+
+1.1 Mission Log
+
+Must record every enrichment action.
+
+☐ Log entries include: timestamp, pass number, enrichment phase, query/scrape attempt, result
+☐ Log prevents repeating the same search/scrape/query
+☐ Mission log is visible in admin console (condensed)
+
+⸻
+
+1.2 NameStorm v2
+
+Multiple name candidates with confidence scores.
+
+☐ Lead contains candidate_company_names array
+☐ Names come from:
+	•	Title NER
+	•	Body NER
+	•	Meta tags
+	•	Schema.org
+	•	Heuristic reconstruction
+
+☐ NameStorm logs chosen candidate per pass
+☐ DomainStorm cycles through names in confidence order
+
+⸻
+
+1.3 DomainStorm v2
+
+Layered, stateful, persistent domain discovery.
+
+Confirm each layer works AND logs:
+
+☐ Layer 1: Extract URL from signal metadata
+☐ Layer 2: Scrape article for outbound links / schema.org org URLs
+☐ Layer 3: Heuristic domain generation (coolrunningair.com, etc.)
+☐ Layer 4: DuckDuckGo/Google-like HTML query WITH:
+	•	budget limits per pass
+	•	exponential backoff
+	•	5-minute cooldown after rate limit triggers
+
+☐ Layer 5: PhoneStorm-assisted reverse lookup
+☐ DomainStorm skips repeated layers via mission log
+☐ Domain found → state advances to WITH_DOMAIN_NO_EMAIL
+
+⸻
+
+1.4 PhoneStorm v2
+
+Phones act as enrichment data and identity pivot.
+
+☐ Extracts phones from:
+	•	article HTML
+	•	domain homepage
+	•	/contact
+	•	/about
+	•	directory pages
+
+☐ Normalizes to E.164
+☐ Classifies type (MOBILE, LANDLINE, VOIP, etc.)
+☐ Logs extraction
+☐ Stores phones on lead
+☐ DomainStorm uses phones for reverse lookup
+
+⸻
+
+1.5 EmailStorm v1
+
+Layered email discovery.
+
+☐ On-site scrape for emails
+☐ Generic patterns (info@ / contact@ / sales@ …) tested via SMTP lite
+☐ Person-based guesses applied if name available
+☐ Search-for-@domain.com OSINT queries
+☐ Logs results
+☐ First deliverable → ENRICHED_NO_OUTBOUND
+
+⸻
+
+1.6 Unenrichable Logic
+
+☐ Must check for “no progress across passes”
+☐ Must assign reason:
+	•	NO_DOMAIN_FOUND
+	•	NO_CONTACT_INFO_FOUND
+	•	NO_WEB_PRESENCE
+	•	FAILED_OSINT
+☐ Must archive gracefully
+
+⸻
+
+⸻
+
+SECTION 2 — COMPANY INTELLIGENCE LAYER
+
+2.1 Company Table Exists
+
+☐ Company model/table with:
+	•	canonical name
+	•	normalized name
+	•	domain
+	•	phones[]
+	•	emails[]
+	•	geo/region metadata
+	•	tags (HVAC, Roofing, etc.)
+	•	first_seen_at, last_seen_at
+	•	confidence score
+
+2.2 Lead → Company Matching
+
+☐ Matching by:
+	•	normalized name + geo
+	•	domain (primary key)
+	•	phone (secondary key)
+
+☐ Leads linked via company_id
+☐ Enrichment updates Company, not just lead
+
+⸻
+
+2.3 Cached Success + Negative Evidence
+
+☐ If company exists with domain+email → enrichment short-circuits
+☐ If company exists with “unenrichable” tag → enrichment short-circuits with reason
+☐ Cached phone numbers reused
+☐ Cached email patterns reused
+
+⸻
+
+⸻
+
+SECTION 3 — SIGNALSTORM SOURCES
+
+3.1 Craigslist Connector
+
+☐ RSS ingestion for:
+	•	services offered
+	•	jobs
+
+☐ Extract:
+	•	Title
+	•	Body
+	•	Emails
+	•	Phones
+
+☐ Score heavily when contact info exists
+☐ Converts into LeadEvents correctly
+
+⸻
+
+3.2 Job Board Connector
+
+☐ Ingest jobs for selected regions
+☐ Extract:
+	•	Company name
+	•	Apply URL
+	•	Location
+
+☐ Feed to LeadEngine
+☐ Score highly by default
+
+⸻
+
+3.3 Reddit Connector
+
+☐ Monitor selected subs
+☐ Filter for:
+	•	openings
+	•	business launches
+	•	local requests/recommendations
+
+☐ Extract business names
+☐ Score modestly until yield known
+
+⸻
+
+3.4 Geo Enforcement
+
+☐ Signals MUST include inferred geolocation
+☐ LeadEvents inherit geo
+
+⸻
+
+⸻
+
+SECTION 4 — MACROSTORM + FORCECAST INTELLIGENCE LAYER
+
+4.1 SEC Filings Ingestion
+
+☐ Cron job polling EDGAR for:
+	•	10-K
+	•	10-Q
+	•	8-K
+
+☐ Raw filings stored for NLP processing
+
+⸻
+
+4.2 Earnings Call Transcript Processor
+
+☐ Pull transcripts for selected tickers
+☐ Extract speaker text
+
+⸻
+
+4.3 Bankruptcy Filings
+
+☐ Ingest live/public bankruptcy feed
+☐ Extract parties, geos, sectors
+
+⸻
+
+4.4 NLP Extraction Pipeline
+
+☐ Extract:
+	•	expansions
+	•	contractions
+	•	closures
+	•	mergers
+	•	capex
+	•	supplier changes
+	•	geographic moves
+	•	headcount plans
+	•	risk factors
+
+☐ Identify segments affected
+☐ Identify geographies
+
+⸻
+
+4.5 MacroEvent Model
+
+Confirm fields:
+	•	macro_event_id
+	•	source_type
+	•	source_ref
+	•	company_name
+	•	ticker
+	•	force_type (EXPANSION, CONTRACTION, MERGER, SUPPLY_CHAIN, BANKRUPTCY)
+	•	segments_affected[]
+	•	geographies[]
+	•	time_horizon
+	•	raw_snippet
+	•	confidence
+
+⸻
+
+4.6 ForceCast Mapping Engine
+
+☐ Given a macro event, generate SMB target profiles:
+	•	local HVAC
+	•	contractors
+	•	suppliers
+	•	competitors
+	•	distributors
+	•	brokers
+	•	downstream service providers
+
+☐ Scored by:
+	•	region match
+	•	segment relevance
+	•	urgency
+
+⸻
+
+4.7 LeadEvent Generation from MacroEvents
+
+☐ ForceCast outputs turn into LeadEvents
+☐ Each LeadEvent carries macro_event_id
+☐ Portal/Admin shows macro context
+
+⸻
+
+⸻
+
+SECTION 5 — SYSTEM ARCHITECTURE & OPS
+
+5.1 Async Workers + Queue
+
+☐ Enrichment runs asynchronously
+☐ SignalStorm ingestion separate worker
+☐ MacroStorm polling separate worker
+☐ Prevent tight loops
+☐ Rate limit for:
+	•	DuckDuckGo
+	•	Craigslist
+	•	Job boards
+	•	Reddit
+	•	Target domain scrapes
+
+⸻
+
+5.2 Caching + Backoff
+
+☐ All search queries cached per 24h
+☐ Domain scrapes cached for 6h
+☐ SEC filings cached permanently
+☐ If search source rate limits → exponential backoff
+
+⸻
+
+5.3 Duplicate Suppression
+
+☐ Prevent duplicate LeadEvents for same company + geo
+☐ Company table dedupe must work
+
+⸻
+
+⸻
+
+SECTION 6 — UI/UX VERIFICATION
+
+6.1 Customer Portal
+
+☐ Shows only ENRICHED and SENT leads
+☐ Displays:
+	•	business name
+	•	domain
+	•	phone(s)
+	•	email used
+	•	“Why this opportunity?” text
+	•	Macro context if applicable
+
+⸻
+
+6.2 Admin Console
+
+☐ Shows:
+	•	enrichment status
+	•	attempts
+	•	unenrichable_reason
+	•	mission log preview
+	•	macro context per lead
+
+⸻
+
+6.3 Outbound
+
+☐ Uses correct domain (hossagent.net)
+☐ No emails sent to:
+	•	support@
+	•	info@
+	•	contact@
+	•	noreply@
+☐ Personalized outreach references:
+	•	the signal
+	•	the so-what
+	•	the customer
+	•	the recommended move
+
+⸻
+
+⸻
+
+SECTION 7 — METRICS
+
+Must see these in logs or dashboard:
+
+☐ Enrichment Rate (%)
+☐ Enrichment Rate by Source (%)
+☐ MacroEvent → LeadEvent → Enriched conversion
+☐ Avg enrichment attempts
+☐ Unenrichable reasons distribution
+☐ Outbound bounce rate
+☐ Outbound reply rate (once enough volume)
+☐ Lead volume per source
+
+⸻
+
+SECTION 8 — READINESS CHECK
+
+Melissa must answer “YES” to all:
+
+Does the system now attempt enrichment recursively?
+
+Does enrichment stop cleanly with reason codes?
+
+Do leads no longer stall silently?
+
+Does SignalStorm produce real SMB leads?
+
+Does MacroStorm generate strategic leads?
+
+Does ForceCast expand one macro event into many SMB targets?
+
+Does PhoneStorm assist finding the domain/company?
+
+Is deduplication working at the Company level?
+
+Does outbound messaging include real context?
+
+Does the customer portal only show actionable items?
+
+If any answer is NO → we’re not done.
+
+⸻
+
+Want this turned into a printable PDF, Notion page, or Linear epics?
+
+Say the word and I’ll format it for the battlefield.

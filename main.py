@@ -26,6 +26,7 @@ import asyncio
 import json
 import os
 import secrets
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -603,6 +604,26 @@ async def autopilot_loop():
                               f"Failed: {enrichment_results.get('failed', 0)}{pending_info}")
                     except Exception as e:
                         print(f"[ENRICHMENT][ERROR] {e}")
+                    
+                    # Step 4b: MacroStorm - SEC EDGAR ingestion (every 4 hours)
+                    try:
+                        from sec_edgar_connector import run_sec_edgar_ingestion
+                        from forcecast_engine import run_forcecast_for_new_macro_events
+                        
+                        last_edgar_run = getattr(autopilot_loop, '_last_edgar_run', 0)
+                        edgar_cooldown = 14400
+                        
+                        if time.time() - last_edgar_run >= edgar_cooldown:
+                            print("[MACROSTORM][SEC_EDGAR] Running scheduled SEC filing ingestion...")
+                            edgar_result = run_sec_edgar_ingestion(session, filing_types=["10-K", "10-Q", "8-K"])
+                            print(f"[MACROSTORM][SEC_EDGAR] Filings: {edgar_result.get('filings_found', 0)}, MacroEvents: {edgar_result.get('macro_events_created', 0)}")
+                            
+                            forcecast_result = run_forcecast_for_new_macro_events(session)
+                            print(f"[MACROSTORM][FORCECAST] MacroEvents mapped: {forcecast_result.get('macro_events_processed', 0)}, LeadEvents: {forcecast_result.get('lead_events_created', 0)}")
+                            
+                            autopilot_loop._last_edgar_run = time.time()
+                    except Exception as e:
+                        print(f"[MACROSTORM][ERROR] {e}")
                     
                     # Step 5-6: BizDev outreach (now prefers enriched LeadEvents)
                     await run_bizdev_cycle(session)
@@ -4238,17 +4259,25 @@ def get_lead_events_detailed(
             "urgency_score": e.urgency_score,
             "status": e.status,
             "enrichment_status": e.enrichment_status or "UNENRICHED",
+            "enrichment_attempts": e.enrichment_attempts or 0,
+            "max_enrichment_attempts": getattr(e, 'max_enrichment_attempts', 3),
+            "unenrichable_reason": getattr(e, 'unenrichable_reason', None),
+            "enrichment_mission_log": getattr(e, 'enrichment_mission_log', None),
             "has_outbound": has_outbound,
             "has_report": has_report,
             "company": company,
             "signal_id": e.signal_id,
             "lead_id": e.lead_id,
+            "lead_company": e.lead_company,
+            "lead_domain": e.lead_domain,
             "lead_email": e.lead_email,
             "lead_phone_raw": e.lead_phone_raw,
             "lead_phone_e164": e.lead_phone_e164,
-            "phone_confidence": e.phone_confidence,
+            "phone_confidence": e.phone_confidence or 0,
             "phone_source": e.phone_source,
             "phone_type": e.phone_type,
+            "domain_confidence": getattr(e, 'domain_confidence', 0),
+            "email_confidence": getattr(e, 'email_confidence', 0),
             "created_at": e.created_at.isoformat() if e.created_at else None
         })
     
