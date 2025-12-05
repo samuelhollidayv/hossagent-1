@@ -460,5 +460,27 @@
     "customer_id": null,
     "session_id": null,
     "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-05T18:04:17.669201",
+    "path": "/",
+    "referrer": null,
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "0ca9ce0134cb0f39",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-05T18:04:17.671129",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "0ca9ce0134cb0f39",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
   }
 ]
