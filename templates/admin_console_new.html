@@ -61,6 +61,17 @@
         .filter-input { padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; width: 250px; font-family: inherit; }
         .refresh-btn { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
         .refresh-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .enrichment-filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-subtle); flex-wrap: wrap; }
+        .filter-tab { padding: 0.5rem 1rem; cursor: pointer; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; border-radius: 6px; transition: all 0.2s; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+        .filter-tab:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-medium); }
+        .filter-tab.active { background: var(--accent-green); color: var(--bg-primary); border-color: var(--accent-green); }
+        .filter-tab .count { background: rgba(0,0,0,0.2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
+        .filter-tab.active .count { background: rgba(0,0,0,0.3); }
+        .enrichment-pill { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.02em; }
+        .enrichment-unenriched { color: var(--accent-orange); background: rgba(249, 115, 22, 0.15); }
+        .enrichment-with-domain { color: var(--accent-blue); background: rgba(59, 130, 246, 0.15); }
+        .enrichment-ready { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
+        .enrichment-sent { color: var(--text-primary); background: rgba(255, 255, 255, 0.15); }
         @media (max-width: 768px) {
             .stats-bar { flex-wrap: wrap; gap: 1rem; }
             .tabs { overflow-x: auto; }
@@ -136,6 +147,13 @@
                 <h2>Converted Opportunities</h2>
                 <button class="refresh-btn" onclick="loadLeadEvents()">Refresh</button>
             </div>
+            <div class="enrichment-filter-bar" id="enrichment-filters">
+                <button class="filter-tab active" data-status="" onclick="filterByEnrichmentStatus(this, '')">All <span class="count" id="count-all">-</span></button>
+                <button class="filter-tab" data-status="UNENRICHED" onclick="filterByEnrichmentStatus(this, 'UNENRICHED')">Unenriched <span class="count" id="count-unenriched">-</span></button>
+                <button class="filter-tab" data-status="WITH_DOMAIN_NO_EMAIL" onclick="filterByEnrichmentStatus(this, 'WITH_DOMAIN_NO_EMAIL')">With Domain <span class="count" id="count-with-domain">-</span></button>
+                <button class="filter-tab" data-status="ENRICHED_NO_OUTBOUND" onclick="filterByEnrichmentStatus(this, 'ENRICHED_NO_OUTBOUND')">Ready to Send <span class="count" id="count-ready">-</span></button>
+                <button class="filter-tab" data-status="OUTBOUND_SENT" onclick="filterByEnrichmentStatus(this, 'OUTBOUND_SENT')">Outbound Sent <span class="count" id="count-sent">-</span></button>
+            </div>
             <div id="leadevents-loading" class="loading">Loading lead events...</div>
             <div id="leadevents-table" style="display: none;">
                 <table>
@@ -147,6 +165,7 @@
                             <th>Lead Email</th>
                             <th>Category</th>
                             <th>Score</th>
+                            <th>Enrichment</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -214,7 +233,10 @@
             event.target.classList.add('active');
             
             if (name === 'signals') loadSignals();
-            else if (name === 'leadevents') loadLeadEvents();
+            else if (name === 'leadevents') {
+                loadEnrichmentCounts();
+                loadLeadEvents();
+            }
             else if (name === 'outbound') loadOutbound();
             else if (name === 'customers') loadCustomers();
         }
@@ -267,9 +289,58 @@
             }
         }
 
-        async function loadLeadEvents() {
+        let currentEnrichmentFilter = '';
+
+        function getEnrichmentPillClass(status) {
+            switch(status) {
+                case 'UNENRICHED': return 'enrichment-unenriched';
+                case 'WITH_DOMAIN_NO_EMAIL': return 'enrichment-with-domain';
+                case 'ENRICHED_NO_OUTBOUND': return 'enrichment-ready';
+                case 'OUTBOUND_SENT': return 'enrichment-sent';
+                default: return 'enrichment-unenriched';
+            }
+        }
+
+        function getEnrichmentLabel(status) {
+            switch(status) {
+                case 'UNENRICHED': return 'Unenriched';
+                case 'WITH_DOMAIN_NO_EMAIL': return 'With Domain';
+                case 'ENRICHED_NO_OUTBOUND': return 'Ready';
+                case 'OUTBOUND_SENT': return 'Sent';
+                default: return status || 'Unenriched';
+            }
+        }
+
+        async function loadEnrichmentCounts() {
             try {
-                const resp = await fetch('/api/admin/lead-events');
+                const resp = await fetch('/api/enrichment_status_counts');
+                const data = await resp.json();
+                
+                document.getElementById('count-all').textContent = data.total || 0;
+                document.getElementById('count-unenriched').textContent = data.counts?.UNENRICHED || 0;
+                document.getElementById('count-with-domain').textContent = data.counts?.WITH_DOMAIN_NO_EMAIL || 0;
+                document.getElementById('count-ready').textContent = data.counts?.ENRICHED_NO_OUTBOUND || 0;
+                document.getElementById('count-sent').textContent = data.counts?.OUTBOUND_SENT || 0;
+            } catch (e) {
+                console.error('Failed to load enrichment counts:', e);
+            }
+        }
+
+        function filterByEnrichmentStatus(btn, status) {
+            document.querySelectorAll('#enrichment-filters .filter-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentEnrichmentFilter = status;
+            loadLeadEvents(status);
+        }
+
+        async function loadLeadEvents(enrichmentStatus) {
+            const status = enrichmentStatus !== undefined ? enrichmentStatus : currentEnrichmentFilter;
+            try {
+                let url = '/api/lead_events_detailed';
+                if (status) {
+                    url += '?enrichment_status=' + encodeURIComponent(status);
+                }
+                const resp = await fetch(url);
                 const data = await resp.json();
                 
                 if (!Array.isArray(data)) {
@@ -278,17 +349,18 @@
                 
                 const rows = data.map(e => `
                     <tr>
-                        <td>${new Date(e.created_at).toLocaleString()}</td>
-                        <td>${e.customer || '-'}</td>
-                        <td>${e.lead_company || '-'}</td>
+                        <td>${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
+                        <td>${e.company || '-'}</td>
+                        <td>${e.summary ? e.summary.substring(0, 40) + (e.summary.length > 40 ? '...' : '') : '-'}</td>
                         <td>${e.lead_email || '<span style="color:var(--text-tertiary)">Not enriched</span>'}</td>
                         <td>${e.category || '-'}</td>
                         <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
+                        <td><span class="enrichment-pill ${getEnrichmentPillClass(e.enrichment_status)}">${getEnrichmentLabel(e.enrichment_status)}</span></td>
                         <td><span class="status ${e.status.toLowerCase()}">${e.status}</span></td>
                     </tr>
                 `).join('');
                 
-                document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="7" class="empty">No lead events yet</td></tr>';
+                document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="8" class="empty">No lead events yet</td></tr>';
                 document.getElementById('leadevents-loading').style.display = 'none';
                 document.getElementById('leadevents-table').style.display = 'block';
             } catch (e) {
