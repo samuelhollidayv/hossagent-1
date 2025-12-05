@@ -154,6 +154,10 @@
                 const resp = await fetch('/api/admin/pipeline');
                 const data = await resp.json();
                 
+                if (!Array.isArray(data)) {
+                    throw new Error(data.detail || data.error || 'Server returned invalid data');
+                }
+                
                 const rows = data.map(item => `
                     <tr>
                         <td>${new Date(item.timestamp).toLocaleString()}</td>
@@ -169,7 +173,7 @@
                 document.getElementById('pipeline-loading').style.display = 'none';
                 document.getElementById('pipeline-table').style.display = 'block';
             } catch (e) {
-                document.getElementById('pipeline-loading').innerHTML = 'Error loading pipeline: ' + e.message;
+                document.getElementById('pipeline-loading').innerHTML = 'Error loading pipeline: ' + e.message + ' <button onclick="loadPipeline()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 
@@ -177,6 +181,10 @@
             try {
                 const resp = await fetch('/api/admin/activity-log');
                 const data = await resp.json();
+                
+                if (!Array.isArray(data)) {
+                    throw new Error(data.detail || data.error || 'Server returned invalid data');
+                }
                 
                 const rows = data.map(item => `
                     <tr>
@@ -191,7 +199,7 @@
                 document.getElementById('activity-loading').style.display = 'none';
                 document.getElementById('activity-table').style.display = 'block';
             } catch (e) {
-                document.getElementById('activity-loading').innerHTML = 'Error loading activity: ' + e.message;
+                document.getElementById('activity-loading').innerHTML = 'Error loading activity: ' + e.message + ' <button onclick="loadActivity()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 
@@ -199,6 +207,10 @@
             try {
                 const resp = await fetch('/api/admin/customers-list');
                 const data = await resp.json();
+                
+                if (!Array.isArray(data)) {
+                    throw new Error(data.detail || data.error || 'Server returned invalid data');
+                }
                 
                 const rows = data.map(customer => `
                     <tr>
@@ -217,7 +229,7 @@
                 document.getElementById('customers-loading').style.display = 'none';
                 document.getElementById('customers-table').style.display = 'block';
             } catch (e) {
-                document.getElementById('customers-loading').innerHTML = 'Error loading customers: ' + e.message;
+                document.getElementById('customers-loading').innerHTML = 'Error loading customers: ' + e.message + ' <button onclick="loadCustomers()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 

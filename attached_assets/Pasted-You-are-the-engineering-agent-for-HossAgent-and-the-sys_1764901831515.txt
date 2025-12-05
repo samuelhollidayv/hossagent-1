@@ -1,0 +1,235 @@
+You are the engineering agent for HossAgent, and the system is now in a state where multiple components are partially upgraded, partially broken, and no longer aligned with the intended product behavior.
+
+Your task is to perform a COMPLETE STABILIZATION + REBUILD PASS on the entire platform—not adding new features, but fixing, re-wiring, aligning, and simplifying what already exists.
+
+This BRD describes exactly what must be corrected, preserved, removed, and rebuilt. You must follow it with precision, documenting assumptions inline.
+
+==========================
+🔥 PART I — CORE OBJECTIVE
+==========================
+Restore HossAgent into a functional, simplified, clean, end-to-end system that:
+
+1. Accepts Signals
+2. Converts them into LeadEvents
+3. Extracts real contact info
+4. Enriches missing details
+5. Sends OUTBOUND emails TO LEADS (not customers)
+6. CCs the customer
+7. Records everything in Conversations
+8. Displays everything in the Customer Portal
+9. Shows clear, actionable tables in Admin Console
+10. NO dummy data, NO dead tables, NO zombie logic
+
+This is a system STABILIZATION + COHERENCE mission.
+
+==========================
+🔥 PART II — WHAT IS BROKEN
+==========================
+
+A. OUTBOUND EMAIL LOGIC
+• System currently emails the CUSTOMER instead of the LEAD.
+• LeadEvents often lack emails because Signal extraction wasn’t plumbed through earlier.
+• CC and Reply-To logic misdirected.
+• Outbound copy references THE CUSTOMER as the subject (wrong).
+• Needs full rewrite.
+
+B. SIGNAL → LEADEVENT PIPELINE
+• Some signal sources improved, others still stubbed.
+• Contact info extracted at source but not consistently passed to LeadEvent.
+• Some events still missing domain/email.
+• Enrichment pipeline still assumes domain-first.
+
+C. CUSTOMER PORTAL
+• Outbound messages do NOT show up.
+• Conversations NOT displayed.
+• LeadEvents NOT clickable.
+• No visibility on:
+  – Outbound attempts
+  – Drafts
+  – Replies
+  – Reports
+• Tables are empty or misleading.
+
+D. ADMIN CONSOLE
+• Tables are duplicative, inconsistent, and non-clickable.
+• Needs consolidation:
+  – Signals
+  – LeadEvents
+  – Outbound Messages
+  – Customers
+• Must remove deprecated tables (dummy seed, placeholder templates, etc.).
+
+E. FRONTEND UX REGRESSION
+• After multiple iterations, layout and styles drifted.
+• Operator console appears on wrong pages, wrong locations.
+• Customer portal looks empty even when data exists.
+
+F. EMAIL SENDING INFRASTRUCTURE
+• SendGrid is throttling at 100/day.
+• We need outbound to switch to Amazon SES (SMTP or API) for unlimited sending.
+• MUST NOT BREAK inbound parse (still SendGrid for now).
+
+==========================
+🔥 PART III — THE REQUIRED FIXES
+==========================
+
+You must implement the following in order:
+
+--------------------------------------
+1. OUTBOUND PIPELINE — CORRECTION
+--------------------------------------
+Rewrite outbound logic so that:
+
+TO: lead_email  
+CC: customer.email  
+REPLY-TO: customer.email  
+FROM: hello@hossagent.net  
+
+And ensure:
+• Outbound references the LEAD + SIGNAL context.
+• NEVER email the customer directly except for notifications.
+• No outbound for signals about the customer’s own business.
+
+--------------------------------------
+2. SIGNAL → LEADEVENT PIPELINE
+--------------------------------------
+• Use extracted_contact_info from Signal to populate:
+  – lead_email
+  – lead_domain
+  – lead_phone
+• If email exists: enrichment = DONE
+• If domain exists: scrape via enrichment
+• If neither: fall back to Apollo (if integrated)
+Fix all serialization, null defaults, and DB schema mismatches.
+
+--------------------------------------
+3. CONVERSATION ENGINE (v0)
+--------------------------------------
+Implement:
+• messages table
+• threads table
+• inbound storage (existing SendGrid inbound webhook)
+• outbound storage mapping to threads
+
+Customer Portal must show:
+• All emails sent to leads
+• All replies from leads
+• Status: sent, delivered (if SES), replied
+
+--------------------------------------
+4. CUSTOMER PORTAL CLEANUP
+--------------------------------------
+Rebuild portal sections:
+
+A. “Today’s Opportunities”
+• List LeadEvents with:
+  – Summary
+  – Score
+  – Category
+  – Timestamp
+  – Status
+• Clicking an event loads full context panel.
+
+B. “Conversations”
+• Show threads with lead name + status.
+• Show all messages inside.
+
+C. “Outbound Activity”
+• Table of all outbound emails sent to leads.
+
+D. “Reports / Work Completed”
+• Show any generated PDF/text reports.
+• Each clickable.
+
+--------------------------------------
+5. ADMIN CONSOLE — CONSOLIDATION
+--------------------------------------
+Remove:
+• Email Health
+• Dummy Seed
+• BizDev Template stubs
+• Historical “draft invoices”
+
+Replace with 4 clean tables:
+
+1. Signals  
+2. LeadEvents  
+3. OutboundMessages  
+4. Customers  
+
+Each row must be clickable → detail panel.
+
+--------------------------------------
+6. REMOVE ALL DUMMY DATA
+--------------------------------------
+Delete:
+• DummySeed logic  
+• Placeholder leads  
+• Fake tasks  
+• Fake reports  
+
+--------------------------------------
+7. AMAZON SES INTEGRATION
+--------------------------------------
+Replace SendGrid outbound with SES:
+
+Environment variables:
+  AWS_SES_ACCESS_KEY
+  AWS_SES_SECRET_KEY
+  AWS_SES_REGION
+  FROM_EMAIL = hello@hossagent.net
+
+Add:
+EMAIL_MODE = DRY_RUN | LIVE
+
+--------------------------------------
+8. STABILIZE AUTOPILOT LOOP
+--------------------------------------
+Ensure Autopilot:
+• Fetches signals
+• Creates LeadEvents
+• Enriches
+• Sends outbound (LIVE mode)
+• Logs replies
+• Updates LeadEvent status correctly
+
+--------------------------------------
+9. VERIFICATION / TESTS
+--------------------------------------
+Once fixed, run:
+• One fake Signal with contact info
+• Expect: LeadEvent created with email
+• Expect: Outbound email sent to LEAD (not customer)
+• Expect: Customer CC’d
+• Expect: Lead reply → appears in Conversations
+• Expect: No UI errors in Portal or Admin
+
+--------------------------------------
+10. DOCUMENT EVERYTHING
+--------------------------------------
+Update:
+• replit.md
+• comments in code
+• any config instructions
+
+==========================
+🔥 PART IV — TONE + EXECUTION
+==========================
+You are not cleaning clutter.  
+You are stabilizing a multi-agent, multi-pipeline growth engine.
+
+You must:
+• Refactor carefully
+• Remove dead code
+• Avoid breaking existing working subsystems
+• Keep the architecture coherent
+• Maintain clarity for future expansion
+
+==========================
+🔥 PART V — DELIVERABLES
+==========================
+When finished, return:
+1. Summary of all changes made  
+2. Confirmation tests passed  
+3. Instructions for me (the human Hoss) to test in prod  
+4. Any next steps you recommend  

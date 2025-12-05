@@ -5,8 +5,15 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 IS_POSTGRES = DATABASE_URL is not None and "postgresql" in DATABASE_URL
 
 if DATABASE_URL:
-    engine = create_engine(DATABASE_URL, echo=False)
-    print(f"[DATABASE] Using PostgreSQL")
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_size=5,
+        max_overflow=10,
+    )
+    print(f"[DATABASE] Using PostgreSQL (pool_pre_ping=True, pool_recycle=300s)")
 else:
     DATABASE_URL = "sqlite:///./hossagent.db"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
