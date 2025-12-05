@@ -648,6 +648,7 @@ def _calculate_recency_score(created_at: datetime, max_age_hours: int = 72) -> i
 def score_signal(
     parsed_signal: ParsedSignal,
     category: Optional[str] = None,
+    bypass_niche_filter: bool = False,
 ) -> ScoredSignal:
     """
     Score a parsed signal based on weighted factors.
@@ -669,11 +670,12 @@ def score_signal(
       
       4. Niche match boost (20% of score)
          - +20 if matches LEAD_NICHE
-         - 0 otherwise
+         - 0 otherwise (bypassed if bypass_niche_filter=True)
     
     Args:
         parsed_signal: The ParsedSignal to score
         category: Optional category override (inferred if not provided)
+        bypass_niche_filter: If True, skip niche matching and allow all signals in target geography
         
     Returns:
         ScoredSignal with score, explanation, and event creation flag
@@ -704,10 +706,15 @@ def score_signal(
     geo_status = f"MATCH ({parsed_signal.geography})" if geo_match else f"no match ({parsed_signal.geography or 'none'})"
     explanation_parts.append(f"Geography {geo_status}: {geo_score}")
     
-    niche_match = _matches_lead_niche(parsed_signal.niche_hint)
-    niche_score = 20 if niche_match else 0
-    niche_status = f"MATCH ({parsed_signal.niche_hint})" if niche_match else f"no match ({parsed_signal.niche_hint or 'none'})"
-    explanation_parts.append(f"Niche {niche_status}: {niche_score}")
+    if bypass_niche_filter:
+        niche_score = 20
+        niche_status = "BYPASS (all signals allowed)"
+        explanation_parts.append(f"Niche {niche_status}: {niche_score}")
+    else:
+        niche_match = _matches_lead_niche(parsed_signal.niche_hint)
+        niche_score = 20 if niche_match else 0
+        niche_status = f"MATCH ({parsed_signal.niche_hint})" if niche_match else f"no match ({parsed_signal.niche_hint or 'none'})"
+        explanation_parts.append(f"Niche {niche_status}: {niche_score}")
     
     total_score = category_score + recency_score + geo_score + niche_score
     total_score = max(0, min(100, total_score))
@@ -1321,6 +1328,9 @@ class SignalPipeline:
             "error": None,
         }
         
+        primary_customer = self.session.exec(select(Customer).where(Customer.id == 1)).first()
+        bypass_niche_filter = primary_customer is not None
+        
         try:
             log_signal_activity(
                 source.name,
@@ -1346,7 +1356,7 @@ class SignalPipeline:
                     parsed = source.parse(raw_signal)
                     result["parsed"] += 1
                     
-                    scored = score_signal(parsed)
+                    scored = score_signal(parsed, bypass_niche_filter=bypass_niche_filter)
                     result["scored"] += 1
                     
                     log_signal_activity(
