@@ -43,7 +43,8 @@ from email_utils import (
 from outbound_utils import (
     get_business_profile,
     check_do_not_contact,
-    create_pending_outbound
+    create_pending_outbound,
+    send_lead_event_immediate
 )
 from bizdev_templates import (
     generate_email,
@@ -545,142 +546,31 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     events_failed = 0
     events_queued = 0
     events_blocked = 0
-    contacted_summaries = []
-
     events_rate_limited = 0
+    contacted_summaries = []
     
     for event in new_events:
-        lead = None
-        customer = None
-        contact_email = None
-        contact_name = None
-        company_name = None
-        niche = "small business"
-        city = "Miami"
-        outreach_style = "transparent_ai"
-        
-        business_profile = None
-        outreach_mode = OUTREACH_MODE_AUTO
-        do_not_contact_list = None
-        cc_email = None
-        reply_to = None
-        
-        contact_email = event.lead_email or event.enriched_email
-        contact_name = event.lead_name or event.enriched_contact_name
         company_name = event.lead_company or event.enriched_company_name or "Your company"
         
-        if not contact_email:
-            print(f"[EVENT-BIZDEV] Event {event.id}: No lead email found, skipping (lead_email required)")
-            continue
-        
-        if event.do_not_contact:
-            events_blocked += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: BLOCKED (event do_not_contact flag)")
-            continue
-        
-        rate_ok, rate_reason = check_rate_limits(session, contact_email, event.id, event.company_id)
-        if not rate_ok:
-            events_rate_limited += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: RATE_LIMITED ({rate_reason})")
-            continue
-        
-        if event.company_id:
-            customer = session.exec(
-                select(Customer).where(Customer.id == event.company_id)
-            ).first()
-            if customer:
-                outreach_mode = customer.outreach_mode or OUTREACH_MODE_AUTO
-                outreach_style = getattr(customer, 'outreach_style', 'transparent_ai') or 'transparent_ai'
-                city = customer.geography or "Miami"
-                business_profile = get_business_profile(session, customer.id)
-                if business_profile:
-                    do_not_contact_list = business_profile.do_not_contact_list
-                cc_email = customer.contact_email
-                reply_to = customer.contact_email
-                if business_profile and business_profile.primary_contact_email:
-                    cc_email = business_profile.primary_contact_email
-                    reply_to = business_profile.primary_contact_email
-                niche = customer.niche or niche
-        
-        if check_do_not_contact(contact_email, do_not_contact_list):
-            events_blocked += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: BLOCKED (do_not_contact list)")
-            continue
-        
+        result = send_lead_event_immediate(session, event, commit=False)
         events_processed += 1
         
-        subject, body = generate_miami_contextual_email(
-            contact_name=contact_name or "there",
-            company_name=company_name,
-            niche=niche,
-            event_summary=event.summary,
-            recommended_action=event.recommended_action or "contextual outreach",
-            category=event.category,
-            urgency_score=event.urgency_score,
-            outreach_style=outreach_style,
-            event_id=event.id,
-            signal_id=event.signal_id,
-            city=city
-        )
-        
-        if outreach_mode == OUTREACH_MODE_REVIEW and customer:
-            create_pending_outbound(
-                session=session,
-                customer_id=customer.id,
-                lead_id=event.lead_id,
-                to_email=contact_email,
-                to_name=contact_name,
-                subject=subject,
-                body=body,
-                context_summary=f"Signal-triggered: {event.category} - {event.summary[:100]}",
-                lead_event_id=event.id
-            )
-            event.outbound_message = body
-            event.next_step = "Awaiting your review"
-            event.next_step_owner = NEXT_STEP_OWNER_CUSTOMER
-            events_queued += 1
-            session.add(event)
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: QUEUED for review (urgency={event.urgency_score})")
-            continue
-        
-        email_result = send_email(
-            to_email=contact_email,
-            subject=subject,
-            body=body,
-            lead_name=contact_name,
-            company=company_name,
-            cc_email=cc_email,
-            reply_to=reply_to
-        )
-        
-        event.outbound_message = body
-        
-        if email_result.actually_sent:
-            event.status = LEAD_STATUS_CONTACTED
-            event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
-            event.last_contact_at = datetime.utcnow()
-            event.last_contact_summary = f"Contextual email sent: {event.category}"
-            event.next_step_owner = NEXT_STEP_OWNER_AGENT
-            event.contact_count_24h = (event.contact_count_24h or 0) + 1
-            event.contact_count_7d = (event.contact_count_7d or 0) + 1
-            event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
-            events_contacted += 1
-            contacted_summaries.append(f"{company_name} ({event.category})")
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: OUTBOUND_SENT (urgency={event.urgency_score})")
-        elif email_result.result in ("dry_run", "fallback"):
-            event.status = LEAD_STATUS_CONTACTED
-            event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
-            event.last_contact_at = datetime.utcnow()
-            event.contact_count_24h = (event.contact_count_24h or 0) + 1
-            event.contact_count_7d = (event.contact_count_7d or 0) + 1
-            event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
-            events_contacted += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: DRY_RUN OUTBOUND_SENT (mode={email_result.mode})")
+        if result.success:
+            if result.email_sent:
+                events_contacted += 1
+                contacted_summaries.append(f"{company_name} ({event.category})")
+                print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: SENT via immediate-send")
+            elif result.queued_for_review:
+                events_queued += 1
+                print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: QUEUED for review")
         else:
-            events_failed += 1
-            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: FAILED error=\"{email_result.error}\"")
-        
-        session.add(event)
+            if result.action == "blocked":
+                events_blocked += 1
+            elif result.action == "rate_limited":
+                events_rate_limited += 1
+            else:
+                events_failed += 1
+            print(f"[EVENT-BIZDEV] Event {event.id} for {company_name}: {result.action.upper()} - {result.reason}")
 
     session.commit()
     

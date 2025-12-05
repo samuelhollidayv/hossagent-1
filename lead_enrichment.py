@@ -47,6 +47,7 @@ from models import (
     ENRICHMENT_STATUS_SKIPPED,
 )
 from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary
+from outbound_utils import send_lead_event_immediate
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -982,6 +983,16 @@ def _apply_enrichment_to_lead_event(
         log_enrichment("ARCHANGEL_STATUS_ENRICHED", lead_event_id=lead_event.id,
                        details={"new_status": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
                                 "email_confidence": lead_event.email_confidence})
+        
+        session.add(lead_event)
+        session.commit()
+        
+        send_result = send_lead_event_immediate(session, lead_event, commit=True)
+        log_enrichment("ARCHANGEL_IMMEDIATE_SEND", lead_event_id=lead_event.id,
+                       details={"action": send_result.action, "success": send_result.success,
+                                "reason": send_result.reason})
+        
+        return lead_event.enrichment_status
     
     elif lead_event.lead_domain:
         lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
@@ -1174,15 +1185,24 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
     for i, lead_event in enumerate(with_domain_events):
         if lead_event.lead_email:
             lead_event.enrichment_status = ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
-            # ARCHANGEL: Set email confidence for pre-enriched leads
             lead_event.email_confidence = 0.95 if "@" in lead_event.lead_email else 0.0
             session.add(lead_event)
             session.commit()
+            
+            send_result = send_lead_event_immediate(session, lead_event, commit=True)
+            
             stats["enriched"] += 1
             stats["by_source"]["signal"] += 1
-            log_enrichment("ARCHANGEL_EMAIL_READY", lead_event_id=lead_event.id,
-                           details={"email": lead_event.lead_email, 
-                                    "email_confidence": lead_event.email_confidence})
+            if send_result.email_sent:
+                stats["immediate_sent"] = stats.get("immediate_sent", 0) + 1
+            elif send_result.queued_for_review:
+                stats["immediate_queued"] = stats.get("immediate_queued", 0) + 1
+            
+            log_enrichment("ARCHANGEL_IMMEDIATE_SEND", lead_event_id=lead_event.id,
+                           details={"email": lead_event.lead_email,
+                                    "action": send_result.action, 
+                                    "success": send_result.success,
+                                    "reason": send_result.reason})
             continue
         
         result = await enrich_lead_event(lead_event, session)

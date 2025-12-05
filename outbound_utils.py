@@ -150,3 +150,198 @@ def get_customer_by_id(session: Session, customer_id: int) -> Optional[Customer]
     return session.exec(
         select(Customer).where(Customer.id == customer_id)
     ).first()
+
+
+class ImmediateSendResult:
+    """Result of an immediate send operation."""
+    def __init__(
+        self,
+        success: bool,
+        action: str,
+        reason: str = "",
+        email_sent: bool = False,
+        queued_for_review: bool = False
+    ):
+        self.success = success
+        self.action = action
+        self.reason = reason
+        self.email_sent = email_sent
+        self.queued_for_review = queued_for_review
+    
+    def __repr__(self):
+        return f"ImmediateSendResult(success={self.success}, action='{self.action}', reason='{self.reason}')"
+
+
+def send_lead_event_immediate(session: Session, lead_event, commit: bool = True) -> ImmediateSendResult:
+    """
+    Immediately send outbound email for a LeadEvent that has been enriched with an email.
+    
+    This is the core function that eliminates the waiting state between enrichment and sending.
+    Called directly from the enrichment pipeline when an email is discovered.
+    
+    Flow:
+    - AUTO mode: Send email immediately, update status to OUTBOUND_SENT
+    - REVIEW mode: Create PendingOutbound for customer approval
+    
+    Args:
+        session: Database session
+        lead_event: LeadEvent with lead_email set
+        commit: Whether to commit the transaction (default True)
+        
+    Returns:
+        ImmediateSendResult with success status and action taken
+    """
+    import hashlib
+    from datetime import datetime
+    from models import (
+        OUTREACH_MODE_AUTO, OUTREACH_MODE_REVIEW,
+        LEAD_STATUS_NEW, LEAD_STATUS_CONTACTED,
+        NEXT_STEP_OWNER_AGENT, NEXT_STEP_OWNER_CUSTOMER,
+        ENRICHMENT_STATUS_OUTBOUND_SENT,
+    )
+    from email_utils import send_email
+    
+    contact_email = lead_event.lead_email or lead_event.enriched_email
+    if not contact_email:
+        return ImmediateSendResult(
+            success=False,
+            action="skipped",
+            reason="No email address available"
+        )
+    
+    if lead_event.do_not_contact:
+        return ImmediateSendResult(
+            success=False,
+            action="blocked",
+            reason="Lead marked do_not_contact"
+        )
+    
+    contact_name = lead_event.lead_name or lead_event.enriched_contact_name
+    company_name = lead_event.lead_company or lead_event.enriched_company_name or "Your company"
+    
+    customer = None
+    business_profile = None
+    outreach_mode = OUTREACH_MODE_AUTO
+    do_not_contact_list = None
+    cc_email = None
+    reply_to = None
+    niche = "small business"
+    city = "Miami"
+    outreach_style = "transparent_ai"
+    
+    if lead_event.company_id:
+        customer = get_customer_by_id(session, lead_event.company_id)
+        if customer:
+            outreach_mode = customer.outreach_mode or OUTREACH_MODE_AUTO
+            outreach_style = getattr(customer, 'outreach_style', 'transparent_ai') or 'transparent_ai'
+            city = customer.geography or "Miami"
+            niche = customer.niche or niche
+            business_profile = get_business_profile(session, customer.id)
+            if business_profile:
+                do_not_contact_list = business_profile.do_not_contact_list
+            cc_email = customer.contact_email
+            reply_to = customer.contact_email
+            if business_profile and business_profile.primary_contact_email:
+                cc_email = business_profile.primary_contact_email
+                reply_to = business_profile.primary_contact_email
+    
+    if check_do_not_contact(contact_email, do_not_contact_list):
+        return ImmediateSendResult(
+            success=False,
+            action="blocked",
+            reason="Email in do_not_contact list"
+        )
+    
+    from agents import check_rate_limits
+    rate_ok, rate_reason = check_rate_limits(session, contact_email, lead_event.id, lead_event.company_id)
+    if not rate_ok:
+        return ImmediateSendResult(
+            success=False,
+            action="rate_limited",
+            reason=rate_reason
+        )
+    
+    from agents import generate_miami_contextual_email
+    subject, body = generate_miami_contextual_email(
+        contact_name=contact_name or "there",
+        company_name=company_name,
+        niche=niche,
+        event_summary=lead_event.summary,
+        recommended_action=lead_event.recommended_action or "contextual outreach",
+        category=lead_event.category,
+        urgency_score=lead_event.urgency_score,
+        outreach_style=outreach_style,
+        event_id=lead_event.id,
+        signal_id=lead_event.signal_id,
+        city=city
+    )
+    
+    if outreach_mode == OUTREACH_MODE_REVIEW and customer:
+        create_pending_outbound(
+            session=session,
+            customer_id=customer.id,
+            lead_id=lead_event.lead_id,
+            to_email=contact_email,
+            to_name=contact_name,
+            subject=subject,
+            body=body,
+            context_summary=f"Signal-triggered: {lead_event.category} - {lead_event.summary[:100] if lead_event.summary else ''}",
+            lead_event_id=lead_event.id
+        )
+        lead_event.outbound_message = body
+        lead_event.next_step = "Awaiting your review"
+        lead_event.next_step_owner = NEXT_STEP_OWNER_CUSTOMER
+        session.add(lead_event)
+        
+        if commit:
+            session.commit()
+        
+        print(f"[IMMEDIATE-SEND] Event {lead_event.id} for {company_name}: QUEUED for review (REVIEW mode)")
+        return ImmediateSendResult(
+            success=True,
+            action="queued",
+            reason="Queued for customer review (REVIEW mode)",
+            queued_for_review=True
+        )
+    
+    email_result = send_email(
+        to_email=contact_email,
+        subject=subject,
+        body=body,
+        lead_name=contact_name,
+        company=company_name,
+        cc_email=cc_email,
+        reply_to=reply_to
+    )
+    
+    lead_event.outbound_message = body
+    
+    if email_result.actually_sent or email_result.result in ("dry_run", "fallback"):
+        lead_event.status = LEAD_STATUS_CONTACTED
+        lead_event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
+        lead_event.last_contact_at = datetime.utcnow()
+        lead_event.last_contact_summary = f"Contextual email sent: {lead_event.category}"
+        lead_event.next_step_owner = NEXT_STEP_OWNER_AGENT
+        lead_event.contact_count_24h = (lead_event.contact_count_24h or 0) + 1
+        lead_event.contact_count_7d = (lead_event.contact_count_7d or 0) + 1
+        lead_event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
+        session.add(lead_event)
+        
+        if commit:
+            session.commit()
+        
+        mode_str = "SENT" if email_result.actually_sent else f"DRY_RUN ({email_result.mode})"
+        print(f"[IMMEDIATE-SEND] Event {lead_event.id} for {company_name}: {mode_str} → OUTBOUND_SENT")
+        return ImmediateSendResult(
+            success=True,
+            action="sent",
+            reason=f"Email {mode_str.lower()}",
+            email_sent=email_result.actually_sent
+        )
+    else:
+        print(f"[IMMEDIATE-SEND] Event {lead_event.id} for {company_name}: FAILED error=\"{email_result.error}\"")
+        return ImmediateSendResult(
+            success=False,
+            action="failed",
+            reason=f"Email failed: {email_result.error}"
+        )
