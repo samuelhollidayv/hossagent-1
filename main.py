@@ -5037,6 +5037,89 @@ def flag_signal_noisy(
 
 
 # ============================================================================
+# CUSTOMER PORTAL: MANUAL SEND MODE
+# ============================================================================
+
+@app.post("/api/manual-send")
+async def manual_send_email(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Manual email send from customer portal.
+    
+    Allows customers to write and send their own emails instead of using robot-generated copy.
+    Records in PendingOutbound with SENT status.
+    """
+    payload = await request.json()
+    lead_event_id = payload.get("lead_event_id")
+    to_email = payload.get("to_email")
+    subject = payload.get("subject")
+    body = payload.get("body")
+    
+    customer_token = request.cookies.get("customer_id")
+    if not customer_token:
+        raise HTTPException(status_code=403, detail="Authentication required")
+    
+    customer_id = int(customer_token) if customer_token.isdigit() else None
+    if not customer_id:
+        raise HTTPException(status_code=403, detail="Invalid authentication")
+    
+    customer = session.exec(select(Customer).where(Customer.id == customer_id)).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    if not all([to_email, subject, body]):
+        raise HTTPException(status_code=400, detail="Missing required fields: to_email, subject, body")
+    
+    from email_utils import send_email
+    
+    result = send_email(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        lead_name="",
+        company=customer.company,
+        cc_email="sam@hossagent.net",
+        reply_to="sam@hossagent.net"
+    )
+    
+    if not result.actually_sent:
+        return {
+            "success": False,
+            "error": f"Email send failed: {result.error or result.result}"
+        }
+    
+    outbound = PendingOutbound(
+        customer_id=customer_id,
+        lead_event_id=lead_event_id,
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        status="SENT",
+        sent_at=datetime.utcnow()
+    )
+    session.add(outbound)
+    session.commit()
+    
+    if lead_event_id:
+        event = session.exec(select(LeadEvent).where(LeadEvent.id == lead_event_id)).first()
+        if event:
+            event.status = "CONTACTED"
+            session.add(event)
+            session.commit()
+            print(f"[MANUAL-SEND] Updated LeadEvent {lead_event_id} to CONTACTED")
+    
+    print(f"[MANUAL-SEND] Sent email from customer {customer_id} to {to_email}")
+    
+    return {
+        "success": True,
+        "message": "Email sent successfully",
+        "outbound_id": outbound.id
+    }
+
+
+# ============================================================================
 # CONVERSATION ENGINE ADMIN API ENDPOINTS
 # ============================================================================
 

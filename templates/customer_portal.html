@@ -836,6 +836,101 @@
             btn.textContent = originalText;
         }}
     }}
+    
+    function openManualSendModal(leadEventId, toEmail, company) {{
+        const modal = document.getElementById('manual-send-modal');
+        if (!modal) return;
+        
+        document.getElementById('manual-send-lead-id').value = leadEventId || '';
+        document.getElementById('manual-send-to-email').value = toEmail || '';
+        const defaultSubject = `Quick opportunity for ${company || 'your company'}...`;
+        document.getElementById('manual-send-subject').value = defaultSubject;
+        document.getElementById('manual-send-body').value = '';
+        
+        modal.style.display = 'flex';
+    }}
+    
+    function closeManualSendModal() {{
+        const modal = document.getElementById('manual-send-modal');
+        if (modal) modal.style.display = 'none';
+    }}
+    
+    async function sendManualEmail() {{
+        const leadId = document.getElementById('manual-send-lead-id').value;
+        const toEmail = document.getElementById('manual-send-to-email').value;
+        const subject = document.getElementById('manual-send-subject').value;
+        const body = document.getElementById('manual-send-body').value;
+        
+        if (!toEmail || !subject || !body) {{
+            alert('Please fill in all fields');
+            return;
+        }}
+        
+        const sendBtn = document.getElementById('manual-send-btn');
+        const originalText = sendBtn.textContent;
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...';
+        
+        try {{
+            const res = await fetch('/api/manual-send', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{
+                    lead_event_id: leadId || null,
+                    to_email: toEmail,
+                    subject: subject,
+                    body: body
+                }})
+            }});
+            
+            const data = await res.json();
+            if (data.success) {{
+                alert('Email sent successfully!');
+                closeManualSendModal();
+                setTimeout(() => location.reload(), 500);
+            }} else {{
+                alert('Error: ' + (data.error || 'Send failed'));
+                sendBtn.disabled = false;
+                sendBtn.textContent = originalText;
+            }}
+        }} catch (e) {{
+            alert('Error: ' + e.message);
+            sendBtn.disabled = false;
+            sendBtn.textContent = originalText;
+        }}
+    }}
     </script>
+    
+    <!-- Manual Send Modal -->
+    <div id="manual-send-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:12px; padding:2rem; width:90%; max-width:600px; max-height:90vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 style="font-size:1.5rem; font-weight:600;">Write Your Own Copy</h2>
+                <button onclick="closeManualSendModal()" style="background:transparent; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">×</button>
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">To Email</label>
+                <input id="manual-send-to-email" type="email" style="width:100%; padding:0.75rem; background:var(--bg-tertiary); border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-primary); font-family:var(--font-sans);" placeholder="prospect@company.com" required>
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">Subject</label>
+                <input id="manual-send-subject" type="text" style="width:100%; padding:0.75rem; background:var(--bg-tertiary); border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-primary); font-family:var(--font-sans);" placeholder="Your subject here..." required>
+            </div>
+            
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">Message Body</label>
+                <textarea id="manual-send-body" style="width:100%; height:200px; padding:0.75rem; background:var(--bg-tertiary); border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-primary); font-family:var(--font-sans); resize:vertical;" placeholder="Write your killer copy here..." required></textarea>
+            </div>
+            
+            <input id="manual-send-lead-id" type="hidden">
+            
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+                <button onclick="closeManualSendModal()" style="background:transparent; border:1px solid var(--border-medium); color:var(--text-secondary); padding:0.75rem 1.5rem; border-radius:6px; cursor:pointer; font-weight:500;">Cancel</button>
+                <button id="manual-send-btn" onclick="sendManualEmail()" style="background:var(--accent-green); color:var(--bg-primary); border:none; padding:0.75rem 1.5rem; border-radius:6px; cursor:pointer; font-weight:500;">Send Email</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
