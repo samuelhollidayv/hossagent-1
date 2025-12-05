@@ -1111,6 +1111,18 @@ def serve_admin_console(request: Request, session: Session = Depends(get_session
         return f.read()
 
 
+@app.get("/admin/diagnostics", response_class=HTMLResponse)
+def serve_diagnostics(request: Request, session: Session = Depends(get_session)):
+    """Lead funnel diagnostics dashboard (requires authentication)."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    
+    if not verify_admin_session(admin_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
+    with open("templates/admin_diagnostics.html", "r") as f:
+        return f.read()
+
+
 @app.get("/admin/login", response_class=HTMLResponse)
 def admin_login_get():
     """Render admin login form."""
@@ -4517,6 +4529,77 @@ def get_opportunity_detail(
 # ============================================================================
 # LEAD EVENT DETAIL API - ADMIN CONSOLE
 # ============================================================================
+
+
+@app.get("/api/admin/diagnostics")
+def get_diagnostics(request: Request, session: Session = Depends(get_session)):
+    """
+    Lead funnel diagnostics - measure where bottlenecks are.
+    
+    Returns metrics on signal processing and enrichment pipeline.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    total_signals = session.exec(select(func.count(Signal.id))).one()
+    total_lead_events = session.exec(select(func.count(LeadEvent.id))).one()
+    
+    enrichment_by_status = {}
+    for status in ["UNENRICHED", "WITH_DOMAIN_NO_EMAIL", "ENRICHED_NO_OUTBOUND", "OUTBOUND_SENT", "ARCHIVED_UNENRICHABLE"]:
+        count = session.exec(
+            select(func.count(LeadEvent.id)).where(LeadEvent.enrichment_status == status)
+        ).one()
+        enrichment_by_status[status] = count
+    
+    total_enriched = session.exec(
+        select(func.count(LeadEvent.id)).where(LeadEvent.enrichment_status.in_(["ENRICHED_NO_OUTBOUND", "OUTBOUND_SENT"]))
+    ).one()
+    
+    total_unenrichable = session.exec(
+        select(func.count(LeadEvent.id)).where(LeadEvent.enrichment_status == "ARCHIVED_UNENRICHABLE")
+    ).one()
+    
+    avg_enrichment_attempts = session.exec(
+        select(func.avg(LeadEvent.enrichment_attempts))
+    ).one() or 0
+    
+    total_attempted = session.exec(
+        select(func.count(LeadEvent.id)).where(LeadEvent.enrichment_attempts > 0)
+    ).one()
+    
+    signals_by_source = {}
+    signals = session.exec(select(Signal.source_type, func.count(Signal.id)).group_by(Signal.source_type)).all()
+    for source_type, count in signals:
+        signals_by_source[source_type or "unknown"] = count
+    
+    enrichment_rate = (total_enriched / total_lead_events * 100) if total_lead_events > 0 else 0
+    attempt_efficiency = (total_enriched / total_attempted * 100) if total_attempted > 0 else 0
+    
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "signals": {
+            "total": total_signals,
+            "by_source": signals_by_source
+        },
+        "lead_events": {
+            "total": total_lead_events,
+            "enriched": total_enriched,
+            "enrichment_rate_percent": round(enrichment_rate, 1),
+            "by_status": enrichment_by_status
+        },
+        "enrichment": {
+            "total_unenrichable": total_unenrichable,
+            "avg_attempts": round(avg_enrichment_attempts, 2),
+            "total_attempted": total_attempted,
+            "attempt_efficiency_percent": round(attempt_efficiency, 1)
+        },
+        "funnel": {
+            "signals_to_events": round((total_lead_events / total_signals * 100), 1) if total_signals > 0 else 0,
+            "events_to_enriched": round((total_enriched / total_lead_events * 100), 1) if total_lead_events > 0 else 0,
+            "enriched_to_sent": round((session.exec(select(func.count(LeadEvent.id)).where(LeadEvent.enrichment_status == "OUTBOUND_SENT")).one() or 0) / (total_enriched or 1) * 100, 1)
+        }
+    }
 
 
 @app.get("/api/admin/lead_event/{event_id}/detail")

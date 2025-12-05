@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Funnel Diagnostics - HossAgent Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --border-subtle: #1f1f1f;
+            --border-medium: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #666666;
+            --accent-green: #22c55e;
+            --accent-orange: #f97316;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: 'JetBrains Mono', monospace; padding: 2rem; line-height: 1.5; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); padding-bottom: 1.5rem; }
+        h1 { font-size: 1.75rem; font-weight: 600; }
+        .breadcrumb { font-size: 0.8rem; color: var(--text-tertiary); }
+        .breadcrumb a { color: var(--accent-blue); text-decoration: none; }
+        .logout-btn { background: var(--accent-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
+        .refresh-btn { background: var(--accent-green); color: var(--bg-primary); border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; }
+        .refresh-btn:hover { opacity: 0.9; }
+        
+        .funnel { margin-bottom: 2rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; }
+        .funnel-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; color: var(--accent-green); }
+        .funnel-stage { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; }
+        .funnel-bar { flex: 1; height: 30px; background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-orange) 100%); border-radius: 4px; position: relative; min-width: 50px; }
+        .funnel-label { width: 250px; font-size: 0.9rem; }
+        .funnel-value { width: 150px; text-align: right; font-weight: 600; color: var(--accent-green); }
+        .funnel-percent { width: 80px; text-align: right; color: var(--text-secondary); }
+        
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .metric-card { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; }
+        .metric-card h3 { font-size: 0.85rem; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 1rem; letter-spacing: 0.05em; }
+        .metric-value { font-size: 2.5rem; font-weight: 600; color: var(--accent-green); margin-bottom: 0.5rem; }
+        .metric-detail { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
+        .metric-detail.bad { color: var(--accent-red); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        th { font-weight: 600; color: var(--accent-green); font-size: 0.8rem; text-transform: uppercase; background: var(--bg-tertiary); letter-spacing: 0.05em; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: var(--bg-tertiary); }
+        .status { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+        .status-good { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+        .status-warn { background: rgba(249, 115, 22, 0.15); color: var(--accent-orange); }
+        .status-bad { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        
+        .loading { text-align: center; padding: 2rem; color: var(--text-tertiary); }
+        @media (max-width: 768px) {
+            .funnel-stage { flex-direction: column; align-items: flex-start; }
+            .funnel-label, .funnel-value, .funnel-percent { width: 100%; }
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Lead Funnel Diagnostics</h1>
+                <div class="breadcrumb"><a href="/admin">← Back to Admin</a></div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="refresh-btn" onclick="loadDiagnostics()">Refresh Data</button>
+                <a href="/admin/logout" class="logout-btn">Logout</a>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">Loading diagnostics...</div>
+        <div id="content" style="display: none;">
+            
+            <!-- FUNNEL VISUALIZATION -->
+            <div class="funnel">
+                <div class="funnel-title">📊 Conversion Funnel</div>
+                <div id="funnel-viz"></div>
+            </div>
+
+            <!-- METRIC CARDS -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Raw Signals</h3>
+                    <div class="metric-value" id="total-signals">-</div>
+                    <div class="metric-detail">Ingested from SignalNet sources</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Lead Events Created</h3>
+                    <div class="metric-value" id="total-events">-</div>
+                    <div class="metric-detail">Signals meeting score threshold</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Enrichment Rate</h3>
+                    <div class="metric-value" id="enrichment-rate">-</div>
+                    <div class="metric-detail">Events with contact info (domain + email)</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Emails Sent</h3>
+                    <div class="metric-value" id="emails-sent">-</div>
+                    <div class="metric-detail">Outbound messages dispatched</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Unenrichable Leads</h3>
+                    <div class="metric-value id="unenrichable-count">-</div>
+                    <div class="metric-detail">Exhausted enrichment budget (3 attempts)</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Avg Enrichment Attempts</h3>
+                    <div class="metric-value" id="avg-attempts">-</div>
+                    <div class="metric-detail">Per-lead discovery iterations</div>
+                </div>
+            </div>
+
+            <!-- ENRICHMENT STATUS TABLE -->
+            <h2 style="margin: 2rem 0 1rem 0; font-size: 1.1rem;">Lead Event Status Breakdown</h2>
+            <table id="status-table">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Count</th>
+                        <th>Percentage</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="status-rows"></tbody>
+            </table>
+
+            <!-- SIGNAL SOURCE TABLE -->
+            <h2 style="margin: 2rem 0 1rem 0; font-size: 1.1rem;">Signal Sources</h2>
+            <table id="source-table">
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Signal Count</th>
+                        <th>Percentage of Total</th>
+                    </tr>
+                </thead>
+                <tbody id="source-rows"></tbody>
+            </table>
+
+            <div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; margin-top: 2rem;">
+                Last updated: <span id="timestamp">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadDiagnostics() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+            
+            try {
+                const res = await fetch('/api/admin/diagnostics');
+                const data = await res.json();
+                
+                if (!data || data.detail) {
+                    alert('Error: ' + (data.detail || 'Failed to load'));
+                    return;
+                }
+                
+                displayDiagnostics(data);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (e) {
+                alert('Error: ' + e.message);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function displayDiagnostics(data) {
+            const sig = data.signals;
+            const evt = data.lead_events;
+            const enr = data.enrichment;
+            const fun = data.funnel;
+            
+            document.getElementById('total-signals').textContent = sig.total;
+            document.getElementById('total-events').textContent = evt.total;
+            document.getElementById('enrichment-rate').textContent = evt.enrichment_rate_percent + '%';
+            document.getElementById('emails-sent').textContent = evt.by_status.OUTBOUND_SENT || 0;
+            document.getElementById('unenrichable-count').textContent = enr.total_unenrichable;
+            document.getElementById('avg-attempts').textContent = enr.avg_attempts;
+            document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+            
+            // Funnel visualization
+            const funnelHTML = `
+                <div class="funnel-stage">
+                    <div class="funnel-label">Signals → Events</div>
+                    <div class="funnel-bar" style="width: ${fun.signals_to_events}%"></div>
+                    <div class="funnel-value">${evt.total}</div>
+                    <div class="funnel-percent">${fun.signals_to_events}%</div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="funnel-label">Events → Enriched</div>
+                    <div class="funnel-bar" style="width: ${fun.events_to_enriched}%"></div>
+                    <div class="funnel-value">${evt.enriched}</div>
+                    <div class="funnel-percent">${fun.events_to_enriched}%</div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="funnel-label">Enriched → Sent</div>
+                    <div class="funnel-bar" style="width: ${fun.enriched_to_sent}%"></div>
+                    <div class="funnel-value">${evt.by_status.OUTBOUND_SENT || 0}</div>
+                    <div class="funnel-percent">${fun.enriched_to_sent}%</div>
+                </div>
+            `;
+            document.getElementById('funnel-viz').innerHTML = funnelHTML;
+            
+            // Status table
+            const statusRows = [];
+            const statuses = ['UNENRICHED', 'WITH_DOMAIN_NO_EMAIL', 'ENRICHED_NO_OUTBOUND', 'OUTBOUND_SENT', 'ARCHIVED_UNENRICHABLE'];
+            for (const st of statuses) {
+                const count = evt.by_status[st] || 0;
+                const pct = evt.total > 0 ? (count / evt.total * 100).toFixed(1) : 0;
+                const statusClass = (count > 0) ? 'status-good' : 'status-warn';
+                const details = {
+                    'UNENRICHED': 'Awaiting enrichment',
+                    'WITH_DOMAIN_NO_EMAIL': 'Domain found, email pending',
+                    'ENRICHED_NO_OUTBOUND': 'Ready to contact',
+                    'OUTBOUND_SENT': 'Email sent to lead',
+                    'ARCHIVED_UNENRICHABLE': 'Budget exhausted'
+                };
+                statusRows.push(`
+                    <tr>
+                        <td><span class="status ${statusClass}">${st}</span></td>
+                        <td>${count}</td>
+                        <td>${pct}%</td>
+                        <td>${details[st] || ''}</td>
+                    </tr>
+                `);
+            }
+            document.getElementById('status-rows').innerHTML = statusRows.join('');
+            
+            // Source table
+            const sourceRows = [];
+            const total = sig.total || 1;
+            for (const [source, count] of Object.entries(sig.by_source || {})) {
+                const pct = (count / total * 100).toFixed(1);
+                sourceRows.push(`
+                    <tr>
+                        <td><strong>${source}</strong></td>
+                        <td>${count}</td>
+                        <td>${pct}%</td>
+                    </tr>
+                `);
+            }
+            document.getElementById('source-rows').innerHTML = sourceRows.join('');
+        }
+        
+        loadDiagnostics();
+    </script>
+</body>
+</html>
