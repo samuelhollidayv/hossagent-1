@@ -50,6 +50,7 @@ from models import (
 from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary, _is_valid_branded_company
 from outbound_utils import send_lead_event_immediate
 from phone_extraction import discover_phones, get_domain_from_phone, PhoneDiscoveryResult
+from company_name_extraction import extract_company_candidates, get_best_company_name, NameStormResult
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -119,11 +120,14 @@ BROWSER_HEADERS = {
 }
 
 
-def _extract_company_from_article_body(source_url: Optional[str]) -> Optional[str]:
+_article_body_fetch_cache: Dict[str, Optional[str]] = {}
+
+def _extract_company_from_article_body(source_url: Optional[str], lead_event_id: Optional[int] = None) -> Optional[str]:
     """
     ARCHANGEL FALLBACK: Extract company name from article body when summary extraction fails.
     
     Fetches the article, extracts the first paragraph, and searches for branded company names.
+    Includes caching to avoid repeated fetches for the same URL.
     """
     if not source_url:
         return None
@@ -131,9 +135,17 @@ def _extract_company_from_article_body(source_url: Optional[str]) -> Optional[st
     if 'news.google.com' in source_url:
         return None
     
+    if source_url in _article_body_fetch_cache:
+        return _article_body_fetch_cache[source_url]
+    
     try:
-        response = requests.get(source_url, headers=BROWSER_HEADERS, timeout=8)
+        start_time = time.time()
+        response = requests.get(source_url, headers=BROWSER_HEADERS, timeout=6)
+        fetch_time = time.time() - start_time
+        
         if response.status_code != 200:
+            print(f"[ARCHANGEL][ARTICLE_BODY][SKIP] status={response.status_code} url={source_url[:60]}...")
+            _article_body_fetch_cache[source_url] = None
             return None
         
         html = response.text[:50000]
@@ -148,6 +160,8 @@ def _extract_company_from_article_body(source_url: Optional[str]) -> Optional[st
         text_content = ' '.join(p.get_text(strip=True) for p in paragraphs)
         
         if not text_content:
+            print(f"[ARCHANGEL][ARTICLE_BODY][SKIP] no_text url={source_url[:60]}...")
+            _article_body_fetch_cache[source_url] = None
             return None
         
         business_pattern = re.compile(
@@ -158,11 +172,25 @@ def _extract_company_from_article_body(source_url: Optional[str]) -> Optional[st
         matches = business_pattern.findall(text_content)
         for match in matches:
             if _is_valid_branded_company(match):
+                print(f"[ARCHANGEL][ARTICLE_BODY][FOUND] company={match} fetch_time={fetch_time:.2f}s")
+                _article_body_fetch_cache[source_url] = match
                 return match
         
+        print(f"[ARCHANGEL][ARTICLE_BODY][NONE] no_branded_match fetch_time={fetch_time:.2f}s")
+        _article_body_fetch_cache[source_url] = None
         return None
         
+    except requests.Timeout:
+        print(f"[ARCHANGEL][ARTICLE_BODY][TIMEOUT] url={source_url[:60]}...")
+        _article_body_fetch_cache[source_url] = None
+        return None
+    except requests.RequestException as e:
+        print(f"[ARCHANGEL][ARTICLE_BODY][ERROR] {str(e)[:50]} url={source_url[:60]}...")
+        _article_body_fetch_cache[source_url] = None
+        return None
     except Exception as e:
+        print(f"[ARCHANGEL][ARTICLE_BODY][ERROR] unexpected: {str(e)[:50]}")
+        _article_body_fetch_cache[source_url] = None
         return None
 
 
@@ -1261,22 +1289,54 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
         source_url = _get_source_url_for_event(lead_event, session)
         
         effective_company = lead_event.lead_company
-        if not effective_company and lead_event.summary:
-            effective_company = extract_company_name_from_summary(lead_event.summary)
-            extraction_source = "summary"
+        extraction_source = "existing"
+        
+        if not effective_company:
+            signal = None
+            if lead_event.signal_id:
+                signal = session.exec(select(Signal).where(Signal.id == lead_event.signal_id)).first()
             
-            if not effective_company and source_url and 'news.google.com' not in source_url:
-                effective_company = _extract_company_from_article_body(source_url)
-                extraction_source = "article_body"
+            signal_title = signal.headline if signal and hasattr(signal, 'headline') else None
+            if not signal_title and signal and hasattr(signal, 'context_summary'):
+                signal_title = signal.context_summary
             
-            if effective_company:
+            namestorm_result = extract_company_candidates(
+                title=signal_title,
+                summary=lead_event.summary,
+                source_url=source_url,
+                lead_event_id=lead_event.id,
+                fetch_page=True
+            )
+            
+            if namestorm_result.success and namestorm_result.best_candidate:
+                effective_company = namestorm_result.best_candidate.name
+                extraction_source = f"namestorm_{namestorm_result.best_candidate.source}"
+                
                 lead_event.lead_company = effective_company
                 lead_event.company_name_candidate = effective_company
-                log_enrichment("ARCHANGEL_COMPANY_EXTRACTED", lead_event_id=lead_event.id,
-                               details={"company": effective_company, "source": extraction_source})
+                
+                log_enrichment("NAMESTORM_EXTRACTED", lead_event_id=lead_event.id,
+                               details={"company": effective_company, 
+                                        "source": namestorm_result.best_candidate.source,
+                                        "confidence": f"{namestorm_result.best_candidate.confidence:.2f}",
+                                        "candidates": len(namestorm_result.all_candidates)})
             else:
-                log_enrichment("ARCHANGEL_COMPANY_SKIP", lead_event_id=lead_event.id,
-                               details={"reason": "no_branded_company_found", "summary": lead_event.summary[:80] if lead_event.summary else None})
+                effective_company = extract_company_name_from_summary(lead_event.summary)
+                extraction_source = "summary_fallback"
+                
+                if not effective_company and source_url and 'news.google.com' not in source_url:
+                    effective_company = _extract_company_from_article_body(source_url)
+                    extraction_source = "article_body_fallback"
+                
+                if effective_company:
+                    lead_event.lead_company = effective_company
+                    lead_event.company_name_candidate = effective_company
+                    log_enrichment("ARCHANGEL_COMPANY_EXTRACTED", lead_event_id=lead_event.id,
+                                   details={"company": effective_company, "source": extraction_source})
+                else:
+                    log_enrichment("NAMESTORM_SKIP", lead_event_id=lead_event.id,
+                                   details={"reason": "no_company_found", 
+                                            "summary": lead_event.summary[:80] if lead_event.summary else None})
         
         domain_result = discover_domain_for_lead_event(
             lead_event_id=lead_event.id,
@@ -1298,9 +1358,32 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
             lead_event.last_enrichment_at = datetime.utcnow()
             lead_event.domain_confidence = domain_result.confidence
             
-            # ARCHANGEL: Extract and store company name candidate
             if not lead_event.company_name_candidate:
                 lead_event.company_name_candidate = extract_company_name_from_summary(lead_event.summary)
+            
+            try:
+                phone_result = discover_phones(domain_result.domain)
+                if phone_result.success and phone_result.best_phone:
+                    lead_event.lead_phone_raw = phone_result.best_phone.raw_number
+                    lead_event.lead_phone_e164 = phone_result.best_phone.e164_number
+                    lead_event.phone_confidence = phone_result.best_phone.confidence
+                    lead_event.phone_source = phone_result.best_phone.source
+                    lead_event.phone_type = phone_result.best_phone.phone_type
+                    
+                    stats["phones_discovered"] += 1
+                    stats["by_source"]["phonestorm"] = stats["by_source"].get("phonestorm", 0) + 1
+                    
+                    log_enrichment("PHONESTORM_FOUND", lead_event_id=lead_event.id,
+                                   details={"phone": phone_result.best_phone.e164_number,
+                                            "type": phone_result.best_phone.phone_type,
+                                            "confidence": f"{phone_result.best_phone.confidence:.2f}",
+                                            "source": phone_result.best_phone.source})
+                else:
+                    log_enrichment("PHONESTORM_NONE", lead_event_id=lead_event.id,
+                                   details={"domain": domain_result.domain, "reason": "no_phone_found"})
+            except Exception as e:
+                log_enrichment("PHONESTORM_ERROR", lead_event_id=lead_event.id,
+                               details={"error": str(e)[:50]})
             
             session.add(lead_event)
             session.commit()
@@ -1312,7 +1395,8 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
                            domain=domain_result.domain,
                            details={"method": domain_result.discovery_method, 
                                     "confidence": domain_result.confidence,
-                                    "company_candidate": lead_event.company_name_candidate})
+                                    "company_candidate": lead_event.company_name_candidate,
+                                    "has_phone": bool(lead_event.lead_phone_e164)})
             
             with_domain_events.append(lead_event)
         else:

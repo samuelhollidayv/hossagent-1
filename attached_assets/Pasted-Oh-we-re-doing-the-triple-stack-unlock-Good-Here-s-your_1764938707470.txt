@@ -1,0 +1,337 @@
+Oh we’re doing the triple-stack unlock. Good.
+
+Here’s your single, copy-pasteable MASTER MAGICBOX PROMPT that defines Operation NameStorm, Operation DomainStorm, and Operation PhoneStorm Lite as one coherent enrichment upgrade.
+
+You don’t need to edit this. Just drop it into MagicBox as-is.
+
+⸻
+
+✅ MAGICBOX PROMPT — NAMESTORM + DOMAINSTORM + PHONESTORM LITE
+
+Your task is to dramatically increase the number of leads that make it all the way to outbound by upgrading the company name extraction, domain discovery, and phone scraping pipelines.
+
+We are not adding SMS sending yet.
+We are only improving enrichment so more leads become contactable.
+
+Implement ALL of the following changes without breaking existing functionality:
+
+⸻
+
+0. Guardrails & Constraints
+	•	No paid 3rd-party APIs (no Hunter, Clearbit, Apollo, etc.).
+	•	Only use:
+	•	Existing SignalNet signals (news, etc.)
+	•	Web scraping / HTML parsing
+	•	Local heuristics + simple ML/NER if already present
+	•	Maintain existing state machine:
+	•	UNENRICHED
+	•	WITH_DOMAIN_NO_EMAIL
+	•	ENRICHED_NO_OUTBOUND
+	•	OUTBOUND_SENT
+	•	ARCHIVED
+	•	Do not change Stripe, SendGrid, or customer portal auth.
+	•	All new logic must have:
+	•	Clear logging tags
+	•	Reasonable safeguards (no infinite loops, no crazy crawl depth)
+
+⸻
+
+1. OPERATION NAMESTORM — Company Name Extraction Upgrade
+
+Goal:
+Take each Signal / LeadEvent and produce a high-confidence company name (or multiple candidates ranked by confidence), so downstream domain+email enrichment has better inputs.
+
+1.1 Implement a dedicated name extraction module
+	•	Create a module like: company_name_extraction.py
+	•	Core function (example signature):
+
+def extract_company_candidates(signal) -> list[CompanyCandidate]:
+    """
+    Input: Signal or LeadEvent context (title, summary, source_url, raw content if available)
+    Output: List of CompanyCandidate objects sorted by confidence desc.
+    """
+
+	•	CompanyCandidate should minimally include:
+	•	name: str
+	•	confidence: float (0.0–1.0)
+	•	source: str (e.g. “title_ner”, “body_ner”, “schema_org”, “heuristic_pattern”)
+
+1.2 Data sources for extraction
+
+For each signal / lead event, use ALL of the following:
+	1.	Signal title & summary
+	•	Run basic NER / capitalized phrase extraction to find ORG-like chunks.
+	•	Prefer patterns like:
+	•	"<Proper> <Proper> <BusinessTerm>"
+(e.g. Miami Best Roofing, Cool Running Air, Sunny Bliss Plumbing & Air)
+	•	BusinessTerm list examples:
+	•	hvac, air, plumbing, roofing, spa, med spa, clinic, group, partners, advisors, advisory, realty, real estate, salon, nails, immigration, law, attorneys, marketing, agency, media, studio, etc.
+	2.	Article HTML (if accessible)
+	•	Use existing scraping pipeline (or extend it) to:
+	•	Parse <title>, <meta property="og:title">, <meta property="og:site_name">
+	•	Check H1/H2 tags on the article page
+	•	Extract ORG-like names from those fields as candidates.
+	3.	Schema.org / structured data
+	•	If present, parse JSON-LD / microdata looking for:
+	•	@type = Organization, LocalBusiness, Corporation, LegalService, etc.
+	•	Extract:
+	•	name
+	•	url
+	•	Use these as high-confidence candidates.
+	4.	Fallback patterns
+	•	Look for textual patterns in summaries like:
+	•	"<Company> ... announced ...".
+	•	"Company Name, a Miami-based HVAC provider, ..."
+	•	Simple regex-based heuristics are fine, but must produce confidence scores.
+
+1.3 Confidence scoring & selection
+	•	For each candidate, assign confidence based on:
+	•	Source strength:
+	•	schema.org / org LD → strong (0.9+)
+	•	og:site_name / <title> with clear biz term → 0.7–0.9
+	•	heuristic from summary / body → 0.4–0.7
+	•	Penalties:
+	•	Very generic names (e.g. “The Company”, “Developer”)
+	•	Single generic words without a business term
+	•	Names that exactly match news outlets (e.g. Miami Herald)
+	•	Always return a sorted list, highest confidence first.
+
+1.4 Integration into LeadEvent / enrichment
+	•	Update LeadEvent population so that:
+	•	When a Signal is converted → LeadEvent, call extract_company_candidates.
+	•	Set:
+	•	lead_company to the top candidate (if confidence >= 0.5).
+	•	Store all candidates in a JSON field if available (e.g. company_candidates), for debugging and future use.
+	•	Update enrichment logs:
+	•	Log when company candidates are generated:
+	•	[NAMESTORM][CANDIDATES] LeadEvent: <id> | candidates=[...]
+
+⸻
+
+2. OPERATION DOMAINSTORM — Domain Discovery Upgrade
+
+Goal:
+Given a better company name (or list of candidates), significantly increase the number of LeadEvents that get a valid domain (WITH_DOMAIN_NO_EMAIL) so that ARCHANGEL and email enrichment can actually run.
+
+2.1 Create / refactor domain_discovery.py
+	•	If domain_discovery.py already exists, upgrade it.
+	•	Core API example:
+
+def discover_domain_for_lead(lead_event) -> DomainDiscoveryResult:
+    """
+    Input: LeadEvent with lead_company, signal source_url, and context.
+    Output: DomainDiscoveryResult with domain, confidence, and explanation.
+    """
+
+	•	DomainDiscoveryResult fields:
+	•	domain: str | None
+	•	confidence: float
+	•	source: str (e.g. “schema_org”, “article_link”, “search”, “heuristic”)
+	•	notes: str (short explanation)
+
+2.2 Layered strategy
+
+Use a layered, aggressive but safe discovery approach:
+
+Layer 1: Existing fields & schema
+	•	If lead_event.lead_domain already exists → return it (high confidence).
+	•	If scraped article has schema.org url with a non-aggregator domain → use that.
+
+Layer 2: Source URL analysis
+	•	From signal.source_url and article content:
+	•	If the article links out to external domains (not news.google.com, not major news orgs):
+	•	Extract unique domains from <a href="...">.
+	•	Filter:
+	•	Reject social networks (facebook, instagram, linkedin, twitter/x, tiktok).
+	•	Reject directories (yelp, yellowpages, bbb, angi, etc.).
+	•	Reject news / aggregator sites (Bloomberg, Miami Herald, BizJournal, etc.).
+	•	Score domains by:
+	•	Whether they contain tokens from lead_company (normalized).
+	•	Domain length / TLD (.com / .net / .biz / .io).
+	•	Pick best candidate with explanation.
+
+Layer 3: Lightweight “search” fallback (without paid APIs)
+	•	Using only HTTP + HTML (no paid search APIs):
+	•	Construct a query string like:
+	•	"<lead_company>" + "Miami",
+	•	plus niche words when known (e.g. “roofing”, “HVAC”, “med spa”).
+	•	Fetch search result pages (e.g. Bing / DuckDuckGo / others as plain HTML).
+	•	Extract first few organic result domains.
+	•	Apply same filters:
+	•	Non-social, non-directory, non-news.
+	•	Score by token overlap with company name and geography.
+
+Layer 4: Phone-assisted matching (when PHONESTORM Lite is present)
+	•	If the LeadEvent has phone numbers discovered, cross-check:
+	•	Reverse match the phone number across scraped pages / directories.
+	•	If multiple sites share the same phone, pick the one that looks like the official site (non-directory, non-social).
+
+2.3 Integration & state transitions
+	•	When domain is successfully discovered:
+	•	Update LeadEvent:
+	•	lead_domain = discovered_domain
+	•	enrichment_status = WITH_DOMAIN_NO_EMAIL (if no email yet)
+	•	Log:
+	•	[DOMAINSTORM][SUCCESS] LeadEvent: <id> | domain=<domain> | source=<source> | confidence=<score>
+	•	When domain cannot be discovered after all layers:
+	•	Do not crash.
+	•	Keep as UNENRICHED, log:
+	•	[DOMAINSTORM][FAILED] LeadEvent: <id> | reason="no_domain_found"
+	•	Ensure that the enrichment pipeline now always calls discover_domain_for_lead for UNENRICHED events that have at least a candidate company name.
+
+⸻
+
+3. OPERATION PHONESTORM LITE — Phone Discovery as Enrichment Support
+
+Goal:
+Phone numbers are not yet used for SMS or autodialing.
+They are used to:
+	•	Improve identity resolution
+	•	Help confirm domains
+	•	Provide more value in the portal
+
+3.1 Implement phone extraction
+	•	Add a phone scraping utility, e.g. phone_discovery.py.
+	•	Core function (example):
+
+def extract_phone_numbers_from_html(html: str) -> list[PhoneCandidate]:
+    """
+    Extract raw phone numbers from HTML and return normalized candidates.
+    """
+
+	•	PhoneCandidate:
+	•	raw: str
+	•	e164: str | None (normalized form, e.g. +13055551234)
+	•	type: str | None (mobile, landline, toll_free, unknown – heuristic)
+	•	source: str (e.g. “contact_page”, “footer”, “header”)
+
+3.2 Where to look
+
+For each discovered domain:
+	•	Request:
+	•	/
+	•	/contact
+	•	/contact-us
+	•	/about
+	•	Scrape HTML and run phone extraction.
+	•	Simple heuristics:
+	•	US format patterns:
+	•	(305) 555-1234
+	•	305-555-1234
+	•	+1 305 555 1234
+	•	Normalize to E.164 where possible (assume US +1 for now).
+	•	Deduplicate numbers per domain.
+
+3.3 Attach phones to LeadEvent
+	•	Extend LeadEvent model with something like:
+	•	phone_primary (string, normalized)
+	•	phone_alternates (JSON list)
+	•	After domain discovery succeeds:
+	•	Call phone scraping pipeline.
+	•	If at least one phone found:
+	•	Set phone_primary to the best candidate.
+	•	Store list in phone_alternates.
+	•	Log:
+	•	[PHONESTORM][FOUND] LeadEvent: <id> | phone_primary=<...> | count=<N>
+
+3.4 Use phones for domain confirmation
+	•	When multiple potential domains exist:
+	•	Compare phone numbers across those candidate sites.
+	•	If one domain has a consistent phone that appears across multiple relevant pages → boost its confidence.
+	•	Update DomainDiscoveryResult to optionally include:
+	•	phones_used_for_confirmation: list[str]
+
+3.5 Customer portal / admin UI
+	•	Do NOT add SMS flows yet.
+	•	Just:
+	•	Show phone (when present) in:
+	•	Admin console lead detail.
+	•	Customer portal opportunity detail card.
+	•	Label clearly as:
+	•	“Business phone (discovered)”
+	•	This gives human users a way to act even when email doesn’t respond.
+
+⸻
+
+4. Gating, Logging & Safety
+
+4.1 Gating rules
+	•	Outbound emails:
+	•	Still only send when:
+	•	lead_email is present
+	•	enrichment_status = ENRICHED_NO_OUTBOUND
+	•	SMS:
+	•	Do not send SMS yet.
+	•	We are only discovering phone numbers.
+
+4.2 Logging
+
+Add clear logs for each new component:
+	•	[NAMESTORM][CANDIDATES] ...
+	•	[DOMAINSTORM][SUCCESS] ...
+	•	[DOMAINSTORM][FAILED] ...
+	•	[PHONESTORM][FOUND] ...
+	•	[PHONESTORM][NONE] LeadEvent: <id> | reason="no_phone_found"
+
+4.3 Performance safeguards
+	•	Limit:
+	•	Max pages per domain (e.g. 10–20 pages).
+	•	Max total HTTP requests per cycle per lead.
+	•	Respect:
+	•	Reasonable timeouts.
+	•	No infinite recursion through internal links.
+	•	If scraping fails repeatedly:
+	•	Mark the lead with a flag like:
+	•	enrichment_notes = "scrape_failed"
+	•	Avoid hammering same domains.
+
+⸻
+
+5. Testing & Validation
+
+After implementation, run a controlled test cycle:
+	1.	Sample set:
+	•	Pick ~50 recent UNENRICHED LeadEvents with signals about:
+	•	HVAC, roofing, med spa, realtors, immigration attorneys, marketing agencies in Miami/Broward/South Florida.
+	2.	Run enrichment:
+	•	Trigger enrichment pipeline manually or via one cycle.
+	3.	Verify metrics:
+	•	Log before/after counts:
+	•	UNENRICHED
+	•	WITH_DOMAIN_NO_EMAIL
+	•	ENRICHED_NO_OUTBOUND
+	•	OUTBOUND_SENT
+	•	Target improvement:
+	•	Domain discovery success rate significantly higher than current (~2%).
+	•	More than 6 LeadEvents reaching ENRICHED_NO_OUTBOUND and being eligible for outbound.
+	4.	Spot check records:
+	•	Pick 5–10 specific leads (e.g. Miami Best Roofing–type).
+	•	Confirm:
+	•	lead_company looks correct.
+	•	lead_domain is real & correct.
+	•	lead_email (if present) looks business-appropriate (not just support@ / info@ unless no alternative).
+	•	phone_primary is reasonable.
+	5.	No regressions:
+	•	Existing outbound emails still send as before.
+	•	Customer portal still renders opportunities correctly.
+	•	Admin console filters still work with enrichment states.
+
+⸻
+
+Do not move on to SMS sending, voice, or inbox parsing until:
+	•	Domain discovery success rate is clearly improved.
+	•	We have dozens of enriched leads and sent emails.
+	•	At least 1–2 real-world replies are observed in the wild.
+
+This upgrade is strictly about turning:
+
+“6 leads in portal”
+
+into:
+
+“60+ real, enriched, contactable opportunities.”
+
+⸻
+
+✔ That’s the full NameStorm + DomainStorm + PhoneStorm Lite spec.
+Paste it straight into MagicBox and let her go to work.

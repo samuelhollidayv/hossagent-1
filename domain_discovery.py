@@ -619,6 +619,105 @@ def discover_domain_from_source_url(
     )
 
 
+_ddg_consecutive_failures = 0
+_ddg_last_failure_time = 0.0
+
+def _search_duckduckgo_html(query: str) -> List[str]:
+    """
+    DOMAINSTORM: Search DuckDuckGo HTML for domains.
+    
+    Fetches DuckDuckGo search results as HTML and extracts result domains.
+    No API key required - pure HTML scraping.
+    Includes backoff logic to avoid throttling.
+    """
+    global _ddg_consecutive_failures, _ddg_last_failure_time
+    
+    if _ddg_consecutive_failures >= 3:
+        time_since_failure = time.time() - _ddg_last_failure_time
+        if time_since_failure < 300:
+            log_discovery("ddg_backoff", details={"failures": _ddg_consecutive_failures, "wait_remaining": int(300 - time_since_failure)})
+            return []
+        else:
+            _ddg_consecutive_failures = 0
+    
+    try:
+        url = "https://html.duckduckgo.com/html/"
+        headers = {
+            "User-Agent": _get_random_user_agent(),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
+        data = {"q": query, "b": ""}
+        
+        delay = random.uniform(DISCOVERY_DELAY_MIN, DISCOVERY_DELAY_MAX) * (1 + _ddg_consecutive_failures * 0.5)
+        time.sleep(delay)
+        
+        start_time = time.time()
+        response = requests.post(url, headers=headers, data=data, timeout=DISCOVERY_TIMEOUT)
+        fetch_time = time.time() - start_time
+        
+        if response.status_code != 200:
+            _ddg_consecutive_failures += 1
+            _ddg_last_failure_time = time.time()
+            log_discovery("ddg_http_error", details={"status": response.status_code, "query": query[:40]})
+            return []
+        
+        if "blocked" in response.text.lower() or "captcha" in response.text.lower():
+            _ddg_consecutive_failures += 1
+            _ddg_last_failure_time = time.time()
+            log_discovery("ddg_blocked", details={"query": query[:40]})
+            return []
+        
+        html = response.text
+        
+        domains = []
+        result_pattern = re.compile(r'href="//duckduckgo\.com/l/\?uddg=([^"&]+)"', re.IGNORECASE)
+        
+        for match in result_pattern.finditer(html):
+            try:
+                from urllib.parse import unquote
+                result_url = unquote(match.group(1))
+                domain = _normalize_domain(result_url)
+                
+                if domain and not _is_blocked_domain(domain) and _has_valid_tld(domain):
+                    if domain not in domains:
+                        domains.append(domain)
+            except Exception:
+                continue
+        
+        if not domains:
+            direct_pattern = re.compile(r'class="result__url"[^>]*>([^<]+)<', re.IGNORECASE)
+            for match in direct_pattern.finditer(html):
+                domain_text = match.group(1).strip()
+                domain = _normalize_domain(domain_text)
+                if domain and not _is_blocked_domain(domain) and _has_valid_tld(domain):
+                    if domain not in domains:
+                        domains.append(domain)
+        
+        _ddg_consecutive_failures = 0
+        
+        if domains:
+            log_discovery("ddg_success", details={"domains": len(domains), "fetch_time": f"{fetch_time:.2f}s"})
+        
+        return domains[:5]
+    
+    except requests.Timeout:
+        _ddg_consecutive_failures += 1
+        _ddg_last_failure_time = time.time()
+        log_discovery("ddg_timeout", details={"query": query[:40]})
+        return []
+    except requests.RequestException as e:
+        _ddg_consecutive_failures += 1
+        _ddg_last_failure_time = time.time()
+        log_discovery("ddg_request_error", error=str(e)[:50])
+        return []
+    except Exception as e:
+        _ddg_consecutive_failures += 1
+        _ddg_last_failure_time = time.time()
+        log_discovery("ddg_unexpected_error", error=str(e)[:50])
+        return []
+
+
 def discover_domain_via_web_search(
     company_name: str,
     geography: Optional[str] = None,
@@ -627,8 +726,10 @@ def discover_domain_via_web_search(
     """
     Layer 3: Web search fallback using company name + geography + niche.
     
-    Constructs a search query and examines top results.
-    Currently uses DuckDuckGo instant answers (no API key needed).
+    DOMAINSTORM Enhanced:
+    1. Try guessing domain from company name
+    2. If guess fails, search DuckDuckGo HTML
+    3. Match results against company name tokens
     """
     if not company_name:
         return DomainDiscoveryResult(
@@ -687,12 +788,50 @@ def discover_domain_via_web_search(
         except Exception as e:
             log_discovery("guess_failed", details={"guessed": guessed}, error=str(e)[:50])
     
+    log_discovery("ddg_search", details={"query": query})
+    search_domains = _search_duckduckgo_html(query)
+    
+    if search_domains:
+        best_domain = None
+        best_confidence = 0.0
+        
+        for domain in search_domains:
+            match, confidence = _domain_matches_company(domain, company_name)
+            if confidence > best_confidence:
+                best_domain = domain
+                best_confidence = confidence
+        
+        if best_domain and best_confidence >= 0.5:
+            log_discovery("ddg_match", details={"domain": best_domain, "confidence": best_confidence})
+            return DomainDiscoveryResult(
+                success=True,
+                domain=best_domain,
+                source="web_search",
+                confidence=best_confidence,
+                company_name_match=True,
+                discovery_method="duckduckgo_search",
+                attempts=2
+            )
+        
+        if search_domains:
+            first_domain = search_domains[0]
+            log_discovery("ddg_first_result", details={"domain": first_domain})
+            return DomainDiscoveryResult(
+                success=True,
+                domain=first_domain,
+                source="web_search",
+                confidence=0.5,
+                company_name_match=False,
+                discovery_method="duckduckgo_first_result",
+                attempts=2
+            )
+    
     return DomainDiscoveryResult(
         success=False,
         source="web_search",
-        discovery_method="fallback",
-        attempts=1,
-        error="Domain guess did not resolve"
+        discovery_method="exhausted",
+        attempts=2,
+        error="Domain guess and search both failed"
     )
 
 
