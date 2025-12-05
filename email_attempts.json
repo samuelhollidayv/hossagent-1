@@ -124,5 +124,41 @@
       "date": "Fri, 05 Dec 2025 12:55:50 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-05T12:59:07.966101",
+    "lead_name": null,
+    "company": "Florida Vet",
+    "to_email": "info@floridavet.com",
+    "subject": "Small opportunity I noticed near South Florida",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "X6a8a-knRXWiddv-CdwV6w",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 12:59:07 GMT",
+      "response_body": "{}"
+    }
+  },
+  {
+    "timestamp": "2025-12-05T13:00:04.771434",
+    "lead_name": null,
+    "company": "ROOFING CO",
+    "to_email": "info@roofing.com",
+    "subject": "New biz dev opportunity in your space",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "xHjR4_htQI2bDVGn8cPoog",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 13:00:04 GMT",
+      "response_body": "{}"
+    }
   }
 ]
