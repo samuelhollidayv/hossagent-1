@@ -86,5 +86,16 @@
     "customer_id": null,
     "session_id": null,
     "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-05T10:58:13.891678",
+    "path": "/",
+    "referrer": null,
+    "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36",
+    "ip_hash": "12ca17b49af22894",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
   }
 ]
