@@ -272,9 +272,10 @@ class Signal(SQLModel, table=True):
 
 # Enrichment status constants - Lifecycle states for LeadEvents
 # Customer-facing states: ENRICHED_NO_OUTBOUND (review mode), OUTBOUND_SENT
-# Admin-only states: UNENRICHED, WITH_DOMAIN_NO_EMAIL
+# Admin-only states: UNENRICHED, WITH_DOMAIN_NO_EMAIL, WITH_PHONE_ONLY
 ENRICHMENT_STATUS_UNENRICHED = "UNENRICHED"  # No domain discovered yet
 ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL = "WITH_DOMAIN_NO_EMAIL"  # Domain found, email not yet discovered
+ENRICHMENT_STATUS_WITH_PHONE_ONLY = "WITH_PHONE_ONLY"  # Phone found but no email (PHONESTORM)
 ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND = "ENRICHED_NO_OUTBOUND"  # Email found, awaiting outbound
 ENRICHMENT_STATUS_OUTBOUND_SENT = "OUTBOUND_SENT"  # Outbound email sent successfully
 ENRICHMENT_STATUS_ARCHIVED = "ARCHIVED"  # Archived (stale or manually archived)
@@ -339,6 +340,13 @@ class LeadEvent(SQLModel, table=True):
     social_instagram: Optional[str] = None
     social_linkedin: Optional[str] = None
     social_twitter: Optional[str] = None
+    
+    # PHONESTORM: Phone enrichment fields
+    lead_phone_raw: Optional[str] = None  # Original extracted phone number
+    lead_phone_e164: Optional[str] = None  # Normalized E.164 format (+1XXXYYYZZZZ)
+    phone_confidence: float = Field(default=0.0)  # 0-1.0, phone validity score
+    phone_source: Optional[str] = None  # contact_page, homepage, footer, schema, tel_link
+    phone_type: Optional[str] = None  # mobile, landline, voip, tollfree, unknown
     
     last_contact_at: Optional[datetime] = None
     last_contact_summary: Optional[str] = None

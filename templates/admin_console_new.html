@@ -70,6 +70,7 @@
         .enrichment-pill { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.02em; }
         .enrichment-unenriched { color: var(--accent-orange); background: rgba(249, 115, 22, 0.15); }
         .enrichment-with-domain { color: var(--accent-blue); background: rgba(59, 130, 246, 0.15); }
+        .enrichment-with-phone { color: #a855f7; background: rgba(168, 85, 247, 0.15); }
         .enrichment-ready { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
         .enrichment-sent { color: var(--text-primary); background: rgba(255, 255, 255, 0.15); }
         @media (max-width: 768px) {
@@ -152,6 +153,7 @@
                 <button class="filter-tab active" data-status="" onclick="filterByEnrichmentStatus(this, '')">All <span class="count" id="count-all">-</span></button>
                 <button class="filter-tab" data-status="UNENRICHED" onclick="filterByEnrichmentStatus(this, 'UNENRICHED')">Unenriched <span class="count" id="count-unenriched">-</span></button>
                 <button class="filter-tab" data-status="WITH_DOMAIN_NO_EMAIL" onclick="filterByEnrichmentStatus(this, 'WITH_DOMAIN_NO_EMAIL')">With Domain <span class="count" id="count-with-domain">-</span></button>
+                <button class="filter-tab" data-status="WITH_PHONE_ONLY" onclick="filterByEnrichmentStatus(this, 'WITH_PHONE_ONLY')">With Phone <span class="count" id="count-with-phone">-</span></button>
                 <button class="filter-tab" data-status="ENRICHED_NO_OUTBOUND" onclick="filterByEnrichmentStatus(this, 'ENRICHED_NO_OUTBOUND')">Ready to Send <span class="count" id="count-ready">-</span></button>
                 <button class="filter-tab" data-status="OUTBOUND_SENT" onclick="filterByEnrichmentStatus(this, 'OUTBOUND_SENT')">Outbound Sent <span class="count" id="count-sent">-</span></button>
             </div>
@@ -164,6 +166,7 @@
                             <th>Customer</th>
                             <th>Lead Company</th>
                             <th>Lead Email</th>
+                            <th>Lead Phone</th>
                             <th>Category</th>
                             <th>Score</th>
                             <th>Enrichment</th>
@@ -349,6 +352,7 @@
             switch(status) {
                 case 'UNENRICHED': return 'enrichment-unenriched';
                 case 'WITH_DOMAIN_NO_EMAIL': return 'enrichment-with-domain';
+                case 'WITH_PHONE_ONLY': return 'enrichment-with-phone';
                 case 'ENRICHED_NO_OUTBOUND': return 'enrichment-ready';
                 case 'OUTBOUND_SENT': return 'enrichment-sent';
                 default: return 'enrichment-unenriched';
@@ -359,9 +363,20 @@
             switch(status) {
                 case 'UNENRICHED': return 'Unenriched';
                 case 'WITH_DOMAIN_NO_EMAIL': return 'With Domain';
+                case 'WITH_PHONE_ONLY': return 'With Phone';
                 case 'ENRICHED_NO_OUTBOUND': return 'Ready';
                 case 'OUTBOUND_SENT': return 'Sent';
                 default: return status || 'Unenriched';
+            }
+        }
+        
+        function getPhoneTypeLabel(phoneType) {
+            if (!phoneType) return '';
+            switch(phoneType) {
+                case 'mobile': return '<span style="color:var(--accent-green)">Mobile</span>';
+                case 'landline': return '<span style="color:var(--accent-blue)">Landline</span>';
+                case 'tollfree': return '<span style="color:var(--text-tertiary)">Toll-free</span>';
+                default: return phoneType;
             }
         }
 
@@ -373,6 +388,7 @@
                 document.getElementById('count-all').textContent = data.total || 0;
                 document.getElementById('count-unenriched').textContent = data.counts?.UNENRICHED || 0;
                 document.getElementById('count-with-domain').textContent = data.counts?.WITH_DOMAIN_NO_EMAIL || 0;
+                document.getElementById('count-with-phone').textContent = data.counts?.WITH_PHONE_ONLY || 0;
                 document.getElementById('count-ready').textContent = data.counts?.ENRICHED_NO_OUTBOUND || 0;
                 document.getElementById('count-sent').textContent = data.counts?.OUTBOUND_SENT || 0;
             } catch (e) {
@@ -406,7 +422,8 @@
                         <td>${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
                         <td>${e.company || '-'}</td>
                         <td>${e.summary ? e.summary.substring(0, 40) + (e.summary.length > 40 ? '...' : '') : '-'}</td>
-                        <td>${e.lead_email || '<span style="color:var(--text-tertiary)">Not enriched</span>'}</td>
+                        <td>${e.lead_email || '<span style="color:var(--text-tertiary)">-</span>'}</td>
+                        <td>${e.lead_phone_e164 ? '<a href="tel:' + e.lead_phone_e164 + '" style="color:var(--accent-blue)">' + e.lead_phone_e164 + '</a> ' + getPhoneTypeLabel(e.phone_type) : '<span style="color:var(--text-tertiary)">-</span>'}</td>
                         <td>${e.category || '-'}</td>
                         <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
                         <td><span class="enrichment-pill ${getEnrichmentPillClass(e.enrichment_status)}">${getEnrichmentLabel(e.enrichment_status)}</span></td>
@@ -414,7 +431,7 @@
                     </tr>
                 `).join('');
                 
-                document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="8" class="empty">No lead events yet</td></tr>';
+                document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="9" class="empty">No lead events yet</td></tr>';
                 document.getElementById('leadevents-loading').style.display = 'none';
                 document.getElementById('leadevents-table').style.display = 'block';
             } catch (e) {

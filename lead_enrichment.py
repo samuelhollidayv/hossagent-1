@@ -39,6 +39,7 @@ from models import (
     Signal,
     ENRICHMENT_STATUS_UNENRICHED,
     ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+    ENRICHMENT_STATUS_WITH_PHONE_ONLY,
     ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
     ENRICHMENT_STATUS_OUTBOUND_SENT,
     ENRICHMENT_STATUS_ARCHIVED,
@@ -48,6 +49,7 @@ from models import (
 )
 from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary
 from outbound_utils import send_lead_event_immediate
+from phone_extraction import discover_phones, get_domain_from_phone, PhoneDiscoveryResult
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -931,6 +933,57 @@ async def enrich_lead_event(lead_event: LeadEvent, session: Session) -> Enrichme
     return result
 
 
+def _apply_phone_enrichment(lead_event: LeadEvent, session: Session) -> bool:
+    """
+    PHONESTORM: Apply phone enrichment to LeadEvent.
+    
+    Attempts to discover phone numbers from the lead's domain.
+    Phone data is stored regardless of email status for future use.
+    
+    Args:
+        lead_event: LeadEvent to update
+        session: Database session
+        
+    Returns:
+        True if phone was discovered, False otherwise
+    """
+    if not lead_event.lead_domain:
+        return False
+    
+    if lead_event.lead_phone_e164:
+        return True
+    
+    try:
+        phone_result = discover_phones(lead_event.lead_domain)
+        
+        if phone_result.success and phone_result.best_phone:
+            best = phone_result.best_phone
+            lead_event.lead_phone_raw = best.raw_number
+            lead_event.lead_phone_e164 = best.e164_number
+            lead_event.phone_confidence = best.confidence
+            lead_event.phone_source = best.source
+            lead_event.phone_type = best.phone_type
+            
+            log_enrichment("PHONESTORM_FOUND", lead_event_id=lead_event.id,
+                           details={
+                               "phone": best.e164_number,
+                               "confidence": best.confidence,
+                               "source": best.source,
+                               "phone_type": best.phone_type
+                           })
+            
+            return True
+        else:
+            log_enrichment("PHONESTORM_NOT_FOUND", lead_event_id=lead_event.id,
+                           details={"domain": lead_event.lead_domain})
+            return False
+            
+    except Exception as e:
+        log_enrichment("PHONESTORM_ERROR", lead_event_id=lead_event.id,
+                       error=str(e))
+        return False
+
+
 def _apply_enrichment_to_lead_event(
     lead_event: LeadEvent,
     result: EnrichmentResult,
@@ -943,6 +996,7 @@ def _apply_enrichment_to_lead_event(
     Uses new lifecycle states:
     - UNENRICHED: No domain discovered yet
     - WITH_DOMAIN_NO_EMAIL: Domain found but no email discovered  
+    - WITH_PHONE_ONLY: Phone found but no email (PHONESTORM)
     - ENRICHED_NO_OUTBOUND: Email found, awaiting outbound
     - OUTBOUND_SENT: Outbound email sent (set by BizDev cycle)
     
@@ -957,6 +1011,8 @@ def _apply_enrichment_to_lead_event(
     """
     lead_event.enrichment_attempts = (lead_event.enrichment_attempts or 0) + 1
     lead_event.last_enrichment_at = datetime.utcnow()
+    
+    has_phone = _apply_phone_enrichment(lead_event, session)
     
     if result.success and result.email:
         lead_event.enrichment_status = ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
@@ -995,12 +1051,21 @@ def _apply_enrichment_to_lead_event(
         return lead_event.enrichment_status
     
     elif lead_event.lead_domain:
-        lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
-        lead_event.enrichment_source = result.source if result else "none"
-        log_enrichment("ARCHANGEL_STATUS_TRANSITION", lead_event_id=lead_event.id,
-                       details={"new_status": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 
-                                "domain": lead_event.lead_domain,
-                                "domain_confidence": lead_event.domain_confidence})
+        if has_phone and lead_event.lead_phone_e164:
+            lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_PHONE_ONLY
+            lead_event.enrichment_source = result.source if result else "phonestorm"
+            log_enrichment("PHONESTORM_STATUS_WITH_PHONE", lead_event_id=lead_event.id,
+                           details={"new_status": ENRICHMENT_STATUS_WITH_PHONE_ONLY,
+                                    "domain": lead_event.lead_domain,
+                                    "phone": lead_event.lead_phone_e164,
+                                    "phone_confidence": lead_event.phone_confidence})
+        else:
+            lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
+            lead_event.enrichment_source = result.source if result else "none"
+            log_enrichment("ARCHANGEL_STATUS_TRANSITION", lead_event_id=lead_event.id,
+                           details={"new_status": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 
+                                    "domain": lead_event.lead_domain,
+                                    "domain_confidence": lead_event.domain_confidence})
     
     else:
         lead_event.enrichment_status = ENRICHMENT_STATUS_UNENRICHED
@@ -1037,16 +1102,20 @@ def _get_source_url_for_event(lead_event: LeadEvent, session: Session) -> Option
 
 async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = None) -> dict:
     """
-    Domain-first enrichment pipeline for LeadEvents.
+    Domain-first enrichment pipeline for LeadEvents with PHONESTORM integration.
     
-    Two-phase pipeline:
+    Three-phase pipeline:
     1. Domain Discovery: For UNENRICHED events, attempt to discover a domain
-    2. Email Enrichment: For WITH_DOMAIN_NO_EMAIL events, scrape for emails
+    2. Phone Extraction: During enrichment, extract phone numbers (PHONESTORM)
+    3. Email Enrichment: For WITH_DOMAIN_NO_EMAIL/WITH_PHONE_ONLY events, scrape for emails
     
     State transitions:
-    - UNENRICHED + domain found → WITH_DOMAIN_NO_EMAIL
-    - WITH_DOMAIN_NO_EMAIL + email found → ENRICHED_NO_OUTBOUND
+    - UNENRICHED + domain found → WITH_DOMAIN_NO_EMAIL or WITH_PHONE_ONLY
+    - WITH_DOMAIN_NO_EMAIL/WITH_PHONE_ONLY + email found → ENRICHED_NO_OUTBOUND
     - ENRICHED_NO_OUTBOUND → OUTBOUND_SENT (by BizDev cycle)
+    
+    PHONESTORM: Phone numbers are extracted alongside email enrichment.
+    WITH_PHONE_ONLY leads have phone but no email - prioritize for retry.
     
     Args:
         session: Database session
@@ -1069,7 +1138,10 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
     
     with_domain_events = list(session.exec(
         select(LeadEvent)
-        .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL)
+        .where(LeadEvent.enrichment_status.in_([
+            ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+            ENRICHMENT_STATUS_WITH_PHONE_ONLY
+        ]))
         .order_by(LeadEvent.created_at.desc())
         .limit(max_events // 2)
     ).all())
@@ -1114,17 +1186,25 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
         "total_with_domain": total_with_domain
     })
     
+    total_with_phone = len(session.exec(
+        select(LeadEvent).where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_WITH_PHONE_ONLY)
+    ).all())
+    
     stats = {
         "processed": 0,
         "domains_discovered": 0,
+        "phones_discovered": 0,
         "enriched": 0,
         "with_domain_no_email": 0,
+        "with_phone_only": 0,
         "still_unenriched": 0,
         "pending_unenriched": total_unenriched - len(unenriched_events),
         "pending_with_domain": total_with_domain - len(with_domain_events),
+        "pending_with_phone": total_with_phone,
         "by_source": {
             "domain_discovery": 0,
             "scrape": 0,
+            "phonestorm": 0,
             "signal": 0,
             "none": 0
         }

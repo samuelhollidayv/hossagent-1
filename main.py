@@ -44,6 +44,7 @@ from models import (
     MESSAGE_GENERATED_AI, MESSAGE_GENERATED_HUMAN, MESSAGE_GENERATED_SYSTEM,
     ENRICHMENT_STATUS_UNENRICHED,
     ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+    ENRICHMENT_STATUS_WITH_PHONE_ONLY,
     ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
     ENRICHMENT_STATUS_OUTBOUND_SENT,
     OUTREACH_MODE_REVIEW,
@@ -3327,9 +3328,11 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             lead_contact_name = opp.lead_name or opp.enriched_contact_name or ""
             lead_contact_company = opp.lead_company or opp.enriched_company_name or ""
             lead_contact_domain = opp.lead_domain or ""
+            lead_contact_phone = opp.lead_phone_e164 or ""
+            lead_phone_type = opp.phone_type or ""
             
             contact_info_html = ""
-            if lead_contact_email or lead_contact_company:
+            if lead_contact_email or lead_contact_company or lead_contact_phone:
                 contact_parts = []
                 if lead_contact_name:
                     contact_parts.append(f"<strong>{html_module.escape(lead_contact_name)}</strong>")
@@ -3340,10 +3343,32 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 if lead_contact_domain:
                     contact_parts.append(f'<a href="https://{html_module.escape(lead_contact_domain)}" target="_blank" style="color: var(--text-secondary);">{html_module.escape(lead_contact_domain)}</a>')
                 
+                phone_html = ""
+                if lead_contact_phone:
+                    phone_type_badge = ""
+                    if lead_phone_type == "mobile":
+                        phone_type_badge = '<span style="font-size: 0.65rem; background: rgba(34, 197, 94, 0.15); color: var(--accent-green); padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.5rem;">Mobile</span>'
+                    elif lead_phone_type == "landline":
+                        phone_type_badge = '<span style="font-size: 0.65rem; background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.5rem;">Landline</span>'
+                    elif lead_phone_type == "voip":
+                        phone_type_badge = '<span style="font-size: 0.65rem; background: rgba(168, 85, 247, 0.15); color: #a855f7; padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.5rem;">VoIP</span>'
+                    elif lead_phone_type == "tollfree":
+                        phone_type_badge = '<span style="font-size: 0.65rem; background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.5rem;">Toll-Free</span>'
+                    
+                    phone_html = f'''
+                    <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <a href="tel:{html_module.escape(lead_contact_phone)}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">{html_module.escape(lead_contact_phone)}</a>
+                            {phone_type_badge}
+                        </div>
+                    </div>
+                    '''
+                
                 contact_info_html = f'''
                 <div class="lead-contact-info" style="background: var(--bg-tertiary); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; border-left: 3px solid var(--accent-green);">
                     <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Lead Contact</div>
                     <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;">{" | ".join(contact_parts)}</div>
+                    {phone_html}
                 </div>
                 '''
             
@@ -3384,13 +3409,28 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             
             next_steps_html = ""
             if opp.status.upper() == "CONTACTED":
-                next_steps_html = '''
+                phone_option = ""
+                if lead_contact_phone:
+                    first_name = (lead_contact_name.split()[0] if lead_contact_name else "there")
+                    signal_context = opp.summary[:50] if opp.summary else "your recent activity"
+                    sms_suggestion = f"Hey {first_name}, Sam Holliday here in Miami - saw {signal_context}. Wanted to share a quick local insight; is this the right number?"
+                    phone_option = f'''
+                    <li style="margin-top: 0.5rem;">
+                        <strong>Phone Contact:</strong> <a href="tel:{html_module.escape(lead_contact_phone)}" style="color: var(--accent-blue);">Call directly</a>
+                        <div style="margin-top: 0.25rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; font-size: 0.75rem; color: var(--text-tertiary);">
+                            <strong>Suggested SMS:</strong> "{html_module.escape(sms_suggestion)}"
+                        </div>
+                    </li>
+                    '''
+                
+                next_steps_html = f'''
                 <div class="next-steps" style="background: rgba(34, 197, 94, 0.1); border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; border: 1px solid rgba(34, 197, 94, 0.2);">
                     <div style="font-size: 0.7rem; color: var(--accent-green); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Recommended Next Steps</div>
                     <ul style="font-size: 0.8rem; color: var(--text-secondary); margin: 0; padding-left: 1.25rem; line-height: 1.6;">
                         <li>Wait 2-3 business days for a response</li>
                         <li>If no reply, a follow-up will be sent automatically</li>
                         <li>Use the contact info above to reach out directly if urgent</li>
+                        {phone_option}
                     </ul>
                 </div>
                 '''
@@ -4108,6 +4148,12 @@ def get_lead_events_detailed(
             "company": company,
             "signal_id": e.signal_id,
             "lead_id": e.lead_id,
+            "lead_email": e.lead_email,
+            "lead_phone_raw": e.lead_phone_raw,
+            "lead_phone_e164": e.lead_phone_e164,
+            "phone_confidence": e.phone_confidence,
+            "phone_source": e.phone_source,
+            "phone_type": e.phone_type,
             "created_at": e.created_at.isoformat() if e.created_at else None
         })
     
@@ -4142,8 +4188,9 @@ def get_enrichment_status_counts(
         "statuses": [
             {"key": ENRICHMENT_STATUS_UNENRICHED, "label": "Unenriched (No Domain)", "count": counts.get(ENRICHMENT_STATUS_UNENRICHED, 0)},
             {"key": ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, "label": "Domain Found (Email Pending)", "count": counts.get(ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL, 0)},
+            {"key": ENRICHMENT_STATUS_WITH_PHONE_ONLY, "label": "Phone Found (No Email)", "count": counts.get(ENRICHMENT_STATUS_WITH_PHONE_ONLY, 0)},
             {"key": ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, "label": "Email Ready (Awaiting Send)", "count": counts.get(ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND, 0)},
-            {"key": ENRICHMENT_STATUS_OUTBOUND_SENT, "label": "Outbound Sent ✓", "count": counts.get(ENRICHMENT_STATUS_OUTBOUND_SENT, 0)},
+            {"key": ENRICHMENT_STATUS_OUTBOUND_SENT, "label": "Outbound Sent", "count": counts.get(ENRICHMENT_STATUS_OUTBOUND_SENT, 0)},
         ]
     }
 
