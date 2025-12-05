@@ -53,6 +53,24 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 - SMB-heavy signal source with niche detection (HVAC, plumbing, roofing, legal, etc.)
 - Job posting and service listing extraction for lead generation
 
+**Job Board Connector (EPIC 3.2):**
+- Indeed, ZipRecruiter, Glassdoor integration for SMB hiring signals
+- Detects HVAC, plumber, roofing hiring patterns in South Florida
+- 1-hour caching layer (CACHE_TTL = 3600) with backoff protection
+- Registered as `JobBoardSignalSource` in SignalNet pipeline
+
+**MacroStorm Strategic Intelligence (EPIC 3.3):**
+- SEC EDGAR Connector: Ingests 10-K, 10-Q, 8-K filings from SEC RSS feeds
+- NLP extraction for expansions, contractions, closures, and M&A events
+- ForceCast Mapping Engine: Maps MacroEvents to SMB target profiles
+- 4-hour cooldown in autopilot loop (`edgar_cooldown = 14400`)
+- Creates LeadEvents with macro_event_id linkage
+
+**Caching Layers:**
+- Job Board Connector: 1-hour cache for HTTP requests
+- Lead Enrichment: 1-hour cache for article body fetches
+- DuckDuckGo: Exponential backoff (5 min → 10 min → 20 min)
+
 - **Autopilot**: Automates agent cycles every 15 minutes for paid plans.
 - **Conversation Engine**: Handles inbound email replies, AI-assisted draft generation, guardrails for sensitive content, human-in-the-loop approval, and a suppression system. Uses a state machine (OPEN → HUMAN_OWNED → AUTO → CLOSED).
 - **Subscription Model**: Trial plan (7 days, restricted) and Paid plan ($99/month, full access). Manages signup, Stripe checkout, upgrade, and cancellation flows.
@@ -64,6 +82,9 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 - `lead_enrichment.py`: Main enrichment pipeline with state machine
 - `email_storm.py`: EmailStorm layered email discovery
 - `craigslist_connector.py`: Craigslist SMB signal source
+- `job_board_connector.py`: Indeed/ZipRecruiter/Glassdoor job board connector
+- `forcecast_engine.py`: MacroEvent to SMB target mapping
+- `sec_edgar_connector.py`: SEC EDGAR filings ingestion
 - `company_name_extraction.py`: NameStorm branded extraction
 - `domain_discovery.py`: DomainStorm multi-layer discovery
 - `phone_extraction.py`: PhoneStorm extraction and validation
