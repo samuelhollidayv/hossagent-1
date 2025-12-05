@@ -153,17 +153,17 @@ def _lead_exists(session: Session, email: str, company: str, website: Optional[s
 
 def generate_new_leads_from_source(session: Session) -> str:
     """
-    Main entry point for auto-generating leads from Apollo.io.
+    Main entry point for auto-generating leads via HossNative.
     
     This function:
     1. Gets lead source config from environment
-    2. Uses Apollo.io provider (ONLY source - no fallbacks)
+    2. Uses HossNative provider (autonomous discovery via SignalNet + web scraping)
     3. Fetches candidates up to max_new_leads_per_cycle
     4. Deduplicates against existing leads
     5. Creates new Lead records with status="new"
     6. Logs the run for admin visibility
     
-    If Apollo is not connected, returns immediately with paused status.
+    HossNative discovers leads through SignalNet signals and web scraping.
     
     Returns:
         Status message describing what was done

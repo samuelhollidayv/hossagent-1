@@ -67,13 +67,13 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
   - **Amazon SES**: Alternative email provider via boto3 (outbound only).
   - **Email Routing**: TO: lead email, CC: customer email, REPLY-TO: customer email.
   - **Configuration**: `EMAIL_MODE` environment variable (`DRY_RUN`, `SENDGRID`, `SES`).
-- **Lead Generation:** SignalNet-powered autonomous lead discovery (no paid enrichment APIs).
-- **Autonomous Email Discovery:** Web scraping-based email discovery (`email_discovery.py`).
-  - Scrapes company homepages and contact pages to find email addresses.
-  - Validates emails and filters invalid patterns.
-  - Respects rate limits with polite delays.
-  - Company name extraction from news headlines for domain guessing.
-  - No paid APIs (Hunter.io, Apollo.io disabled) - pure web scraping.
+- **HossNative Lead Discovery:** Fully autonomous lead generation system.
+  - **SignalNet Integration**: Detects business signals from news, reviews, and market events.
+  - **Web Scraping**: Scrapes company homepages and contact pages to find email addresses.
+  - **Domain Resolution**: Extracts company names from news headlines and guesses domains.
+  - **Email Validation**: Validates emails and filters invalid patterns.
+  - **No External APIs**: Fully autonomous - no paid enrichment APIs required.
+  - **ACTIVE_PROVIDERS**: `["HossNative"]` - the ONLY lead source.
 - **Autopilot:** Automates agent cycles every 15 minutes for paid plans.
 
 **Conversation Engine:**
@@ -99,5 +99,4 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
 - **SendGrid**: Email service provider (primary).
 - **Amazon SES**: Alternative email provider (secondary).
 - **Stripe**: Payment gateway for subscriptions and billing.
-- **Apollo.io**: Lead generation API (metadata only, not used for email discovery).
 - **OpenWeatherMap**: Weather alerts for SignalNet.

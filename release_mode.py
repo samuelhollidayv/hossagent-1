@@ -12,14 +12,12 @@ Environment Variables:
     
 PRODUCTION mode:
     - Startup banner: [RELEASE_MODE][PRODUCTION]
-    - Uses Apollo.io for lead generation (ONLY source - no fallbacks)
+    - Uses HossNative for lead generation (autonomous discovery - no external APIs)
     - Sends real emails via SendGrid (EMAIL_MODE=SENDGRID)
     - Strict validation of all credentials
-    - Lead generation pauses if Apollo not connected
 
 SANDBOX mode (default):
     - Startup banner: [RELEASE_MODE][SANDBOX]
-    - Lead generation paused (requires Apollo connection)
     - Safe for testing - must explicitly opt into production
     - Lenient configuration (DRY_RUN acceptable)
 
@@ -33,7 +31,6 @@ Email Configuration (SendGrid with authenticated domain):
 To change modes, update env vars in Replit Secrets:
     RELEASE_MODE=PRODUCTION  # Enable real lead sources + full pipeline
     EMAIL_MODE=SENDGRID      # Enable real email sending via SendGrid
-    APOLLO_API_KEY=xxx       # Required for lead generation
 """
 import os
 from enum import Enum
@@ -138,9 +135,6 @@ def get_release_mode_status() -> Dict[str, Any]:
         if not enable_stripe:
             warnings.append("PRODUCTION mode but ENABLE_STRIPE=FALSE - no payment links")
         
-        if not os.getenv("APOLLO_API_KEY"):
-            warnings.append("PRODUCTION mode but no APOLLO_API_KEY - lead generation PAUSED")
-        
         if email_mode == "SENDGRID":
             missing = []
             if not sendgrid_api_key:
@@ -237,12 +231,8 @@ def print_startup_banners() -> None:
     else:
         print(f"[EMAIL][STARTUP] Mode: DRY_RUN (no emails will be sent)")
     
-    apollo_key = os.getenv("APOLLO_API_KEY")
-    if apollo_key:
-        print("[LEADS][STARTUP] Apollo.io configured - lead generation ACTIVE")
-    else:
-        print("[LEADS][STARTUP] Apollo.io NOT configured - lead generation PAUSED")
-        print("[LEADS][STARTUP] Connect Apollo via admin console or set APOLLO_API_KEY")
+    print("[LEADS][STARTUP] HossNative (Autonomous Discovery) active")
+    print("[LEADS][STARTUP] Lead discovery via SignalNet + web scraping - no external APIs")
 
 
 def get_throttle_defaults() -> Dict[str, int]:

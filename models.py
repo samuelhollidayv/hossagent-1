@@ -36,7 +36,7 @@ class Lead(SQLModel, table=True):
     niche: str
     status: str = "NEW"  # NEW, CONTACTED, RESPONDED, QUALIFIED, CLOSED_WON, CLOSED_LOST, ON_HOLD
     website: Optional[str] = None
-    source: Optional[str] = None  # search_api, apollo, manual
+    source: Optional[str] = None  # signalnet, hossnative, manual
     
     last_contacted_at: Optional[datetime] = None
     last_contact_summary: Optional[str] = None
