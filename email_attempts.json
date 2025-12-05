@@ -160,5 +160,41 @@
       "date": "Fri, 05 Dec 2025 13:00:04 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-05T20:04:01.206554",
+    "lead_name": null,
+    "company": "new stores opening in South Florida",
+    "to_email": "editorial@cpp-luxury.com",
+    "subject": "New biz dev opportunity in your space",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "Ai6hbz3cQUegeS-U59FMgw",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 20:04:01 GMT",
+      "response_body": "{}"
+    }
+  },
+  {
+    "timestamp": "2025-12-05T20:04:58.837830",
+    "lead_name": null,
+    "company": "that broke ground in South Florida",
+    "to_email": "info@ferrarolaw.com",
+    "subject": "Local lead-gen idea for that broke ground in South Florida",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "Z3eP3atfRfmJRHlEmiprFQ",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 20:04:58 GMT",
+      "response_body": "{}"
+    }
   }
 ]
