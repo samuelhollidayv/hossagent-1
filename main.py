@@ -3162,374 +3162,53 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     """
     Render customer portal for a given customer.
     
-    Helper function used by both session-based and token-based portal routes.
+    Clean 3-section layout:
+    1. Account Status (top card)
+    2. Recent Opportunities & Outreach (combined view)
+    3. Reports & Deep Dives
     """
-    tasks = session.exec(
-        select(Task).where(Task.customer_id == customer.id).order_by(Task.created_at.desc()).limit(20)
-    ).all()
-    
-    invoices = session.exec(
-        select(Invoice).where(Invoice.customer_id == customer.id).order_by(Invoice.created_at.desc())
-    ).all()
-    
-    MIN_INVOICE_DISPLAY_CENTS = 1000
-    displayable_invoices = [i for i in invoices if i.amount_cents >= MIN_INVOICE_DISPLAY_CENTS]
-    outstanding_invoices = [i for i in displayable_invoices if i.status in ["draft", "sent"]]
-    paid_invoices = [i for i in displayable_invoices if i.status == "paid"]
-    total_invoiced = sum(i.amount_cents for i in invoices)
-    total_paid = sum(i.amount_cents for i in paid_invoices)
-    total_outstanding = sum(i.amount_cents for i in outstanding_invoices)
-    
-    payment_status = get_stripe_payment_mode_status()
-    show_pay_buttons = payment_status["show_pay_buttons"]
-    raw_payment_message = payment_status["status_message"]
-    
-    if raw_payment_message:
-        payment_message = f'<div class="payment-notice">{raw_payment_message}</div>'
-    else:
-        payment_message = ""
+    import html as html_module
     
     plan_status = get_customer_plan_status(customer)
     
-    pending_outreach = session.exec(
-        select(PendingOutbound).where(
-            PendingOutbound.customer_id == customer.id,
-            PendingOutbound.status == "PENDING"
-        ).order_by(PendingOutbound.created_at.desc()).limit(20)
+    invoices = session.exec(
+        select(Invoice).where(Invoice.customer_id == customer.id).order_by(Invoice.created_at.desc()).limit(5)
     ).all()
-    
-    if pending_outreach and customer.outreach_mode == "REVIEW":
-        import html as html_module
-        outreach_cards = ""
-        for po in pending_outreach:
-            timestamp = po.created_at.strftime("%Y-%m-%d %H:%M") if po.created_at else "-"
-            context_truncated = (po.context_summary[:100] + "...") if po.context_summary and len(po.context_summary) > 100 else (po.context_summary or "")
-            body_escaped = html_module.escape(po.body or "") if po.body else ""
-            lead_name = html_module.escape(po.to_name or "Lead")
-            lead_email = html_module.escape(po.to_email)
-            outreach_cards += f"""
-                <div class="outreach-card">
-                    <div class="outreach-header">
-                        <div class="outreach-to">Email to {lead_name} ({lead_email})</div>
-                        <div class="outreach-date">{timestamp}</div>
-                    </div>
-                    <div style="background: rgba(34, 197, 94, 0.1); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent-green);">
-                        You will be CC'd on this email for visibility
-                    </div>
-                    <div class="outreach-subject"><strong>Subject:</strong> {html_module.escape(po.subject or "")}</div>
-                    <div class="outreach-context">{html_module.escape(context_truncated)}</div>
-                    <div class="outreach-actions">
-                        <button class="outreach-btn approve" onclick="handleOutreach({po.id}, 'approve')">Approve &amp; Send</button>
-                        <button class="outreach-btn edit" onclick="handleOutreach({po.id}, 'edit')">Edit &amp; Send</button>
-                        <button class="outreach-btn skip" onclick="handleOutreach({po.id}, 'skip')">Skip</button>
-                        <button class="outreach-btn view-message" onclick="toggleMessageBody(this, {po.id})">View Full Message</button>
-                    </div>
-                    <div class="outreach-body-preview" id="message-body-{po.id}">
-                        <div class="outreach-body-content">{body_escaped}</div>
-                    </div>
-                </div>
-            """
-        
-        pending_outreach_section = f"""
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">Pending Outreach</div>
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Review and approve outbound emails to leads/prospects. These emails are sent TO leads on your behalf, with you CC'd for visibility.</div>
-            {outreach_cards}
-        </div>
-        <script>
-        async function handleOutreach(id, action) {{
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
-            try {{
-                const res = await fetch('/api/outreach/' + id + '/' + action, {{ method: 'POST' }});
-                const data = await res.json();
-                if (data.success) {{
-                    btn.closest('.outreach-card').style.opacity = '0.5';
-                    btn.closest('.outreach-card').style.pointerEvents = 'none';
-                    setTimeout(() => location.reload(), 500);
-                }} else {{
-                    alert(data.error || 'Action failed');
-                    btn.disabled = false;
-                    btn.textContent = action === 'approve' ? 'Approve & Send' : action === 'edit' ? 'Edit & Send' : 'Skip';
-                }}
-            }} catch (e) {{
-                alert('Error: ' + e.message);
-                btn.disabled = false;
-            }}
-        }}
-        </script>
-        """
-    else:
-        pending_outreach_section = ""
-    
-    total_opportunities = session.exec(select(func.count(LeadEvent.id)).where(LeadEvent.company_id == customer.id)).one()
-    opportunities = get_todays_opportunities(session, company_id=customer.id, limit=50)
-    
-    if opportunities:
-        opportunities_rows = ""
-        for opp in opportunities:
-            urgency_class = "urgency-high" if opp.urgency_score >= 70 else "urgency-medium" if opp.urgency_score >= 50 else "urgency-low"
-            fire_icon = '<span class="fire-icon">🔥</span>' if opp.urgency_score >= 70 else ''
-            timestamp = opp.created_at.strftime("%Y-%m-%d %H:%M") if opp.created_at else "-"
-            summary_truncated = opp.summary[:80] + "..." if len(opp.summary) > 80 else opp.summary
-            status_class = opp.status.lower().replace("_", "-")
-            opportunities_rows += f"""
-                <tr class="opportunity-row" data-opportunity-id="{opp.id}" onclick="showOpportunityDetail({opp.id})">
-                    <td>{summary_truncated}</td>
-                    <td><span class="category-badge">{opp.category}</span></td>
-                    <td><span class="{urgency_class}">{fire_icon}{opp.urgency_score}</span></td>
-                    <td><span class="status-badge opp-status-{status_class}">{opp.status}</span></td>
-                    <td>{timestamp}</td>
-                </tr>
-                <tr class="opportunity-detail-row" id="opp-detail-{opp.id}" style="display: none;">
-                    <td colspan="5" class="opportunity-detail-cell">
-                        <div class="opportunity-detail-content" id="opp-content-{opp.id}">
-                            <div class="loading-indicator">Loading details...</div>
-                        </div>
-                    </td>
-                </tr>
-            """
-        
-        showing_text = f"Showing top 50 of {total_opportunities:,}" if total_opportunities > 50 else f"Showing all {total_opportunities:,}"
-        opportunities_section = f"""
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">Your Opportunities</div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary);">{showing_text}</div>
-            </div>
-            <div class="opportunities-subtitle">Automatically identified from public context signals • Click a row to see details</div>
-            <div class="table-wrapper">
-                <table class="opportunities-table" style="margin-top: 1rem;">
-                    <thead>
-                        <tr>
-                            <th>Summary</th>
-                            <th>Category</th>
-                            <th>Urgency</th>
-                            <th>Status</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {opportunities_rows}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        """
-    else:
-        opportunities_section = ""
-    
-    reports = session.exec(
-        select(Report).where(Report.customer_id == customer.id).order_by(Report.created_at.desc()).limit(10)
-    ).all()
-    
-    if reports:
-        report_cards = ""
-        for report in reports:
-            timestamp = report.created_at.strftime("%Y-%m-%d") if report.created_at else "-"
-            description_text = report.description or ""
-            content_text = report.content or ""
-            report_cards += f"""
-                <div class="report-card" onclick="toggleReport(this)">
-                    <div class="report-header">
-                        <div class="report-title">{report.title[:70]}{'...' if len(report.title) > 70 else ''}</div>
-                        <div class="report-date">{timestamp} <span class="report-expand-icon">▼</span></div>
-                    </div>
-                    <span class="report-type">{report.report_type}</span>
-                    <div class="report-description">{description_text[:150]}{'...' if len(description_text) > 150 else ''}</div>
-                    <div class="report-content">{content_text}</div>
-                </div>
-            """
-        
-        reports_section = f"""
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">Reports / Recent Work</div>
-            </div>
-            {report_cards}
-        </div>
-        """
-    else:
-        reports_section = ""
+    outstanding_invoices = [i for i in invoices if i.status in ["draft", "sent"]]
+    total_outstanding = sum(i.amount_cents for i in outstanding_invoices)
     
     if plan_status.is_paid:
+        plan_name = "HossAgent Pro"
+        status_class = "active"
+        status_label = "Active"
+        billing_info = "$99/month - Full access"
         if customer.cancelled_at_period_end:
-            cancellation_notice = """
-            <div class="cancellation-notice">
-                <p>Your subscription is set to cancel at the end of this billing period.<br>
-                You won't be charged again, but you have full access until then.</p>
-            </div>
-            """
-            buttons = f"""
-            <div class="btn-group">
-                <a href="/portal/reactivate" class="cta-btn success" onclick="event.preventDefault(); document.getElementById('reactivate-form').submit();">Reactivate Subscription</a>
-                <a href="/billing/{customer.public_token}" class="cta-btn secondary">Manage Billing</a>
-            </div>
-            <form id="reactivate-form" action="/portal/reactivate" method="POST" style="display:none;"></form>
-            """
+            billing_info = "Cancels at end of billing period"
+            account_cta = f'''<a href="/portal/reactivate" class="account-cta" onclick="event.preventDefault(); document.getElementById('reactivate-form').submit();">Reactivate</a>
+            <a href="/billing/{customer.public_token}" class="account-cta secondary" style="margin-left: 0.5rem;">Manage Billing</a>
+            <form id="reactivate-form" action="/portal/reactivate" method="POST" style="display:none;"></form>'''
         else:
-            cancellation_notice = ""
-            buttons = f"""
-            <div class="btn-group">
-                <a href="/billing/{customer.public_token}" class="cta-btn secondary">Manage Billing</a>
-                <a href="/portal/cancel" class="cta-btn danger" onclick="event.preventDefault(); if(confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your billing period.')) document.getElementById('cancel-form').submit();">Cancel Subscription</a>
-            </div>
-            <form id="cancel-form" action="/portal/cancel" method="POST" style="display:none;"></form>
-            """
-        
-        plan_section = f"""
-        <div class="plan-card">
-            <div class="plan-name">HossAgent Pro</div>
-            <div class="plan-price">$99/month</div>
-            <div class="plan-status active">Active Subscription</div>
-            <div class="trial-info">Full access to all HossAgent features</div>
-            {cancellation_notice}
-            {buttons}
-        </div>
-        """
+            if total_outstanding > 0:
+                billing_info = f"$99/month - ${total_outstanding/100:.0f} outstanding"
+            account_cta = f'''<a href="/billing/{customer.public_token}" class="account-cta secondary">Manage Billing</a>
+            <a href="/portal/cancel" class="account-cta secondary" style="margin-left: 0.5rem; color: var(--accent-red);" onclick="event.preventDefault(); if(confirm('Cancel your subscription? Access continues until end of billing period.')) document.getElementById('cancel-form').submit();">Cancel</a>
+            <form id="cancel-form" action="/portal/cancel" method="POST" style="display:none;"></form>'''
     elif plan_status.is_expired:
-        plan_section = f"""
-        <div class="plan-card">
-            <div class="plan-name">HossAgent Pro</div>
-            <div class="plan-price">$99/month</div>
-            <div class="plan-status expired">Trial Expired</div>
-            <div class="trial-info">Your trial period has ended</div>
-            <div class="usage-display">
-                <div class="usage-item">
-                    <div class="usage-label">Tasks Used</div>
-                    <div class="usage-value danger">{plan_status.tasks_used}/{plan_status.tasks_limit}</div>
-                </div>
-                <div class="usage-item">
-                    <div class="usage-label">Leads Used</div>
-                    <div class="usage-value danger">{plan_status.leads_used}/{plan_status.leads_limit}</div>
-                </div>
-            </div>
-            <a href="/subscribe/{customer.public_token}" class="cta-btn">Start Paid Subscription</a>
-        </div>
-        """
+        plan_name = "Trial"
+        status_class = "paused"
+        status_label = "Expired"
+        billing_info = f"Trial ended - {plan_status.tasks_used}/{plan_status.tasks_limit} tasks, {plan_status.leads_used}/{plan_status.leads_limit} leads used"
+        account_cta = f'''<a href="/subscribe/{customer.public_token}" class="account-cta">Start Subscription - $99/month</a>'''
     else:
-        tasks_class = "danger" if plan_status.tasks_used >= plan_status.tasks_limit else "warning" if plan_status.tasks_used >= plan_status.tasks_limit * 0.8 else ""
-        leads_class = "danger" if plan_status.leads_used >= plan_status.leads_limit else "warning" if plan_status.leads_used >= plan_status.leads_limit * 0.8 else ""
-        
-        limit_warning = ""
-        if not plan_status.can_run_tasks or not plan_status.can_generate_leads:
-            limit_warning = '<div class="limit-warning">You have reached the limits of your free trial. Start your paid subscription to keep HossAgent working.</div>'
-        
-        plan_section = f"""
-        <div class="plan-card">
-            <div class="plan-name">HossAgent Pro</div>
-            <div class="plan-price">$99/month</div>
-            <div class="plan-status trial">Trial - {plan_status.days_remaining} days remaining</div>
-            <div class="trial-info">Limited to {plan_status.tasks_limit} tasks and {plan_status.leads_limit} leads</div>
-            <div class="usage-display">
-                <div class="usage-item">
-                    <div class="usage-label">Tasks Used</div>
-                    <div class="usage-value {tasks_class}">{plan_status.tasks_used}/{plan_status.tasks_limit}</div>
-                </div>
-                <div class="usage-item">
-                    <div class="usage-label">Leads Used</div>
-                    <div class="usage-value {leads_class}">{plan_status.leads_used}/{plan_status.leads_limit}</div>
-                </div>
-                <div class="usage-item">
-                    <div class="usage-label">Days Left</div>
-                    <div class="usage-value">{plan_status.days_remaining}</div>
-                </div>
-            </div>
-            {limit_warning}
-            <a href="/subscribe/{customer.public_token}" class="cta-btn">Start Paid Subscription</a>
-        </div>
-        """
+        plan_name = "Trial"
+        status_class = "trial"
+        status_label = f"{plan_status.days_remaining} days left"
+        limit_text = f"{plan_status.tasks_used}/{plan_status.tasks_limit} tasks, {plan_status.leads_used}/{plan_status.leads_limit} leads"
+        billing_info = f"Trial ends in {plan_status.days_remaining} days ({limit_text})"
+        account_cta = f'''<a href="/subscribe/{customer.public_token}" class="account-cta">Upgrade to Pro - $99/month</a>'''
     
-    with open("templates/customer_portal.html", "r") as f:
-        template = f.read()
-    
-    tasks_rows = ""
-    for t in tasks:
-        status_class = t.status
-        tasks_rows += f"""
-            <tr>
-                <td>{t.created_at.strftime("%Y-%m-%d")}</td>
-                <td>{t.description[:60]}{'...' if len(t.description) > 60 else ''}</td>
-                <td><span class="status-badge {status_class}">{t.status}</span></td>
-            </tr>
-        """
-    if not tasks_rows:
-        tasks_rows = '<tr><td colspan="3" class="empty">No tasks yet.</td></tr>'
-    
-    stripe_enabled = is_stripe_enabled()
-    
-    outstanding_rows = ""
-    for i in outstanding_invoices:
-        payment_btn = ""
-        if not plan_status.can_use_billing:
-            payment_btn = '<span class="payment-unavailable">Upgrade to enable payments</span>'
-        elif i.payment_url and len(i.payment_url) > 10:
-            payment_btn = f'<a href="{i.payment_url}" class="pay-btn" target="_blank">PAY NOW</a>'
-        elif stripe_enabled:
-            payment_btn = '<span class="payment-unavailable">Awaiting payment link...</span>'
-        
-        outstanding_rows += f"""
-            <tr>
-                <td>INV-{i.id}</td>
-                <td>${i.amount_cents/100:.2f}</td>
-                <td><span class="status-badge draft">{i.status.upper()}</span></td>
-                <td>{i.created_at.strftime("%Y-%m-%d")}</td>
-                <td>{payment_btn}</td>
-            </tr>
-        """
-    if not outstanding_rows:
-        outstanding_rows = '<tr><td colspan="5" class="empty">No outstanding invoices.</td></tr>'
-    
-    paid_rows = ""
-    for i in paid_invoices:
-        paid_rows += f"""
-            <tr>
-                <td>INV-{i.id}</td>
-                <td>${i.amount_cents/100:.2f}</td>
-                <td><span class="status-badge paid">PAID</span></td>
-                <td>{i.paid_at.strftime("%Y-%m-%d") if i.paid_at else '-'}</td>
-            </tr>
-        """
-    if not paid_rows:
-        paid_rows = '<tr><td colspan="4" class="empty">No paid invoices yet.</td></tr>'
-    
-    invoices_section = f"""
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Invoice</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {outstanding_rows}
-                </tbody>
-            </table>
-        </div>
-        <h4 style="font-size: 0.8rem; font-weight: normal; letter-spacing: 1px; color: #666; text-transform: uppercase; margin: 1.5rem 0 1rem;">Payment History</h4>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Invoice</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Paid Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {paid_rows}
-                </tbody>
-            </table>
-        </div>
-    """
+    autopilot_class = "autopilot-on" if customer.autopilot_enabled else "autopilot-off"
+    autopilot_label = "ON" if customer.autopilot_enabled else "OFF"
     
     payment_banner = ""
     query_params = dict(request.query_params) if hasattr(request, 'query_params') else {}
@@ -3538,145 +3217,183 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     elif query_params.get("payment") == "cancelled":
         payment_banner = '<div class="payment-cancelled">Payment was cancelled. You can try again when ready.</div>'
     elif query_params.get("cancelled") == "true":
-        payment_banner = '<div class="payment-cancelled">Your subscription will remain active until the end of this billing period. You won\'t be charged again.</div>'
+        payment_banner = '<div class="payment-cancelled">Your subscription will remain active until the end of this billing period.</div>'
     elif query_params.get("reactivated") == "true":
-        payment_banner = '<div class="payment-success">Your subscription has been reactivated. Thank you for staying with us!</div>'
+        payment_banner = '<div class="payment-success">Your subscription has been reactivated!</div>'
     
-    threads = session.exec(
-        select(Thread).where(Thread.customer_id == customer.id)
-        .order_by(Thread.updated_at.desc()).limit(20)
+    total_opportunities = session.exec(select(func.count(LeadEvent.id)).where(LeadEvent.company_id == customer.id)).one()
+    opportunities = session.exec(
+        select(LeadEvent).where(LeadEvent.company_id == customer.id)
+        .order_by(LeadEvent.created_at.desc()).limit(30)
     ).all()
     
-    draft_messages = session.exec(
-        select(Message).where(
-            Message.customer_id == customer.id,
-            Message.status == MESSAGE_STATUS_DRAFT
-        ).order_by(Message.created_at.desc()).limit(10)
+    pending_outreach = session.exec(
+        select(PendingOutbound).where(
+            PendingOutbound.customer_id == customer.id,
+            PendingOutbound.status == "PENDING"
+        ).order_by(PendingOutbound.created_at.desc()).limit(10)
     ).all()
+    pending_map = {po.lead_event_id: po for po in pending_outreach if po.lead_event_id}
     
-    if threads or draft_messages:
-        import html as html_module
-        
-        drafts_html = ""
-        if draft_messages:
-            for msg in draft_messages:
-                guardrails = []
-                if msg.guardrail_flags:
-                    try:
-                        guardrails = json.loads(msg.guardrail_flags)
-                    except:
-                        pass
-                
-                guardrail_warning = ""
-                if guardrails:
-                    guardrail_warning = f'<div style="background: rgba(245, 158, 11, 0.15); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent-orange);">Guardrails triggered: {", ".join(guardrails)} - Review carefully before sending</div>'
-                
-                drafts_html += f"""
-                <div class="outreach-card">
-                    <div class="outreach-header">
-                        <div class="outreach-to">Draft reply to {html_module.escape(msg.to_email)}</div>
-                        <div class="outreach-date">{msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else "-"}</div>
+    if opportunities:
+        opp_cards = ""
+        for opp in opportunities:
+            timestamp = opp.created_at.strftime("%b %d") if opp.created_at else "-"
+            company_name = html_module.escape(opp.lead_company or opp.summary[:40] or "Unknown Lead")
+            signal_summary = html_module.escape(opp.summary[:120] if opp.summary else "Opportunity identified")
+            
+            if opp.status.upper() == "CONTACTED":
+                status_class_opp = "sent"
+                status_text = "Email Sent"
+            elif opp.status.upper() == "RESPONDED":
+                status_class_opp = "responded"
+                status_text = "Responded"
+            elif opp.do_not_contact:
+                status_class_opp = "suppressed"
+                status_text = "Suppressed"
+            elif opp.status.upper() in ["CLOSED", "CLOSED_WON", "CLOSED_LOST"]:
+                status_class_opp = "closed"
+                status_text = "Closed"
+            else:
+                status_class_opp = "new"
+                status_text = "New"
+            
+            outbound = session.exec(
+                select(PendingOutbound).where(
+                    PendingOutbound.lead_event_id == opp.id
+                ).order_by(PendingOutbound.created_at.desc()).limit(1)
+            ).first()
+            
+            email_detail = ""
+            if outbound and outbound.status == "SENT":
+                email_detail = f'''
+                <div class="email-preview">
+                    <div class="email-header">
+                        <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
+                        <span class="email-sent-badge">Sent</span>
                     </div>
-                    {guardrail_warning}
-                    <div class="outreach-subject"><strong>Subject:</strong> {html_module.escape(msg.subject or "")}</div>
-                    <div class="outreach-context" style="white-space: pre-wrap; max-height: 150px; overflow-y: auto;">{html_module.escape(msg.body_text[:500] if msg.body_text else "")}</div>
-                    <div class="outreach-actions">
-                        <button class="outreach-btn approve" onclick="handleDraft({msg.id}, 'approve')">Approve &amp; Send</button>
-                        <button class="outreach-btn skip" onclick="handleDraft({msg.id}, 'discard')">Discard</button>
+                    <div class="email-subject">Subject: {html_module.escape(outbound.subject or "")}</div>
+                    <div class="email-body">{html_module.escape(outbound.body or "")}</div>
+                </div>
+                '''
+            elif outbound and outbound.status == "PENDING" and customer.outreach_mode == "REVIEW":
+                email_detail = f'''
+                <div class="email-preview" style="border-left-color: var(--accent-orange);">
+                    <div class="email-header">
+                        <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
+                        <span class="email-sent-badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-orange);">Awaiting Your Approval</span>
+                    </div>
+                    <div class="email-subject">Subject: {html_module.escape(outbound.subject or "")}</div>
+                    <div class="email-body">{html_module.escape(outbound.body or "")}</div>
+                    <div class="approval-actions" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="event.stopPropagation(); handleOutreach({outbound.id}, 'approve')" style="background: var(--accent-green); color: #000; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500;">Approve & Send</button>
+                        <button onclick="event.stopPropagation(); handleOutreach({outbound.id}, 'skip')" style="background: transparent; color: var(--text-secondary); border: 1px solid var(--border-medium); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Skip</button>
                     </div>
                 </div>
-                """
-        
-        threads_html = ""
-        for thread in threads[:10]:
-            status_class = "pending" if thread.status == "OPEN" else "running" if thread.status == "HUMAN_OWNED" else "done" if thread.status == "CLOSED" else ""
-            direction_icon = "&larr;" if thread.last_direction == "INBOUND" else "&rarr;"
-            threads_html += f"""
-            <tr>
-                <td>{html_module.escape(thread.lead_email or "-")}</td>
-                <td>{html_module.escape(thread.lead_company or "-")}</td>
-                <td><span class="status-badge {status_class}">{thread.status}</span></td>
-                <td>{thread.message_count}</td>
-                <td>{direction_icon} {html_module.escape(thread.last_summary[:50] if thread.last_summary else "-")}{"..." if thread.last_summary and len(thread.last_summary) > 50 else ""}</td>
-                <td>{thread.updated_at.strftime("%m/%d %H:%M") if thread.updated_at else "-"}</td>
-            </tr>
-            """
-        if not threads_html:
-            threads_html = '<tr><td colspan="6" class="empty">No conversations yet.</td></tr>'
-        
-        conversations_section = f"""
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">Conversations</div>
+                '''
+            elif outbound and outbound.status in ["APPROVED", "PENDING"]:
+                status_badge = "Queued" if outbound.status == "APPROVED" else "Pending"
+                email_detail = f'''
+                <div class="email-preview" style="border-left-color: var(--accent-orange);">
+                    <div class="email-header">
+                        <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
+                        <span class="email-sent-badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-orange);">{status_badge}</span>
+                    </div>
+                    <div class="email-subject">Subject: {html_module.escape(outbound.subject or "")}</div>
+                    <div class="email-body">{html_module.escape(outbound.body or "")}</div>
+                </div>
+                '''
+            elif outbound and outbound.status == "SKIPPED":
+                email_detail = f'''
+                <div class="email-preview" style="border-left-color: var(--text-tertiary); opacity: 0.7;">
+                    <div class="email-header">
+                        <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
+                        <span class="email-sent-badge" style="background: var(--bg-secondary); color: var(--text-tertiary);">Skipped</span>
+                    </div>
+                    <div class="email-subject">Subject: {html_module.escape(outbound.subject or "")}</div>
+                    <div class="email-body">{html_module.escape(outbound.body or "")}</div>
+                </div>
+                '''
+            else:
+                email_detail = '<div class="no-email">No outbound email yet for this opportunity</div>'
+            
+            opp_cards += f'''
+            <div class="opp-card" id="opp-{opp.id}" onclick="toggleOpp('opp-{opp.id}')">
+                <div class="opp-row">
+                    <div class="opp-main">
+                        <div class="opp-company">{company_name}</div>
+                        <div class="opp-signal">{signal_summary}</div>
+                    </div>
+                    <div class="opp-meta">
+                        <span class="opp-date">{timestamp}</span>
+                        <span class="opp-status {status_class_opp}">{status_text}</span>
+                    </div>
+                </div>
+                <div class="opp-detail">
+                    {email_detail}
+                </div>
             </div>
-            {"<div style='margin-bottom: 1.5rem;'><h4 style='font-size: 0.9rem; color: var(--accent-orange); margin-bottom: 0.75rem;'>AI Draft Replies ({len(draft_messages)})</h4>" + drafts_html + "</div>" if drafts_html else ""}
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Lead Email</th>
-                            <th>Company</th>
-                            <th>Status</th>
-                            <th>Msgs</th>
-                            <th>Last Message</th>
-                            <th>Updated</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {threads_html}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <script>
-        async function handleDraft(draftId, action) {{
-            if (action === 'approve') {{
-                if (!confirm('Send this AI-drafted reply?')) return;
-                try {{
-                    const response = await fetch('/api/conversations/draft/' + draftId + '/approve', {{
-                        method: 'POST'
-                    }});
-                    if (response.ok) {{
-                        alert('Draft approved and queued for sending!');
-                        window.location.reload();
-                    }} else {{
-                        alert('Failed to approve draft');
-                    }}
-                }} catch (e) {{
-                    alert('Error: ' + e.message);
-                }}
-            }} else if (action === 'discard') {{
-                if (!confirm('Discard this draft reply?')) return;
-                try {{
-                    const response = await fetch('/api/conversations/draft/' + draftId + '/discard', {{
-                        method: 'POST'
-                    }});
-                    if (response.ok) {{
-                        alert('Draft discarded');
-                        window.location.reload();
-                    }} else {{
-                        alert('Failed to discard draft');
-                    }}
-                }} catch (e) {{
-                    alert('Error: ' + e.message);
-                }}
-            }}
-        }}
-        </script>
-        """
+            '''
+        
+        opportunities_content = opp_cards
     else:
-        conversations_section = ""
+        opportunities_content = '''
+        <div class="empty-state">
+            <div class="empty-state-title">No opportunities yet</div>
+            <div class="empty-state-sub">HossAgent is monitoring signals and will identify opportunities for you.</div>
+        </div>
+        '''
+    
+    reports = session.exec(
+        select(Report).where(Report.customer_id == customer.id).order_by(Report.created_at.desc()).limit(15)
+    ).all()
+    
+    if reports:
+        report_cards = ""
+        for idx, report in enumerate(reports):
+            timestamp = report.created_at.strftime("%b %d, %Y") if report.created_at else "-"
+            title = html_module.escape(report.title[:80] if report.title else "Report")
+            desc = html_module.escape(report.description[:150] if report.description else "")
+            content = html_module.escape(report.content or "")
+            
+            report_cards += f'''
+            <div class="report-card" id="report-{idx}" onclick="toggleReport('report-{idx}')">
+                <div class="report-header">
+                    <div>
+                        <div class="report-title">{title}</div>
+                        <div class="report-desc">{desc}</div>
+                    </div>
+                    <span class="report-date">{timestamp}</span>
+                </div>
+                <div class="report-content">{content}</div>
+            </div>
+            '''
+        
+        reports_content = report_cards
+    else:
+        reports_content = '''
+        <div class="empty-state">
+            <div class="empty-state-title">No reports yet</div>
+            <div class="empty-state-sub">Reports will appear here as HossAgent completes work for you.</div>
+        </div>
+        '''
+    
+    with open("templates/customer_portal.html", "r") as f:
+        template = f.read()
     
     html = template.format(
-        customer_id=customer.id,
-        tasks_rows=tasks_rows,
-        plan_section=plan_section,
-        invoices_section=invoices_section,
         payment_message=payment_banner,
-        opportunities_section=opportunities_section,
-        pending_outreach_section=pending_outreach_section,
-        reports_section=reports_section,
-        conversations_section=conversations_section
+        plan_name=plan_name,
+        status_class=status_class,
+        status_label=status_label,
+        autopilot_class=autopilot_class,
+        autopilot_label=autopilot_label,
+        billing_info=billing_info,
+        account_cta=account_cta,
+        opportunities_count=total_opportunities,
+        opportunities_content=opportunities_content,
+        reports_count=len(reports),
+        reports_content=reports_content
     )
     
     return HTMLResponse(content=html)

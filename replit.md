@@ -20,7 +20,10 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
 - **About Page (`/about`)**: Explains the "Ethical Briefcase System" concept.
 - **How It Works Page (`/how-it-works`)**: 10-step user journey.
 - **Admin Console (`/admin`)**: Operator dashboard with KPIs, Lead Events, Output History, Signals, Customers, and Pending Outreach.
-- **Customer Portal (`/portal`)**: Session-authenticated portal for plan/billing, opportunities, reports, pending outreach, invoices, and subscription management.
+- **Customer Portal (`/portal`)**: Session-authenticated portal with clean 3-section layout:
+  1. **Account Status Card**: Plan name, status pill, autopilot indicator, billing info, and CTA buttons (upgrade/manage/cancel/reactivate).
+  2. **Recent Opportunities & Outreach**: Combined view showing opportunities with expandable email details (to/subject/body). REVIEW mode shows approval buttons for pending outreach.
+  3. **Reports & Deep Dives**: Clickable report cards with expandable content.
 - **Customer Portal - Admin View (`/portal/<token>`)**: Token-based access for admin impersonation.
 - **Customer Settings (`/portal/settings`)**: Business profile configuration, outreach preferences, and do-not-contact list management.
 
