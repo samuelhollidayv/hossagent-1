@@ -4711,7 +4711,7 @@ def get_admin_pipeline(request: Request, session: Session = Depends(get_session)
             "timestamp": event.created_at.isoformat(),
             "customer": customer.company if customer else "Unknown",
             "lead_company": event.lead_company or "Unknown",
-            "signal_type": "News/Social" if event.signal_source else "Manual",
+            "signal_type": "SignalNet" if event.signal_id else "Manual",
             "stage": stage,
             "result": result
         })
@@ -4736,7 +4736,7 @@ def get_admin_activity_log(request: Request, session: Session = Depends(get_sess
             "timestamp": sig.created_at.isoformat(),
             "event": "Signal Detected",
             "customer": None,
-            "details": f"{sig.source_type}: {sig.summary[:60] if sig.summary else 'N/A'}"
+            "details": f"{sig.source_type}: {sig.context_summary[:60] if sig.context_summary else 'N/A'}"
         })
     
     events = session.exec(

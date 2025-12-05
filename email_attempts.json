@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "timestamp": "2025-12-05T02:02:47.357515",
+    "lead_name": null,
+    "company": "Miami Best Roofing",
+    "to_email": "retract@swscontact.com",
+    "subject": "New signal in your market",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "Vk5y1RRaR8KuTxzBZfOdXA",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 02:02:47 GMT",
+      "response_body": "{}"
+    }
+  },
+  {
+    "timestamp": "2025-12-05T02:02:52.389341",
+    "lead_name": null,
+    "company": "MYSHOP",
+    "to_email": "support@myshop.com",
+    "subject": "Small opportunity I noticed near South Florida",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "ipMmvfZYREim91V9Juqvwg",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 02:02:52 GMT",
+      "response_body": "{}"
+    }
+  },
+  {
+    "timestamp": "2025-12-05T02:02:55.755285",
+    "lead_name": null,
+    "company": "Your company",
+    "to_email": "info@keystoneadv.com",
+    "subject": "New signal in your market",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "e-HXaRDjTSy5XzyPaslLAg",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 02:02:55 GMT",
+      "response_body": "{}"
+    }
+  }
+]
