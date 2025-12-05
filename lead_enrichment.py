@@ -61,6 +61,7 @@ from outbound_utils import send_lead_event_immediate
 from phone_extraction import discover_phones, get_domain_from_phone, PhoneDiscoveryResult
 from company_name_extraction import extract_company_candidates, get_best_company_name, NameStormResult
 from mission_log import MissionLog, log_enrichment_attempt, should_attempt_action
+from email_storm import discover_emails, EmailStormResult, EmailCandidate
 
 
 HUNTER_API_KEY = os.environ.get("HUNTER_API_KEY", "")
@@ -1546,6 +1547,8 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
         "with_domain_no_email": 0,
         "with_phone_only": 0,
         "still_unenriched": 0,
+        "archived_unenrichable": 0,
+        "companies_created": 0,
         "pending_unenriched": total_unenriched - len(unenriched_events),
         "pending_with_domain": total_with_domain - len(with_domain_events),
         "pending_with_phone": total_with_phone,
@@ -1559,6 +1562,23 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
     }
     
     for i, lead_event in enumerate(unenriched_events):
+        mission_log = get_mission_log(lead_event)
+        
+        if not check_enrichment_budget(lead_event):
+            mark_as_unenrichable(
+                lead_event, 
+                UNENRICHABLE_REASON_NO_DOMAIN, 
+                session, 
+                mission_log
+            )
+            stats["archived_unenrichable"] += 1
+            log_enrichment("ARCHANGEL_BUDGET_EXHAUSTED", lead_event_id=lead_event.id,
+                           details={"attempts": lead_event.enrichment_attempts,
+                                    "max": lead_event.max_enrichment_attempts})
+            continue
+        
+        mission_log.start_new_pass()
+        
         source_url = _get_source_url_for_event(lead_event, session)
         
         effective_company = lead_event.lead_company
@@ -1588,6 +1608,18 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
                 lead_event.lead_company = effective_company
                 lead_event.company_name_candidate = effective_company
                 
+                if namestorm_result.all_candidates:
+                    lead_event.candidate_company_names = json.dumps([
+                        c.to_dict() for c in namestorm_result.all_candidates[:5]
+                    ])
+                
+                mission_log.add_entry(
+                    phase="NAMESTORM",
+                    action="company_extracted",
+                    result="success",
+                    notes=f"Company: {effective_company}, Candidates: {len(namestorm_result.all_candidates)}"
+                )
+                
                 log_enrichment("NAMESTORM_EXTRACTED", lead_event_id=lead_event.id,
                                details={"company": effective_company, 
                                         "source": namestorm_result.best_candidate.source,
@@ -1604,9 +1636,24 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
                 if effective_company:
                     lead_event.lead_company = effective_company
                     lead_event.company_name_candidate = effective_company
+                    
+                    mission_log.add_entry(
+                        phase="NAMESTORM",
+                        action="fallback_extraction",
+                        result="success",
+                        notes=f"Company: {effective_company}, Source: {extraction_source}"
+                    )
+                    
                     log_enrichment("ARCHANGEL_COMPANY_EXTRACTED", lead_event_id=lead_event.id,
                                    details={"company": effective_company, "source": extraction_source})
                 else:
+                    mission_log.add_entry(
+                        phase="NAMESTORM",
+                        action="company_extraction",
+                        result="no_result",
+                        notes="No company name found in title, summary, or article body"
+                    )
+                    
                     log_enrichment("NAMESTORM_SKIP", lead_event_id=lead_event.id,
                                    details={"reason": "no_company_found", 
                                             "summary": lead_event.summary[:80] if lead_event.summary else None})
@@ -1631,9 +1678,18 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
             lead_event.last_enrichment_at = datetime.utcnow()
             lead_event.domain_confidence = domain_result.confidence
             
+            mission_log.add_entry(
+                phase="DOMAINSTORM",
+                action="domain_discovered",
+                query=effective_company,
+                result="success",
+                notes=f"Domain: {domain_result.domain}, Method: {domain_result.discovery_method}"
+            )
+            
             if not lead_event.company_name_candidate:
                 lead_event.company_name_candidate = extract_company_name_from_summary(lead_event.summary)
             
+            phone_data = []
             try:
                 phone_result = discover_phones(domain_result.domain)
                 if phone_result.success and phone_result.best_phone:
@@ -1642,6 +1698,20 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
                     lead_event.phone_confidence = phone_result.best_phone.confidence
                     lead_event.phone_source = phone_result.best_phone.source
                     lead_event.phone_type = phone_result.best_phone.phone_type
+                    
+                    phone_data.append({
+                        "number": phone_result.best_phone.e164_number,
+                        "type": phone_result.best_phone.phone_type,
+                        "confidence": phone_result.best_phone.confidence,
+                        "source": phone_result.best_phone.source
+                    })
+                    
+                    mission_log.add_entry(
+                        phase="PHONESTORM",
+                        action="phone_discovered",
+                        result="success",
+                        notes=f"Phone: {phone_result.best_phone.e164_number}"
+                    )
                     
                     stats["phones_discovered"] += 1
                     stats["by_source"]["phonestorm"] = stats["by_source"].get("phonestorm", 0) + 1
@@ -1652,12 +1722,42 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
                                             "confidence": f"{phone_result.best_phone.confidence:.2f}",
                                             "source": phone_result.best_phone.source})
                 else:
+                    mission_log.add_entry(
+                        phase="PHONESTORM",
+                        action="phone_search",
+                        result="no_result",
+                        notes="No phone found"
+                    )
                     log_enrichment("PHONESTORM_NONE", lead_event_id=lead_event.id,
                                    details={"domain": domain_result.domain, "reason": "no_phone_found"})
             except Exception as e:
+                mission_log.add_entry(
+                    phase="PHONESTORM",
+                    action="phone_search",
+                    result="error",
+                    notes=str(e)[:100]
+                )
                 log_enrichment("PHONESTORM_ERROR", lead_event_id=lead_event.id,
                                details={"error": str(e)[:50]})
             
+            if effective_company:
+                try:
+                    company = upsert_company(
+                        session=session,
+                        name=effective_company,
+                        domain=domain_result.domain,
+                        geography=None,
+                        source_type="news",
+                        source_signal_id=lead_event.signal_id,
+                        phones=phone_data if phone_data else None
+                    )
+                    link_lead_to_company(lead_event, company, session)
+                    stats["companies_created"] += 1
+                except Exception as e:
+                    log_enrichment("COMPANY_UPSERT_ERROR", lead_event_id=lead_event.id,
+                                   error=str(e)[:50])
+            
+            save_mission_log(lead_event, mission_log)
             session.add(lead_event)
             session.commit()
             
@@ -1675,10 +1775,29 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
         else:
             lead_event.enrichment_attempts = (lead_event.enrichment_attempts or 0) + 1
             lead_event.last_enrichment_at = datetime.utcnow()
-            session.add(lead_event)
-            session.commit()
             
-            stats["still_unenriched"] += 1
+            mission_log.add_entry(
+                phase="DOMAINSTORM",
+                action="domain_search",
+                query=effective_company,
+                result="no_result",
+                notes=f"No domain found for: {effective_company or 'unknown company'}"
+            )
+            
+            if not check_enrichment_budget(lead_event):
+                mark_as_unenrichable(
+                    lead_event,
+                    UNENRICHABLE_REASON_NO_DOMAIN if not effective_company else UNENRICHABLE_REASON_NO_OSINT_PRESENCE,
+                    session,
+                    mission_log
+                )
+                stats["archived_unenrichable"] += 1
+            else:
+                save_mission_log(lead_event, mission_log)
+                session.add(lead_event)
+                session.commit()
+                stats["still_unenriched"] += 1
+            
             stats["by_source"]["none"] += 1
         
         if i < len(unenriched_events) - 1:

@@ -278,8 +278,53 @@
       "candidates_fetched": 0,
       "leads_created": 0,
       "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-05T18:20:41.032269",
+      "provider": "HossNative",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-05T18:36:16.708479",
+      "provider": "HossNative",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-05T18:52:26.242523",
+      "provider": "HossNative",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-05T18:55:49.127977",
+      "provider": "HossNative",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-05T18:57:10.718610",
+      "provider": "HossNative",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
     }
   ],
-  "last_run": "2025-12-05T18:04:22.440449",
+  "last_run": "2025-12-05T18:57:10.718610",
   "last_created_count": 0
 }

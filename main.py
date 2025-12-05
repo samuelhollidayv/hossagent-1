@@ -1987,11 +1987,106 @@ def get_lead_events_endpoint(
             "category": e.category,
             "urgency_score": e.urgency_score,
             "status": e.status,
+            "enrichment_status": e.enrichment_status,
+            "enrichment_attempts": e.enrichment_attempts,
+            "max_enrichment_attempts": getattr(e, 'max_enrichment_attempts', 3),
+            "unenrichable_reason": getattr(e, 'unenrichable_reason', None),
+            "lead_company": e.lead_company,
+            "lead_domain": e.lead_domain,
+            "lead_email": e.lead_email,
+            "lead_phone_e164": getattr(e, 'lead_phone_e164', None),
+            "domain_confidence": getattr(e, 'domain_confidence', 0),
+            "email_confidence": getattr(e, 'email_confidence', 0),
+            "phone_confidence": getattr(e, 'phone_confidence', 0),
             "recommended_action": e.recommended_action,
             "outbound_message": e.outbound_message,
             "created_at": e.created_at.isoformat() if e.created_at else None
         }
         for e in events
+    ]
+
+
+@app.get("/api/enrichment/metrics")
+def get_enrichment_metrics_endpoint(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Get enrichment metrics by source type (admin only).
+    
+    Returns enrichment success rates, domain/email/phone discovery counts,
+    and unenrichable breakdown by source.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from models import EnrichmentMetrics
+    
+    metrics = session.exec(
+        select(EnrichmentMetrics).order_by(EnrichmentMetrics.period_start.desc())
+    ).all()
+    
+    return [
+        {
+            "id": m.id,
+            "source_type": m.source_type,
+            "total_leads": m.total_leads or 0,
+            "enriched_leads": m.enriched_leads or 0,
+            "enrichment_rate": round(m.enrichment_rate or 0.0, 2),
+            "domains_discovered": m.domains_discovered or 0,
+            "emails_discovered": m.emails_discovered or 0,
+            "phones_discovered": m.phones_discovered or 0,
+            "unenrichable_no_domain": m.unenrichable_no_domain or 0,
+            "unenrichable_no_contact": m.unenrichable_no_contact or 0,
+            "unenrichable_no_osint": m.unenrichable_no_osint or 0,
+            "outbound_sent": m.outbound_sent or 0,
+            "replies_received": m.replies_received or 0,
+            "reply_rate": round(m.reply_rate or 0.0, 2),
+            "period_start": m.period_start.isoformat() if m.period_start else None,
+            "last_updated_at": m.last_updated_at.isoformat() if m.last_updated_at else None
+        }
+        for m in metrics
+    ]
+
+
+@app.get("/api/companies")
+def get_companies_endpoint(
+    request: Request,
+    limit: int = Query(default=50, le=200),
+    session: Session = Depends(get_session)
+):
+    """
+    Get all companies in the Company table (admin only).
+    
+    Returns canonical company entities with their enrichment status.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from models import Company
+    
+    companies = session.exec(
+        select(Company).order_by(Company.last_seen_at.desc()).limit(limit)
+    ).all()
+    
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "normalized_name": c.normalized_name,
+            "domain": c.domain,
+            "geography": c.geography,
+            "niche": c.niche,
+            "source_type": c.source_type,
+            "source_confidence": round(c.source_confidence or 0.0, 2),
+            "enrichment_complete": c.enrichment_complete or False,
+            "enrichment_attempts": c.enrichment_attempts or 0,
+            "first_seen_at": c.first_seen_at.isoformat() if c.first_seen_at else None,
+            "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None
+        }
+        for c in companies
     ]
 
 

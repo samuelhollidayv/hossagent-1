@@ -4,7 +4,8 @@
 HossAgent is an autonomous AI business system with a noir aesthetic. Its core purpose is to autonomously identify leads, convert them into customers, execute tasks, and manage invoicing and profit tracking via Stripe. The system orchestrates four specialized AI agents (BizDev, Onboarding, Ops, Billing) and offers both customer-facing and administrative interfaces with robust authentication. The business model is a $99/month SaaS subscription, including a 7-day free trial. The project aims to provide a comprehensive, autonomous business solution, initially targeting the South Florida market with ambitions for broader application.
 
 ## User Preferences
-Not specified.
+- Pure web scraping only, NO paid APIs (Apollo.io explicitly forbidden)
+- Target 5-10% enrichment success rate improvement from ~2% baseline
 
 ## System Architecture
 HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to PostgreSQL in production and SQLite for development. The system emphasizes asynchronous, idempotent agent cycles.
@@ -31,12 +32,41 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 - **Contextual Opportunity Engine**: Manages `AUTO` (immediate send) and `REVIEW` (customer approval) outreach modes, leveraging `BusinessProfile` for customer preferences and enforcing do-not-contact lists.
 - **Outbound Email System**: Uses `hossagent.net` (SendGrid authenticated), prioritizes person-like emails, rotates subject lines, supports `transparent_ai` or `classic` templates, and tailors messages based on signal type (`market_entry`, `competitor_intel`, `growth_opportunity`, `market_shift`). Includes 3 actionable recommendations per email, name parsing, rate limiting, and suppression flow.
 - **HossNative Lead Discovery**: Autonomous lead generation system integrating with SignalNet, performing web scraping for emails, domain resolution, and email validation without external APIs.
-- **OPERATION ARCHANGEL (Multi-Layered Enrichment Engine)**: Strict company name extraction with branded validation (rejects generic industry descriptions like "Texas HVAC company buys new", accepts "Miami Best Roofing", "Cool Running Air"), article body fallback extraction, multi-layered domain discovery, classifies and scores emails (generic, person-like), and uses a state machine for immediate sending upon email discovery. No paid enrichment APIs are used.
-- **OPERATION PHONESTORM (Phone Enrichment System)**: Extracts, normalizes, and validates phone numbers from web pages (regex, `tel:` links, Schema.org), classifies phone types, and assigns a confidence score.
+
+**OPERATION ARCHANGEL v2 (Multi-Layered Enrichment Engine):**
+- **State Machine**: Tracks enrichment lifecycle (UNENRICHED → ENRICHING → ENRICHED/OUTBOUND_READY/ARCHIVED_UNENRICHABLE)
+- **Budget System**: max_enrichment_attempts (default 3) per lead before marking ARCHIVED_UNENRICHABLE
+- **Mission Log**: JSON array tracking [method, success, timestamp, details] per enrichment attempt
+- **Company Table**: Canonical entity storage with domain+name upserts, supports lead attachment for reuse
+- **NameStorm**: Multi-candidate company name extraction with branded validation (rejects generics like "Texas HVAC company", accepts "Miami Best Roofing")
+- **DomainStorm**: Multi-layered domain discovery (Google CSE, Bing, DuckDuckGo fallback)
+- **EmailStorm**: Layered email discovery with confidence scoring (person-like vs generic)
+- **PhoneStorm**: Extracts, normalizes, validates phone numbers from web pages
+- **EnrichmentMetrics**: Per-source yield tracking for optimization
+
+**Admin API Endpoints (ARCHANGEL v2):**
+- `GET /api/lead_events`: Includes enrichment_status, enrichment_attempts, unenrichable_reason, confidence scores
+- `GET /api/enrichment/metrics`: Source-level enrichment yield, discovery counts, unenrichable breakdown
+- `GET /api/companies`: Canonical company entities with enrichment status
+
+**Craigslist Connector (EPIC 3.1):**
+- SMB-heavy signal source with niche detection (HVAC, plumbing, roofing, legal, etc.)
+- Job posting and service listing extraction for lead generation
+
 - **Autopilot**: Automates agent cycles every 15 minutes for paid plans.
 - **Conversation Engine**: Handles inbound email replies, AI-assisted draft generation, guardrails for sensitive content, human-in-the-loop approval, and a suppression system. Uses a state machine (OPEN → HUMAN_OWNED → AUTO → CLOSED).
 - **Subscription Model**: Trial plan (7 days, restricted) and Paid plan ($99/month, full access). Manages signup, Stripe checkout, upgrade, and cancellation flows.
 - **Analytics & Telemetry**: Server-side analytics (`analytics.py`) tracks page views, funnel events, and abandonment (stored in `analytics_events.json` with IP hashing). An Admin Analytics Dashboard provides insights. Optional Google Analytics 4 integration.
+
+## Key Files (ARCHANGEL v2)
+- `models.py`: LeadEvent (enrichment fields), Company, EnrichmentMetrics tables
+- `mission_log.py`: Mission log tracking system
+- `lead_enrichment.py`: Main enrichment pipeline with state machine
+- `email_storm.py`: EmailStorm layered email discovery
+- `craigslist_connector.py`: Craigslist SMB signal source
+- `company_name_extraction.py`: NameStorm branded extraction
+- `domain_discovery.py`: DomainStorm multi-layer discovery
+- `phone_extraction.py`: PhoneStorm extraction and validation
 
 ## External Dependencies
 - **FastAPI**: Backend web framework.
