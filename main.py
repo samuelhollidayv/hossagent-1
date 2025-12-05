@@ -3221,7 +3221,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     business_profile = session.exec(
         select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
     ).first()
-    is_review_mode = business_profile and business_profile.outreach_mode == OUTREACH_MODE_REVIEW
+    is_review_mode = customer and customer.outreach_mode == OUTREACH_MODE_REVIEW
     
     if is_review_mode:
         allowed_statuses = [ENRICHMENT_STATUS_OUTBOUND_SENT, ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND]
