@@ -47,7 +47,7 @@ from models import (
     ENRICHMENT_STATUS_FAILED,
     ENRICHMENT_STATUS_SKIPPED,
 )
-from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary
+from domain_discovery import discover_domain_for_lead_event, DomainDiscoveryResult, extract_company_name_from_summary, _is_valid_branded_company
 from outbound_utils import send_lead_event_immediate
 from phone_extraction import discover_phones, get_domain_from_phone, PhoneDiscoveryResult
 
@@ -117,6 +117,53 @@ BROWSER_HEADERS = {
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
+
+
+def _extract_company_from_article_body(source_url: Optional[str]) -> Optional[str]:
+    """
+    ARCHANGEL FALLBACK: Extract company name from article body when summary extraction fails.
+    
+    Fetches the article, extracts the first paragraph, and searches for branded company names.
+    """
+    if not source_url:
+        return None
+    
+    if 'news.google.com' in source_url:
+        return None
+    
+    try:
+        response = requests.get(source_url, headers=BROWSER_HEADERS, timeout=8)
+        if response.status_code != 200:
+            return None
+        
+        html = response.text[:50000]
+        
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+            tag.decompose()
+        
+        paragraphs = soup.find_all('p')[:5]
+        text_content = ' '.join(p.get_text(strip=True) for p in paragraphs)
+        
+        if not text_content:
+            return None
+        
+        business_pattern = re.compile(
+            r'([A-Z][a-zA-Z]+(?:\s+[A-Z]?[a-zA-Z&\'-]+)*\s+(?:Air|Roofing|Plumbing|HVAC|Electric|Electrical|Landscaping|Construction|Realty|Properties|Solutions|Services|Partners|Group|Corp|Inc|LLC|Company|Associates|Consulting|Agency|Technologies|Systems|Holdings))',
+            re.IGNORECASE
+        )
+        
+        matches = business_pattern.findall(text_content)
+        for match in matches:
+            if _is_valid_branded_company(match):
+                return match
+        
+        return None
+        
+    except Exception as e:
+        return None
 
 
 def _get_dry_run_prefix() -> str:
@@ -1213,11 +1260,29 @@ async def run_enrichment_pipeline(session: Session, max_events: Optional[int] = 
     for i, lead_event in enumerate(unenriched_events):
         source_url = _get_source_url_for_event(lead_event, session)
         
+        effective_company = lead_event.lead_company
+        if not effective_company and lead_event.summary:
+            effective_company = extract_company_name_from_summary(lead_event.summary)
+            extraction_source = "summary"
+            
+            if not effective_company and source_url and 'news.google.com' not in source_url:
+                effective_company = _extract_company_from_article_body(source_url)
+                extraction_source = "article_body"
+            
+            if effective_company:
+                lead_event.lead_company = effective_company
+                lead_event.company_name_candidate = effective_company
+                log_enrichment("ARCHANGEL_COMPANY_EXTRACTED", lead_event_id=lead_event.id,
+                               details={"company": effective_company, "source": extraction_source})
+            else:
+                log_enrichment("ARCHANGEL_COMPANY_SKIP", lead_event_id=lead_event.id,
+                               details={"reason": "no_branded_company_found", "summary": lead_event.summary[:80] if lead_event.summary else None})
+        
         domain_result = discover_domain_for_lead_event(
             lead_event_id=lead_event.id,
             lead_domain=lead_event.lead_domain,
             lead_email=lead_event.lead_email,
-            lead_company=lead_event.lead_company,
+            lead_company=effective_company,
             source_url=source_url,
             geography=None,
             niche=None,

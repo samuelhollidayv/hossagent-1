@@ -13,3 +13,4 @@ itsdangerous
 python-multipart
 psycopg2-binary
 boto3
+beautifulsoup4

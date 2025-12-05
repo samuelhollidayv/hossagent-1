@@ -204,33 +204,101 @@ def extract_company_name_from_summary(summary: Optional[str]) -> Optional[str]:
     """
     ARCHANGEL: Extract probable company name from signal summary.
     
-    Heuristics:
-    - Look for quoted strings: "Company Name"
-    - Extract first capitalized phrase
-    - Strip location markers (city, state)
+    STRICT heuristics - only extract if we have high confidence:
+    - "News: Miami Best Roofing Announces..." -> "Miami Best Roofing"
+    - "News: Cool Running Air Expands..." -> "Cool Running Air"
+    - "News: Sunny Bliss Plumbing & Air Acquires..." -> "Sunny Bliss Plumbing & Air"
+    
+    REJECT generic industry descriptions:
+    - "Texas HVAC company buys new..." -> None (generic, not branded)
+    - "Owner of Orlando roofing company..." -> None (no specific name)
+    - "Trump Supporter Breaks Down..." -> None (not a business)
     """
     if not summary:
         return None
     
     summary = summary.strip()
     
-    # Look for quoted company names first
     quoted = re.search(r'"([^"]+)"', summary)
     if quoted:
         candidate = quoted.group(1).strip()
-        if 2 < len(candidate) < 100:
+        if _is_valid_branded_company(candidate):
             return candidate
     
-    # Extract first capitalized phrase (potential company name)
-    match = re.match(r'^([A-Z][a-zA-Z\s&.,\'-]+?)(?:\s+in\s+|\s+at\s+|,|\s+is\s+|\s+has\s+)', summary)
+    text = summary
+    if text.startswith("News: "):
+        text = text[6:]
+    
+    action_verbs = r'(?:Announces?|Expands?|Acquires?|Opens?|Launches?|Reports?|Hires?|Receives?|Wins?|Partners?|Unveils?|Introduces?|Signs?|Adds?|Completes?|Celebrates?|Strengthens?)'
+    
+    business_nouns = r'(?:Air|Roofing|Plumbing|HVAC|Electric|Electrical|Landscaping|Construction|Realty|Properties|Solutions|Services|Partners|Group|Corp|Inc|LLC|Company|Co|Associates|Consulting|Agency|Studios?|Labs?|Tech|Technologies|Systems|Holdings|Capital|Ventures|Enterprises|Industries|Manufacturing)'
+    
+    branded_pattern = rf'^([A-Z][a-zA-Z]+(?:\s+[A-Z]?[a-zA-Z&\'-]+)*\s+{business_nouns})\s+{action_verbs}'
+    match = re.match(branded_pattern, text)
     if match:
         candidate = match.group(1).strip()
-        # Remove location suffixes
-        candidate = re.sub(r'\s+(Miami|Florida|FL|Broward|Palm Beach|South Florida|USA|US).*', '', candidate, flags=re.IGNORECASE)
-        if 2 < len(candidate) < 100:
+        if _is_valid_branded_company(candidate):
+            return candidate
+    
+    two_word_pattern = rf'^([A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+)\s+{action_verbs}'
+    match = re.match(two_word_pattern, text)
+    if match:
+        candidate = match.group(1).strip()
+        if _is_valid_branded_company(candidate):
             return candidate
     
     return None
+
+
+def _is_valid_branded_company(candidate: str) -> bool:
+    """
+    Validate that a candidate string looks like a real branded company name.
+    
+    ACCEPT: "Miami Best Roofing", "Cool Running Air", "Sunny Bliss Plumbing & Air"
+    REJECT: "Texas HVAC company buys new", "Owner of Orlando", "Florida Vets", "South"
+    """
+    if not candidate or len(candidate) < 4 or len(candidate) > 60:
+        return False
+    
+    words = candidate.split()
+    if len(words) < 2 or len(words) > 6:
+        return False
+    
+    poison_patterns = [
+        r'^(?:texas|florida|miami|orlando|south|north|east|west|local|global|new|major|the|this|a|an)',
+        r'^(?:owner|trump|billionaire|breaking|latest|update|how|why|what|when|after|before)',
+        r'(?:company|business|firm|shop|store)\s+(?:buys?|sells?|opens?|files?|seeks?)',
+        r'(?:vets?|veteran|supporter|worker|employee|customer)',
+        r'^[a-z]',
+    ]
+    
+    for pattern in poison_patterns:
+        if re.search(pattern, candidate, re.IGNORECASE):
+            return False
+    
+    business_indicators = [
+        'roofing', 'air', 'plumbing', 'hvac', 'electric', 'landscaping', 'construction',
+        'realty', 'properties', 'solutions', 'services', 'partners', 'group', 'corp',
+        'inc', 'llc', 'company', 'associates', 'consulting', 'agency', 'studios',
+        'labs', 'tech', 'technologies', 'systems', 'holdings', 'capital', 'ventures',
+        'enterprises', 'industries', 'manufacturing', 'distribution', 'logistics'
+    ]
+    
+    has_business_indicator = any(ind in candidate.lower() for ind in business_indicators)
+    
+    first_word = words[0]
+    has_branded_start = first_word[0].isupper() and len(first_word) >= 3
+    
+    if has_business_indicator and has_branded_start:
+        return True
+    
+    if len(words) >= 2 and has_branded_start:
+        second_word = words[1]
+        if second_word[0].isupper() and len(second_word) >= 3:
+            if second_word.lower() not in ['the', 'and', 'of', 'for', 'in', 'on', 'at', 'to']:
+                return True
+    
+    return False
 
 
 def _tokenize_company_name(company_name: str) -> Set[str]:

@@ -88,5 +88,23 @@
       "date": "Fri, 05 Dec 2025 06:27:49 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-05T12:10:23.178963",
+    "lead_name": null,
+    "company": "South",
+    "to_email": "info@south.com",
+    "subject": "Short note about a market signal",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "IWnqBSXjTy6BlXgIFIpuaA",
+      "content_length": "0",
+      "date": "Fri, 05 Dec 2025 12:10:23 GMT",
+      "response_body": "{}"
+    }
   }
 ]
