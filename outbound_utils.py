@@ -90,21 +90,25 @@ def check_do_not_contact(email: str, do_not_contact_list: Optional[str]) -> bool
 
 def create_pending_outbound(
     session: Session,
-    customer_id: int,
+    customer_id: Optional[int],
     lead_id: Optional[int],
     to_email: str,
     to_name: Optional[str],
     subject: str,
     body: str,
     context_summary: Optional[str] = None,
-    lead_event_id: Optional[int] = None
+    lead_event_id: Optional[int] = None,
+    status: str = "PENDING"
 ) -> PendingOutbound:
     """
-    Create a PendingOutbound record for REVIEW mode.
+    Create a PendingOutbound record.
+    
+    Used for both REVIEW mode (status=PENDING) and AUTO mode (status=SENT).
+    This ensures portal can always find email content.
     
     Args:
         session: Database session
-        customer_id: The customer ID this outbound belongs to
+        customer_id: The customer ID this outbound belongs to (optional for AUTO)
         lead_id: Optional lead ID this outbound is for
         to_email: Recipient email address
         to_name: Recipient name
@@ -112,6 +116,7 @@ def create_pending_outbound(
         body: Email body
         context_summary: Why this email is being sent
         lead_event_id: Optional lead event ID this outbound is for
+        status: Initial status - PENDING for review, SENT for already sent
         
     Returns:
         Created PendingOutbound record
@@ -125,13 +130,14 @@ def create_pending_outbound(
         subject=subject,
         body=body,
         context_summary=context_summary,
-        status="PENDING",
+        status=status,
         created_at=datetime.utcnow()
     )
     session.add(pending)
     session.flush()
     
-    print(f"[OUTBOUND] Created PendingOutbound {pending.id} for customer {customer_id}: to={to_email} subject=\"{subject[:50]}...\"")
+    status_str = "QUEUED" if status == "PENDING" else status
+    print(f"[OUTBOUND] Created PendingOutbound {pending.id} ({status_str}) for customer {customer_id}: to={to_email} subject=\"{subject[:50]}...\"")
     
     return pending
 
@@ -315,6 +321,7 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
     )
     
     lead_event.outbound_message = body
+    lead_event.outbound_subject = subject
     
     if email_result.actually_sent or email_result.result in ("dry_run", "fallback"):
         lead_event.status = LEAD_STATUS_CONTACTED
@@ -326,6 +333,19 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
         lead_event.contact_count_7d = (lead_event.contact_count_7d or 0) + 1
         lead_event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
         session.add(lead_event)
+        
+        create_pending_outbound(
+            session=session,
+            customer_id=customer.id if customer else None,
+            lead_id=lead_event.lead_id,
+            to_email=contact_email,
+            to_name=contact_name,
+            subject=subject,
+            body=body,
+            context_summary=f"Signal-triggered: {lead_event.category} - {lead_event.summary[:100] if lead_event.summary else ''}",
+            lead_event_id=lead_event.id,
+            status="SENT"
+        )
         
         if commit:
             session.commit()

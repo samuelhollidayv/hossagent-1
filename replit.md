@@ -26,7 +26,12 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
   4. **Customers**: Customer accounts with plan, status, autopilot, outreach mode, and usage limits.
 - **Customer Portal (`/portal`)**: Session-authenticated portal with clean 4-section layout:
   1. **Account Status Card**: Plan name, status pill, autopilot indicator, billing info, and CTA buttons (upgrade/manage/cancel/reactivate).
-  2. **Recent Opportunities & Outreach**: Combined view showing opportunities with expandable email details (to/subject/body). REVIEW mode shows approval buttons for pending outreach.
+  2. **Recent Opportunities & Outreach**: Enhanced expandable cards showing:
+     - **Lead Contact Info**: Name, company, email (clickable mailto), domain link
+     - **Why This Opportunity**: Contextual explanation (expansion signals, competitor shifts, new locations)
+     - **Full Email Content**: Subject line and complete body of sent email
+     - **Recommended Next Steps**: Actionable guidance (wait time, follow-up info, manual outreach option)
+     - REVIEW mode shows approval buttons for pending outreach
   3. **Conversations**: Email threads with leads showing message history, AI-generated drafts with Approve/Discard buttons, and thread status (Open, Your Turn, Auto, Draft Ready).
   4. **Reports & Deep Dives**: Clickable report cards with expandable content.
 - **Customer Portal - Admin View (`/portal/<token>`)**: Token-based access for admin impersonation.

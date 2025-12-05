@@ -3279,9 +3279,68 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 ).order_by(PendingOutbound.created_at.desc()).limit(1)
             ).first()
             
+            lead_contact_email = opp.lead_email or opp.enriched_email or ""
+            lead_contact_name = opp.lead_name or opp.enriched_contact_name or ""
+            lead_contact_company = opp.lead_company or opp.enriched_company_name or ""
+            lead_contact_domain = opp.lead_domain or ""
+            
+            contact_info_html = ""
+            if lead_contact_email or lead_contact_company:
+                contact_parts = []
+                if lead_contact_name:
+                    contact_parts.append(f"<strong>{html_module.escape(lead_contact_name)}</strong>")
+                if lead_contact_company:
+                    contact_parts.append(html_module.escape(lead_contact_company))
+                if lead_contact_email:
+                    contact_parts.append(f'<a href="mailto:{html_module.escape(lead_contact_email)}" style="color: var(--accent-green);">{html_module.escape(lead_contact_email)}</a>')
+                if lead_contact_domain:
+                    contact_parts.append(f'<a href="https://{html_module.escape(lead_contact_domain)}" target="_blank" style="color: var(--text-secondary);">{html_module.escape(lead_contact_domain)}</a>')
+                
+                contact_info_html = f'''
+                <div class="lead-contact-info" style="background: var(--bg-tertiary); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; border-left: 3px solid var(--accent-green);">
+                    <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Lead Contact</div>
+                    <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;">{" | ".join(contact_parts)}</div>
+                </div>
+                '''
+            
+            context_html = ""
+            if opp.summary:
+                why_relevant = "This company appeared in the news indicating potential growth or change."
+                if "expand" in opp.summary.lower():
+                    why_relevant = "They are expanding operations - a key indicator they may need your services."
+                elif "roofing" in opp.summary.lower() or "ac" in opp.summary.lower() or "hvac" in opp.summary.lower():
+                    why_relevant = "They are in a service industry with potential synergies to your business."
+                elif "competitor" in opp.summary.lower():
+                    why_relevant = "A competitor shift has been detected - opportunity to position your services."
+                elif "new" in opp.summary.lower() and ("headquarters" in opp.summary.lower() or "office" in opp.summary.lower()):
+                    why_relevant = "They are opening new locations - a strong signal they may need local services."
+                
+                context_html = f'''
+                <div class="opportunity-context" style="background: var(--bg-secondary); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; border: 1px solid var(--border-subtle);">
+                    <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Why This Opportunity</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">{html_module.escape(why_relevant)}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.5rem;"><strong>Category:</strong> {html_module.escape(opp.category or 'general')}</div>
+                </div>
+                '''
+            
+            next_steps_html = ""
+            if opp.status.upper() == "CONTACTED":
+                next_steps_html = '''
+                <div class="next-steps" style="background: rgba(34, 197, 94, 0.1); border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; border: 1px solid rgba(34, 197, 94, 0.2);">
+                    <div style="font-size: 0.7rem; color: var(--accent-green); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Recommended Next Steps</div>
+                    <ul style="font-size: 0.8rem; color: var(--text-secondary); margin: 0; padding-left: 1.25rem; line-height: 1.6;">
+                        <li>Wait 2-3 business days for a response</li>
+                        <li>If no reply, a follow-up will be sent automatically</li>
+                        <li>Use the contact info above to reach out directly if urgent</li>
+                    </ul>
+                </div>
+                '''
+            
             email_detail = ""
             if outbound and outbound.status == "SENT":
                 email_detail = f'''
+                {contact_info_html}
+                {context_html}
                 <div class="email-preview">
                     <div class="email-header">
                         <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
@@ -3290,9 +3349,12 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                     <div class="email-subject">Subject: {html_module.escape(outbound.subject or "")}</div>
                     <div class="email-body">{html_module.escape(outbound.body or "")}</div>
                 </div>
+                {next_steps_html}
                 '''
             elif outbound and outbound.status == "PENDING" and customer.outreach_mode == "REVIEW":
                 email_detail = f'''
+                {contact_info_html}
+                {context_html}
                 <div class="email-preview" style="border-left-color: var(--accent-orange);">
                     <div class="email-header">
                         <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
@@ -3309,6 +3371,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             elif outbound and outbound.status in ["APPROVED", "PENDING"]:
                 status_badge = "Queued" if outbound.status == "APPROVED" else "Pending"
                 email_detail = f'''
+                {contact_info_html}
+                {context_html}
                 <div class="email-preview" style="border-left-color: var(--accent-orange);">
                     <div class="email-header">
                         <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
@@ -3320,6 +3384,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 '''
             elif outbound and outbound.status == "SKIPPED":
                 email_detail = f'''
+                {contact_info_html}
                 <div class="email-preview" style="border-left-color: var(--text-tertiary); opacity: 0.7;">
                     <div class="email-header">
                         <span class="email-to">To: {html_module.escape(outbound.to_email)}</span>
@@ -3329,8 +3394,30 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                     <div class="email-body">{html_module.escape(outbound.body or "")}</div>
                 </div>
                 '''
+            elif opp.outbound_message and opp.status.upper() == "CONTACTED":
+                email_to = lead_contact_email or "lead"
+                email_subject = opp.outbound_subject or f"Regarding {lead_contact_company or 'your company'}"
+                email_detail = f'''
+                {contact_info_html}
+                {context_html}
+                <div class="email-preview">
+                    <div class="email-header">
+                        <span class="email-to">To: {html_module.escape(email_to)}</span>
+                        <span class="email-sent-badge">Sent</span>
+                    </div>
+                    <div class="email-subject">Subject: {html_module.escape(email_subject)}</div>
+                    <div class="email-body">{html_module.escape(opp.outbound_message)}</div>
+                </div>
+                {next_steps_html}
+                '''
             else:
-                email_detail = '<div class="no-email">No outbound email yet for this opportunity</div>'
+                email_detail = f'''
+                {contact_info_html if lead_contact_email else ""}
+                {context_html}
+                <div class="no-email" style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; color: var(--text-tertiary); font-size: 0.85rem;">
+                    Email is being prepared for this opportunity. Check back shortly.
+                </div>
+                '''
             
             opp_cards += f'''
             <div class="opp-card" id="opp-{opp.id}" onclick="toggleOpp('opp-{opp.id}')">

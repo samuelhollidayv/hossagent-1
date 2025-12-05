@@ -318,6 +318,7 @@ class LeadEvent(SQLModel, table=True):
     status: str = "NEW"  # NEW, CONTACTED, RESPONDED, QUALIFIED, CLOSED_WON, CLOSED_LOST, ON_HOLD
     recommended_action: Optional[str] = None  # What the system suggests
     outbound_message: Optional[str] = None  # Generated email if contacted
+    outbound_subject: Optional[str] = None  # Subject line of sent email
     
     enrichment_status: Optional[str] = Field(default="UNENRICHED")  # UNENRICHED, ENRICHING, ENRICHED, OUTBOUND_READY, FAILED, SKIPPED
     enrichment_source: Optional[str] = None  # hunter, clearbit, scrape, signal, manual
