@@ -3303,6 +3303,16 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 </div>
                 '''
             
+            source_url = None
+            if opp.signal_id:
+                signal = session.exec(select(Signal).where(Signal.id == opp.signal_id)).first()
+                if signal and signal.raw_payload:
+                    try:
+                        payload = json.loads(signal.raw_payload)
+                        source_url = payload.get("url") or payload.get("source_url") or payload.get("link")
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+            
             context_html = ""
             if opp.summary:
                 why_relevant = "This company appeared in the news indicating potential growth or change."
@@ -3315,11 +3325,16 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
                 elif "new" in opp.summary.lower() and ("headquarters" in opp.summary.lower() or "office" in opp.summary.lower()):
                     why_relevant = "They are opening new locations - a strong signal they may need local services."
                 
+                source_link_html = ""
+                if source_url:
+                    source_link_html = f'<div style="font-size: 0.8rem; margin-top: 0.5rem;"><a href="{html_module.escape(source_url)}" target="_blank" style="color: var(--accent-green); text-decoration: none;">View Source Story</a></div>'
+                
                 context_html = f'''
                 <div class="opportunity-context" style="background: var(--bg-secondary); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; border: 1px solid var(--border-subtle);">
                     <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Why This Opportunity</div>
                     <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">{html_module.escape(why_relevant)}</div>
                     <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.5rem;"><strong>Category:</strong> {html_module.escape(opp.category or 'general')}</div>
+                    {source_link_html}
                 </div>
                 '''
             
