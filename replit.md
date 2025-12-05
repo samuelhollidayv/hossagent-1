@@ -89,11 +89,17 @@ HossAgent is built on a FastAPI backend, utilizing SQLModel for data persistence
     - `domain_confidence`: 0-1.0 score reflecting domain match quality
     - `email_confidence`: 0-1.0 score reflecting email validity and context
     - `company_name_candidate`: Extracted company name for matching validation
-  - **State Machine with Confidence**:
+  - **State Machine with Immediate-Send (v3 - ACTIVE)**:
     - UNENRICHED → WITH_DOMAIN_NO_EMAIL (with domain_confidence)
     - WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND (with email_confidence)
-    - ENRICHED_NO_OUTBOUND → OUTBOUND_SENT (only high-confidence leads)
+    - **IMMEDIATE SEND**: Email found triggers instant send (AUTO) or queue (REVIEW) - no waiting for BizDev cycle
+    - ENRICHED_NO_OUTBOUND → OUTBOUND_SENT (via `send_lead_event_immediate()` in outbound_utils.py)
     - ARCHIVED for stale leads (30+ days without progress)
+  - **Immediate-Send Architecture**: Eliminates 15-minute delay between enrichment and contact
+    - `send_lead_event_immediate()`: Centralized helper in outbound_utils.py
+    - Called directly from enrichment pipeline when email discovered
+    - Handles AUTO mode (send), REVIEW mode (queue), rate limits, do-not-contact
+    - BizDev cycle acts as catch-up mechanism for edge cases
   - **Admin Console Filters**: Tab-based filtering with enrichment status and confidence metrics.
   - **Customer Portal**: Shows only high-confidence OUTBOUND_SENT leads (ENRICHED_NO_OUTBOUND visible in REVIEW mode).
   - **No Paid APIs**: HossNative only - no Apollo, Hunter, or Clearbit APIs.
