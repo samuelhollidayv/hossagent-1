@@ -837,17 +837,41 @@
         }}
     }}
     
-    function openManualSendModal(leadEventId, toEmail, company) {{
+    async function openManualSendModal(leadEventId, toEmail, company) {{
         const modal = document.getElementById('manual-send-modal');
         if (!modal) return;
         
         document.getElementById('manual-send-lead-id').value = leadEventId || '';
         document.getElementById('manual-send-to-email').value = toEmail || '';
-        const defaultSubject = `Quick opportunity for ${company || 'your company'}...`;
-        document.getElementById('manual-send-subject').value = defaultSubject;
-        document.getElementById('manual-send-body').value = '';
         
         modal.style.display = 'flex';
+        
+        if (leadEventId) {{
+            document.getElementById('manual-send-subject').value = 'Loading draft...';
+            document.getElementById('manual-send-body').value = 'Loading draft...';
+            
+            try {{
+                const resp = await fetch(`/api/portal/lead_event/${leadEventId}/draft`);
+                if (resp.ok) {{
+                    const data = await resp.json();
+                    document.getElementById('manual-send-to-email').value = data.to_email || toEmail;
+                    document.getElementById('manual-send-subject').value = data.subject;
+                    document.getElementById('manual-send-body').value = data.body;
+                }} else {{
+                    const defaultSubject = `Quick opportunity for ${company || 'your company'}...`;
+                    document.getElementById('manual-send-subject').value = defaultSubject;
+                    document.getElementById('manual-send-body').value = '';
+                }}
+            }} catch (e) {{
+                const defaultSubject = `Quick opportunity for ${company || 'your company'}...`;
+                document.getElementById('manual-send-subject').value = defaultSubject;
+                document.getElementById('manual-send-body').value = '';
+            }}
+        }} else {{
+            const defaultSubject = `Quick opportunity for ${company || 'your company'}...`;
+            document.getElementById('manual-send-subject').value = defaultSubject;
+            document.getElementById('manual-send-body').value = '';
+        }}
     }}
     
     function closeManualSendModal() {{

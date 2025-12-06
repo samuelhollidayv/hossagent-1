@@ -430,5 +430,41 @@
       "date": "Sat, 06 Dec 2025 00:44:41 GMT",
       "response_body": "{}"
     }
+  },
+  {
+    "timestamp": "2025-12-06T00:49:27.525047",
+    "lead_name": null,
+    "company": "Construction businesses in South Florida",
+    "to_email": "raul.roque@admerconstruction.com",
+    "subject": "Short note about market entry",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "YvfzyoSwSaapeGkw7Fh_eQ",
+      "content_length": "0",
+      "date": "Sat, 06 Dec 2025 00:49:27 GMT",
+      "response_body": "{}"
+    }
+  },
+  {
+    "timestamp": "2025-12-06T00:59:28.068256",
+    "lead_name": null,
+    "company": "Security businesses in South Florida",
+    "to_email": "info@consumervoice.org",
+    "subject": "Quick heads-up for Security businesses in South Florida",
+    "mode": "SENDGRID",
+    "result": "success",
+    "error": null,
+    "sending_domain": "hossagent.net",
+    "sendgrid_headers": {
+      "status_code": 202,
+      "x_message_id": "0UUp80uJThOEQTGA6RHQUQ",
+      "content_length": "0",
+      "date": "Sat, 06 Dec 2025 00:59:28 GMT",
+      "response_body": "{}"
+    }
   }
 ]

@@ -104,6 +104,30 @@
         .mission-result { color: var(--text-secondary); }
         .mission-success { color: var(--accent-green); }
         .mission-fail { color: var(--accent-red); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: 12px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border-subtle); }
+        .modal-header h3 { font-size: 1.1rem; font-weight: 600; color: var(--accent-green); }
+        .modal-close { background: transparent; border: none; color: var(--text-tertiary); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; }
+        .modal-close:hover { color: var(--text-primary); }
+        .modal-body { padding: 1.25rem; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.25rem; border-top: 1px solid var(--border-subtle); }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        .form-input { width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; font-family: inherit; font-size: 0.9rem; }
+        .form-input:focus { outline: none; border-color: var(--accent-green); }
+        .form-textarea { min-height: 300px; resize: vertical; line-height: 1.6; }
+        .btn-primary { background: var(--accent-green); color: var(--bg-primary); border: none; padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.85rem; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+        .btn-secondary:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .to-info { background: var(--bg-tertiary); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
+        .to-info strong { color: var(--accent-green); }
+        .autopilot-badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .autopilot-on { background: var(--accent-green); color: var(--bg-primary); }
+        .autopilot-off { background: var(--accent-orange); color: var(--bg-primary); }
     </style>
 </head>
 <body>
@@ -111,6 +135,7 @@
         <div class="header">
             <h1>HossAgent Admin</h1>
             <div class="header-actions">
+                <span id="autopilot-badge" class="autopilot-badge autopilot-on">AUTO</span>
                 <span id="email-mode" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
                 <a href="/admin/logout" class="logout-btn">Logout</a>
             </div>
@@ -436,9 +461,14 @@
                 const unenrichableReason = e.unenrichable_reason ? `<span style="color:var(--accent-red);font-size:0.7rem;display:block;">${e.unenrichable_reason}</span>` : '';
                 
                 const canForceEnrich = ['UNENRICHED', 'WITH_DOMAIN_NO_EMAIL', 'ARCHIVED_UNENRICHABLE'].includes(e.enrichment_status);
-                const actionBtn = canForceEnrich 
-                    ? `<button onclick="forceEnrichLead(${e.id}, this)" style="background:var(--accent-green);color:var(--bg-primary);border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Force Process</button>`
-                    : '<span style="color:var(--text-tertiary)">-</span>';
+                const canSendManual = !autopilotEnabled && e.enrichment_status === 'ENRICHED_NO_OUTBOUND' && e.lead_email;
+                
+                let actionBtn = '<span style="color:var(--text-tertiary)">-</span>';
+                if (canSendManual) {
+                    actionBtn = `<button onclick="openOutboundEditor(${e.id})" style="background:var(--accent-blue);color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Review & Send</button>`;
+                } else if (canForceEnrich) {
+                    actionBtn = `<button onclick="forceEnrichLead(${e.id}, this)" style="background:var(--accent-green);color:var(--bg-primary);border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Force Process</button>`;
+                }
                 
                 const sourceColors = {
                     news: '#3b82f6',
@@ -878,10 +908,140 @@
             }
         }
 
+        let autopilotEnabled = true;
+        
+        async function loadAutopilotStatus() {
+            try {
+                const resp = await fetch('/api/settings');
+                const data = await resp.json();
+                autopilotEnabled = data.autopilot_enabled !== false;
+                updateAutopilotBadge();
+            } catch (e) {
+                console.error('Failed to load autopilot status:', e);
+            }
+        }
+        
+        function updateAutopilotBadge() {
+            const badge = document.getElementById('autopilot-badge');
+            if (badge) {
+                badge.className = 'autopilot-badge ' + (autopilotEnabled ? 'autopilot-on' : 'autopilot-off');
+                badge.textContent = autopilotEnabled ? 'AUTO' : 'MANUAL';
+            }
+        }
+        
+        async function openOutboundEditor(eventId) {
+            const modal = document.getElementById('outbound-modal');
+            const loadingEl = document.getElementById('outbound-loading');
+            const formEl = document.getElementById('outbound-form');
+            
+            modal.classList.add('active');
+            loadingEl.style.display = 'block';
+            formEl.style.display = 'none';
+            
+            try {
+                const resp = await fetch(`/api/admin/lead_event/${eventId}/draft-outbound`);
+                const data = await resp.json();
+                
+                if (resp.ok) {
+                    document.getElementById('outbound-event-id').value = data.event_id;
+                    document.getElementById('outbound-to-email').textContent = data.to_email;
+                    document.getElementById('outbound-to-name').textContent = data.to_name || 'Unknown';
+                    document.getElementById('outbound-company').textContent = data.company || '-';
+                    document.getElementById('outbound-subject').value = data.subject;
+                    document.getElementById('outbound-body').value = data.body;
+                    
+                    loadingEl.style.display = 'none';
+                    formEl.style.display = 'block';
+                } else {
+                    alert(data.detail || 'Failed to load email draft');
+                    modal.classList.remove('active');
+                }
+            } catch (e) {
+                alert('Error loading draft: ' + e.message);
+                modal.classList.remove('active');
+            }
+        }
+        
+        function closeOutboundModal() {
+            document.getElementById('outbound-modal').classList.remove('active');
+        }
+        
+        async function sendOutbound() {
+            const eventId = document.getElementById('outbound-event-id').value;
+            const subject = document.getElementById('outbound-subject').value;
+            const body = document.getElementById('outbound-body').value;
+            const sendBtn = document.getElementById('outbound-send-btn');
+            
+            if (!subject.trim() || !body.trim()) {
+                alert('Subject and body are required');
+                return;
+            }
+            
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('subject', subject);
+                formData.append('body', body);
+                
+                const resp = await fetch(`/api/admin/lead_event/${eventId}/send-outbound`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                
+                if (data.success) {
+                    alert('Email sent successfully!');
+                    closeOutboundModal();
+                    loadLeadEvents();
+                } else {
+                    alert('Failed to send: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error sending: ' + e.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Email';
+            }
+        }
+
         window.addEventListener('load', () => {
             loadStats();
             loadSignals();
+            loadAutopilotStatus();
         });
     </script>
+    
+    <div id="outbound-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Review & Send Outbound</h3>
+                <button class="modal-close" onclick="closeOutboundModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="outbound-loading" style="text-align:center;padding:2rem;">Loading draft...</div>
+                <div id="outbound-form" style="display:none;">
+                    <input type="hidden" id="outbound-event-id">
+                    <div class="to-info">
+                        <strong>To:</strong> <span id="outbound-to-name"></span> &lt;<span id="outbound-to-email"></span>&gt;<br>
+                        <strong>Company:</strong> <span id="outbound-company"></span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subject</label>
+                        <input type="text" id="outbound-subject" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Body</label>
+                        <textarea id="outbound-body" class="form-input form-textarea"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeOutboundModal()">Cancel</button>
+                <button id="outbound-send-btn" class="btn-primary" onclick="sendOutbound()">Send Email</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

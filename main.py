@@ -4784,6 +4784,128 @@ async def force_enrich_lead_event(
     }
 
 
+@app.get("/api/admin/lead_event/{event_id}/draft-outbound")
+async def get_draft_outbound(
+    event_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Generate a draft outbound email for a lead event.
+    Returns the generated subject and body for editing before sending.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    lead_event = session.exec(
+        select(LeadEvent).where(LeadEvent.id == event_id)
+    ).first()
+    
+    if not lead_event:
+        raise HTTPException(status_code=404, detail="Lead event not found")
+    
+    if not lead_event.lead_email:
+        raise HTTPException(status_code=400, detail="Lead has no email address")
+    
+    from agents import generate_miami_contextual_email
+    
+    contact_name = lead_event.lead_name or "there"
+    company_name = lead_event.lead_company or "your company"
+    niche = "local service"
+    
+    subject, body = generate_miami_contextual_email(
+        contact_name=contact_name,
+        company_name=company_name,
+        niche=niche,
+        event_summary=lead_event.summary or "",
+        recommended_action=lead_event.recommended_action or "",
+        category=lead_event.category or "",
+        urgency_score=lead_event.urgency_score or 50,
+        outreach_style="transparent_ai",
+        event_id=event_id,
+        signal_id=lead_event.signal_id
+    )
+    
+    return {
+        "event_id": event_id,
+        "to_email": lead_event.lead_email,
+        "to_name": contact_name,
+        "company": company_name,
+        "subject": subject,
+        "body": body,
+        "enrichment_status": lead_event.enrichment_status
+    }
+
+
+@app.post("/api/admin/lead_event/{event_id}/send-outbound")
+async def send_manual_outbound(
+    event_id: int,
+    request: Request,
+    subject: str = Form(...),
+    body: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    """
+    Manually send outbound email for a lead event.
+    Used when autopilot is OFF to send edited/approved emails.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    lead_event = session.exec(
+        select(LeadEvent).where(LeadEvent.id == event_id)
+    ).first()
+    
+    if not lead_event:
+        raise HTTPException(status_code=404, detail="Lead event not found")
+    
+    if not lead_event.lead_email:
+        raise HTTPException(status_code=400, detail="Lead has no email address")
+    
+    to_email = lead_event.lead_email
+    lead_name = lead_event.lead_name or ""
+    company = lead_event.lead_company or ""
+    
+    result = send_email(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        lead_name=lead_name,
+        company=company
+    )
+    
+    if result.actually_sent or (result.success and result.mode == "DRY_RUN"):
+        lead_event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
+        lead_event.status = "CONTACTED"
+        lead_event.outbound_message = body
+        lead_event.outbound_subject = subject
+        lead_event.last_contact_at = datetime.utcnow()
+        session.add(lead_event)
+        session.commit()
+        
+        mode_label = "DRY_RUN" if result.mode == "DRY_RUN" else "SENT"
+        print(f"[MANUAL_OUTBOUND] {mode_label} to {to_email} for lead_event_id={event_id}")
+        
+        return {
+            "success": True,
+            "event_id": event_id,
+            "to_email": to_email,
+            "message": f"Email {mode_label.lower()} successfully",
+            "new_status": ENRICHMENT_STATUS_OUTBOUND_SENT,
+            "mode": result.mode
+        }
+    else:
+        error_msg = result.error or result.result or "Failed to send email"
+        print(f"[MANUAL_OUTBOUND] Failed to send to {to_email}: {error_msg}")
+        return {
+            "success": False,
+            "event_id": event_id,
+            "error": error_msg
+        }
+
+
 @app.get("/api/admin/lead_event/{event_id}/detail")
 def get_lead_event_detail_admin(
     event_id: int,
@@ -5371,9 +5493,13 @@ async def manual_send_email(
         event = session.exec(select(LeadEvent).where(LeadEvent.id == lead_event_id)).first()
         if event:
             event.status = "CONTACTED"
+            event.enrichment_status = ENRICHMENT_STATUS_OUTBOUND_SENT
+            event.outbound_message = body
+            event.outbound_subject = subject
+            event.last_contact_at = datetime.utcnow()
             session.add(event)
             session.commit()
-            print(f"[MANUAL-SEND] Updated LeadEvent {lead_event_id} to CONTACTED")
+            print(f"[MANUAL-SEND] Updated LeadEvent {lead_event_id} to CONTACTED, enrichment_status=OUTBOUND_SENT")
     
     print(f"[MANUAL-SEND] Sent email from customer {customer_id} to {to_email}")
     
@@ -5381,6 +5507,71 @@ async def manual_send_email(
         "success": True,
         "message": "Email sent successfully",
         "outbound_id": outbound.id
+    }
+
+
+@app.get("/api/portal/lead_event/{event_id}/draft")
+async def get_customer_draft(
+    event_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Generate a draft outbound email for a customer's lead event.
+    Returns the generated subject and body for editing before sending.
+    """
+    customer_token = request.cookies.get("customer_id")
+    if not customer_token:
+        raise HTTPException(status_code=403, detail="Authentication required")
+    
+    customer_id = int(customer_token) if customer_token.isdigit() else None
+    if not customer_id:
+        raise HTTPException(status_code=403, detail="Invalid authentication")
+    
+    customer = session.exec(select(Customer).where(Customer.id == customer_id)).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    lead_event = session.exec(
+        select(LeadEvent).where(
+            LeadEvent.id == event_id,
+            LeadEvent.company_id == customer_id
+        )
+    ).first()
+    
+    if not lead_event:
+        raise HTTPException(status_code=404, detail="Lead event not found or not owned by customer")
+    
+    if not lead_event.lead_email:
+        raise HTTPException(status_code=400, detail="Lead has no email address")
+    
+    from agents import generate_miami_contextual_email
+    
+    contact_name = lead_event.lead_name or "there"
+    company_name = lead_event.lead_company or "your company"
+    niche = customer.niche or "local service"
+    
+    subject, body = generate_miami_contextual_email(
+        contact_name=contact_name,
+        company_name=company_name,
+        niche=niche,
+        event_summary=lead_event.summary or "",
+        recommended_action=lead_event.recommended_action or "",
+        category=lead_event.category or "",
+        urgency_score=lead_event.urgency_score or 50,
+        outreach_style="transparent_ai",
+        event_id=event_id,
+        signal_id=lead_event.signal_id
+    )
+    
+    return {
+        "event_id": event_id,
+        "to_email": lead_event.lead_email,
+        "to_name": contact_name,
+        "company": company_name,
+        "subject": subject,
+        "body": body,
+        "enrichment_status": lead_event.enrichment_status
     }
 
 

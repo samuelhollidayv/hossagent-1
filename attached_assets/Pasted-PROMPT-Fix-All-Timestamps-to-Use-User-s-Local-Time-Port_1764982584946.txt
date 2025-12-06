@@ -1,0 +1,41 @@
+PROMPT — Fix All Timestamps to Use User’s Local Time (Portal + Admin)
+
+Melissa — normalize timestamps to user local time in both Portal and Admin Console.
+
+Context:
+	•	Right now, timestamps in the Customer Portal and Admin Console are confusing / inconsistent.
+	•	Some are showing server time / UTC, not the end-user’s local time.
+	•	We already store canonical times in UTC in the database.
+
+Goal:
+	•	All times displayed in the UI (lead created, last updated, outbound sent, etc.) should be shown in the user’s local time zone, with an explicit label.
+	•	Behavior should be consistent across:
+	•	Customer Portal
+	•	Admin Console
+	•	Any drill-down / detail views
+
+Requirements:
+	1.	Back-end / data model
+	•	Keep storing timestamps in UTC as the source of truth.
+	•	Do NOT change how times are stored in the DB.
+	2.	User time zone detection
+	•	For authenticated users, add a time_zone field on the User (string, e.g. "America/New_York").
+	•	On first login, detect time zone in the browser using JS (Intl.DateTimeFormat().resolvedOptions().timeZone) and POST it to a small endpoint to save on the user record.
+	•	On subsequent requests, server templates can use current_user.time_zone to render localized times.
+	3.	Rendering logic
+	•	Create a single helper function, e.g. format_local_time(utc_dt, user_time_zone) that:
+	•	Converts UTC to user’s tz (using pytz or zoneinfo).
+	•	Returns a string like: Dec 5, 2025 · 5:42 PM
+	•	Use this helper everywhere we show times in:
+	•	Admin leads table (created_at, updated_at, outbound_sent_at, etc.)
+	•	Portal opportunities list and detail pages
+	•	If for any reason user_time_zone is missing, default to "America/New_York" for now and append " (ET default)" to the timestamp so it’s obvious.
+	4.	UI text / clarity
+	•	Add a small label at top of Portal and Admin like:
+	•	Times shown in: America/New_York (pull from user_time_zone).
+	•	If defaulting, show: Times shown in: America/New_York (default)
+	5.	Acceptance criteria
+	•	Changing my system time zone and refreshing should result in new users getting timestamps in that local zone.
+	•	Existing user: after the first time zone detection runs once and saves, all timestamps for that user are consistently shown in their timezone across portal and admin.
+	•	No changes to how timestamps are persisted; only display / small user field addition.
+	•	If JS is disabled, we still show timestamps in ET with a (default) label rather than silently being wrong.
