@@ -47,6 +47,7 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 
 **Admin API Endpoints (ARCHANGEL v2):**
 - `GET /api/lead_events`: Includes enrichment_status, enrichment_attempts, unenrichable_reason, confidence scores
+- `GET /api/lead_events_detailed`: Full lead details with signal_source classification (news, sec, job_board, reddit, craigslist, synthetic, unknown)
 - `GET /api/enrichment/metrics`: Source-level enrichment yield, discovery counts, unenrichable breakdown
 - `GET /api/companies`: Canonical company entities with enrichment status
 - `POST /api/admin/lead_event/{id}/force-enrich`: Force immediate enrichment bypass (resets ARCHIVED_UNENRICHABLE leads)
