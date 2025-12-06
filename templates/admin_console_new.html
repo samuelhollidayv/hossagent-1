@@ -67,15 +67,22 @@
         .filter-tab.active { background: var(--accent-green); color: var(--bg-primary); border-color: var(--accent-green); }
         .filter-tab .count { background: rgba(0,0,0,0.2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
         .filter-tab.active .count { background: rgba(0,0,0,0.3); }
-        .enrichment-pill { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.02em; }
+        .enrichment-pill { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 0.3rem; }
         .enrichment-unenriched { color: var(--accent-orange); background: rgba(249, 115, 22, 0.15); }
-        .enrichment-with-domain { color: var(--accent-blue); background: rgba(59, 130, 246, 0.15); }
+        .enrichment-with-domain { color: #eab308; background: rgba(234, 179, 8, 0.15); }
         .enrichment-with-phone { color: #a855f7; background: rgba(168, 85, 247, 0.15); }
-        .enrichment-ready { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
-        .enrichment-sent { color: var(--text-primary); background: rgba(255, 255, 255, 0.15); }
+        .enrichment-ready { color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
+        .enrichment-sent { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
+        .enrichment-archived { color: #6b7280; background: rgba(107, 114, 128, 0.15); }
+        .enrichment-error { color: var(--accent-red); background: rgba(239, 68, 68, 0.15); }
         .link-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.5rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: var(--accent-blue); text-decoration: none; font-size: 0.75rem; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.15s; }
         .link-chip:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--accent-blue); }
         .link-chip-icon { flex-shrink: 0; font-size: 0.7rem; }
+        .sortable { cursor: pointer; user-select: none; transition: color 0.15s; }
+        .sortable:hover { color: var(--text-primary); }
+        .sortable::after { content: '⇅'; margin-left: 0.3rem; opacity: 0.4; font-size: 0.7rem; }
+        .sortable.asc::after { content: '↑'; opacity: 1; }
+        .sortable.desc::after { content: '↓'; opacity: 1; }
         @media (max-width: 768px) {
             .stats-bar { flex-wrap: wrap; gap: 1rem; }
             .tabs { overflow-x: auto; }
@@ -236,14 +243,14 @@
                     <thead>
                         <tr>
                             <th>Time</th>
-                            <th>Source</th>
+                            <th class="sortable" data-sort="signal_source" onclick="sortLeadEvents('signal_source')">Source</th>
                             <th>Lead Company</th>
                             <th>Domain</th>
                             <th>Email</th>
                             <th>Phone</th>
-                            <th>Score</th>
-                            <th>Enrichment</th>
-                            <th>Attempts</th>
+                            <th class="sortable" data-sort="urgency_score" onclick="sortLeadEvents('urgency_score')">Score</th>
+                            <th class="sortable" data-sort="enrichment_status" onclick="sortLeadEvents('enrichment_status')">Status</th>
+                            <th class="sortable" data-sort="enrichment_attempts" onclick="sortLeadEvents('enrichment_attempts')">Attempts</th>
                             <th>Mission Log</th>
                             <th>Actions</th>
                         </tr>
@@ -471,6 +478,8 @@
         let currentEnrichmentFilter = '';
         let currentSignalSourceFilter = 'all';
         let cachedLeadEventsData = [];
+        let leadEventsData = [];
+        let currentSort = { field: null, dir: 'desc' };
 
         function filterBySignalSource(btn, source) {
             const tabColors = {
@@ -503,13 +512,17 @@
         }
 
         function renderFilteredLeadEvents() {
-            const filteredData = cachedLeadEventsData.filter(e => 
+            leadEventsData = cachedLeadEventsData.filter(e => 
                 matchesSignalSourceFilter(e.signal_source || 'unknown', currentSignalSourceFilter)
             );
-            renderLeadEventsRows(filteredData);
+            if (currentSort.field) {
+                sortLeadEvents(currentSort.field);
+            } else {
+                renderLeadEventsTable(leadEventsData);
+            }
         }
 
-        function renderLeadEventsRows(data) {
+        function renderLeadEventsTable(data) {
             const rows = data.map(e => {
                 const missionTooltip = buildMissionTooltip(e.enrichment_mission_log);
                 const attemptsDisplay = `${e.enrichment_attempts || 0}/${e.max_enrichment_attempts || 3}`;
@@ -574,19 +587,73 @@
                 case 'WITH_PHONE_ONLY': return 'enrichment-with-phone';
                 case 'ENRICHED_NO_OUTBOUND': return 'enrichment-ready';
                 case 'OUTBOUND_SENT': return 'enrichment-sent';
+                case 'ARCHIVED_UNENRICHABLE': return 'enrichment-archived';
+                case 'ERROR': case 'FAILED': return 'enrichment-error';
                 default: return 'enrichment-unenriched';
             }
         }
 
         function getEnrichmentLabel(status) {
             switch(status) {
-                case 'UNENRICHED': return 'Unenriched';
-                case 'WITH_DOMAIN_NO_EMAIL': return 'With Domain';
-                case 'WITH_PHONE_ONLY': return 'With Phone';
-                case 'ENRICHED_NO_OUTBOUND': return 'Ready';
-                case 'OUTBOUND_SENT': return 'Sent';
-                default: return status || 'Unenriched';
+                case 'UNENRICHED': return '<span class="status-icon">⚪</span>Unenriched';
+                case 'WITH_DOMAIN_NO_EMAIL': return '<span class="status-icon">🟡</span>Domain Only';
+                case 'WITH_PHONE_ONLY': return '<span class="status-icon">🟣</span>Phone Only';
+                case 'ENRICHED_NO_OUTBOUND': return '<span class="status-icon">🔵</span>Ready';
+                case 'OUTBOUND_SENT': return '<span class="status-icon">🟢</span>Sent';
+                case 'ARCHIVED_UNENRICHABLE': return '<span class="status-icon">⚫</span>Archived';
+                case 'ERROR': case 'FAILED': return '<span class="status-icon">🔴</span>Error';
+                default: return '<span class="status-icon">⚪</span>' + (status || 'Unknown');
             }
+        }
+        
+        function sortLeadEvents(field) {
+            if (currentSort.field === field) {
+                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.dir = 'desc';
+            }
+            
+            document.querySelectorAll('#leadevents-table .sortable').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if (th.dataset.sort === field) {
+                    th.classList.add(currentSort.dir);
+                }
+            });
+            
+            const statusOrder = {
+                'ENRICHED_NO_OUTBOUND': 1,
+                'OUTBOUND_SENT': 2,
+                'WITH_DOMAIN_NO_EMAIL': 3,
+                'WITH_PHONE_ONLY': 4,
+                'UNENRICHED': 5,
+                'ARCHIVED_UNENRICHABLE': 6,
+                'ERROR': 7,
+                'FAILED': 8
+            };
+            
+            leadEventsData.sort((a, b) => {
+                let valA, valB;
+                if (field === 'enrichment_status') {
+                    valA = statusOrder[a[field]] || 99;
+                    valB = statusOrder[b[field]] || 99;
+                } else {
+                    valA = a[field] ?? '';
+                    valB = b[field] ?? '';
+                }
+                
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return currentSort.dir === 'asc' ? valA - valB : valB - valA;
+                }
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+                if (currentSort.dir === 'asc') {
+                    return valA.localeCompare(valB);
+                }
+                return valB.localeCompare(valA);
+            });
+            
+            renderLeadEventsTable(leadEventsData);
         }
         
         function getPhoneTypeLabel(phoneType) {
