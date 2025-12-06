@@ -1834,6 +1834,22 @@ async def toggle_autopilot(enabled: bool, session: Session = Depends(get_session
     return {"error": "SystemSettings not found"}
 
 
+@app.post("/admin/outbound-autopilot")
+async def toggle_outbound_autopilot(enabled: bool, session: Session = Depends(get_session)):
+    """Toggle outbound autopilot mode on/off. When OFF, BizDev stops auto-sending and leads wait for manual approval."""
+    settings = session.exec(
+        select(SystemSettings).where(SystemSettings.id == 1)
+    ).first()
+    if settings:
+        settings.outbound_autopilot_enabled = enabled
+        session.add(settings)
+        session.commit()
+        status = "enabled" if enabled else "disabled"
+        print(f"[ADMIN] Outbound Autopilot {status}")
+        return {"status": f"Outbound Autopilot {status}", "outbound_autopilot_enabled": enabled}
+    return {"error": "SystemSettings not found"}
+
+
 @app.get("/api/settings")
 def get_settings(session: Session = Depends(get_session)):
     """Get current system settings including email and release mode configuration."""
@@ -1846,10 +1862,11 @@ def get_settings(session: Session = Depends(get_session)):
     if settings:
         return {
             "autopilot_enabled": settings.autopilot_enabled,
+            "outbound_autopilot_enabled": getattr(settings, 'outbound_autopilot_enabled', True),
             "email": email_status,
             "release_mode": release_status
         }
-    return {"error": "Settings not found", "email": email_status, "release_mode": release_status}
+    return {"error": "Settings not found", "email": email_status, "release_mode": release_status, "outbound_autopilot_enabled": True}
 
 
 @app.get("/api/email-log")

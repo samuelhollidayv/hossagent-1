@@ -7,6 +7,7 @@ class SystemSettings(SQLModel, table=True):
     """Global system configuration flags."""
     id: Optional[int] = Field(default=None, primary_key=True)
     autopilot_enabled: bool = Field(default=True)
+    outbound_autopilot_enabled: bool = Field(default=True)
 
 
 LEAD_STATUS_NEW = "NEW"
