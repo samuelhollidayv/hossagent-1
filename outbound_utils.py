@@ -387,18 +387,19 @@ def send_lead_event_immediate(session: Session, lead_event, commit: bool = True)
         lead_event.last_subject_hash = hashlib.md5(subject.encode()).hexdigest()[:16]
         session.add(lead_event)
         
-        create_pending_outbound(
-            session=session,
-            customer_id=customer.id if customer else None,
-            lead_id=lead_event.lead_id,
-            to_email=contact_email,
-            to_name=contact_name,
-            subject=subject,
-            body=body,
-            context_summary=f"Signal-triggered: {lead_event.category} - {lead_event.summary[:100] if lead_event.summary else ''}",
-            lead_event_id=lead_event.id,
-            status="SENT"
-        )
+        if customer:
+            create_pending_outbound(
+                session=session,
+                customer_id=customer.id,
+                lead_id=lead_event.lead_id,
+                to_email=contact_email,
+                to_name=contact_name,
+                subject=subject,
+                body=body,
+                context_summary=f"Signal-triggered: {lead_event.category} - {lead_event.summary[:100] if lead_event.summary else ''}",
+                lead_event_id=lead_event.id,
+                status="SENT"
+            )
         
         if commit:
             session.commit()

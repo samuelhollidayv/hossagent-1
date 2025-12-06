@@ -557,8 +557,17 @@
       "candidates_fetched": 0,
       "leads_created": 0,
       "leads_skipped": 0
+    },
+    {
+      "timestamp": "2025-12-06T01:03:38.869102",
+      "provider": "HossNative",
+      "niche": "med spa, HVAC, realtor, roofing, immigration attorney, marketing agency",
+      "geography": "Miami, Broward, South Florida",
+      "candidates_fetched": 0,
+      "leads_created": 0,
+      "leads_skipped": 0
     }
   ],
-  "last_run": "2025-12-06T00:56:50.381145",
+  "last_run": "2025-12-06T01:03:38.869102",
   "last_created_count": 0
 }
