@@ -4602,6 +4602,85 @@ def get_diagnostics(request: Request, session: Session = Depends(get_session)):
     }
 
 
+@app.post("/api/admin/lead_event/{event_id}/force-enrich")
+async def force_enrich_lead_event(
+    event_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Force immediate enrichment of a lead event, bypassing throttles and batch limits.
+    
+    Admin-only endpoint for manually pushing UNENRICHED leads into enrichment.
+    Resets enrichment attempts to allow retry even if budget exhausted.
+    """
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    lead_event = session.exec(
+        select(LeadEvent).where(LeadEvent.id == event_id)
+    ).first()
+    
+    if not lead_event:
+        raise HTTPException(status_code=404, detail="Lead event not found")
+    
+    from lead_enrichment import (
+        enrich_lead_event, 
+        _apply_enrichment_to_lead_event,
+        ENRICHMENT_STATUS_UNENRICHED,
+        ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL,
+        ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND
+    )
+    from domain_discovery import discover_domain_for_lead_event
+    
+    old_status = lead_event.enrichment_status
+    old_attempts = lead_event.enrichment_attempts or 0
+    
+    print(f"[FORCE_ENRICH] Starting force enrichment for lead_event_id={event_id}")
+    print(f"[FORCE_ENRICH] Current status: {old_status}, attempts: {old_attempts}")
+    
+    if old_status == "ARCHIVED_UNENRICHABLE":
+        print(f"[FORCE_ENRICH] Resetting archived lead for retry")
+        lead_event.enrichment_attempts = 0
+        lead_event.unenrichable_reason = None
+        lead_event.enrichment_status = ENRICHMENT_STATUS_UNENRICHED
+    
+    if not lead_event.lead_domain:
+        print(f"[FORCE_ENRICH] No domain - running domain discovery first")
+        domain_result = discover_domain_for_lead_event(lead_event, session)
+        if domain_result and domain_result.domain:
+            lead_event.lead_domain = domain_result.domain
+            lead_event.enrichment_status = ENRICHMENT_STATUS_WITH_DOMAIN_NO_EMAIL
+            session.add(lead_event)
+            session.commit()
+            print(f"[FORCE_ENRICH] Domain discovered: {domain_result.domain}")
+    
+    result = await enrich_lead_event(lead_event, session)
+    
+    lead_event.enrichment_attempts = (lead_event.enrichment_attempts or 0) + 1
+    lead_event.last_enrichment_at = datetime.utcnow()
+    
+    new_status = _apply_enrichment_to_lead_event(lead_event, result, session, domain_discovered=bool(lead_event.lead_domain))
+    
+    session.add(lead_event)
+    session.commit()
+    
+    print(f"[FORCE_ENRICH] Completed: {old_status} -> {new_status}, email={result.email}, phone={result.phone}")
+    
+    return {
+        "success": result.success,
+        "event_id": event_id,
+        "old_status": old_status,
+        "new_status": new_status,
+        "email_found": result.email,
+        "phone_found": result.phone,
+        "source": result.source,
+        "attempts": lead_event.enrichment_attempts,
+        "message": f"Force enrichment complete. Status: {old_status} -> {new_status}"
+    }
+
+
 @app.get("/api/admin/lead_event/{event_id}/detail")
 def get_lead_event_detail_admin(
     event_id: int,
