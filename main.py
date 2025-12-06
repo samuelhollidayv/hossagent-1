@@ -3997,7 +3997,8 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
         conversations_count=total_threads,
         conversations_content=conversations_content,
         reports_count=len(reports),
-        reports_content=reports_content
+        reports_content=reports_content,
+        leadEventId=""
     )
     
     return HTMLResponse(content=html)

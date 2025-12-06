@@ -97,5 +97,159 @@
     "customer_id": null,
     "session_id": null,
     "metadata": null
+  },
+  {
+    "event_type": "login",
+    "timestamp": "2025-12-06T06:06:41.508757",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "portal_view",
+    "timestamp": "2025-12-06T06:06:41.809978",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "portal_view",
+    "timestamp": "2025-12-06T06:06:50.602595",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T06:07:07.261557",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/admin",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "d0019a392c01d1eb",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T06:07:07.268468",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "d0019a392c01d1eb",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "login",
+    "timestamp": "2025-12-06T06:07:24.746916",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "portal_view",
+    "timestamp": "2025-12-06T06:07:25.055056",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "login",
+    "timestamp": "2025-12-06T06:07:28.896335",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "portal_view",
+    "timestamp": "2025-12-06T06:07:29.183186",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "login",
+    "timestamp": "2025-12-06T06:07:30.620582",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "portal_view",
+    "timestamp": "2025-12-06T06:07:30.982246",
+    "path": null,
+    "referrer": null,
+    "user_agent": null,
+    "ip_hash": null,
+    "customer_id": 1,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T06:10:01.244774",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/portal",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "d0019a392c01d1eb",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T06:10:01.267303",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "d0019a392c01d1eb",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T06:12:21.992436",
+    "path": "/",
+    "referrer": null,
+    "user_agent": "curl/8.14.1",
+    "ip_hash": "12ca17b49af22894",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
   }
 ]
