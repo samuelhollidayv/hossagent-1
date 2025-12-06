@@ -149,6 +149,14 @@
                 <h2>Converted Opportunities</h2>
                 <button class="refresh-btn" onclick="loadLeadEvents()">Refresh</button>
             </div>
+            <div class="signal-source-filter-bar" id="source-filters" style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+                <button class="filter-tab active" data-source="all" onclick="filterBySignalSource(this, 'all')" style="background:var(--bg-elevated);border:1px solid var(--border-subtle);color:var(--text-primary);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">All Sources</button>
+                <button class="filter-tab" data-source="real" onclick="filterBySignalSource(this, 'real')" style="background:var(--bg-elevated);border:1px solid var(--border-subtle);color:var(--text-primary);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">Real Leads</button>
+                <button class="filter-tab" data-source="synthetic" onclick="filterBySignalSource(this, 'synthetic')" style="background:var(--bg-elevated);border:1px solid #6b7280;color:#6b7280;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">Synthetic</button>
+                <button class="filter-tab" data-source="sec" onclick="filterBySignalSource(this, 'sec')" style="background:var(--bg-elevated);border:1px solid #8b5cf6;color:#8b5cf6;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">SEC</button>
+                <button class="filter-tab" data-source="job_board" onclick="filterBySignalSource(this, 'job_board')" style="background:var(--bg-elevated);border:1px solid #f59e0b;color:#f59e0b;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">Jobs</button>
+                <button class="filter-tab" data-source="news" onclick="filterBySignalSource(this, 'news')" style="background:var(--bg-elevated);border:1px solid #3b82f6;color:#3b82f6;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">News</button>
+            </div>
             <div class="enrichment-filter-bar" id="enrichment-filters">
                 <button class="filter-tab active" data-status="" onclick="filterByEnrichmentStatus(this, '')">All <span class="count" id="count-all">-</span></button>
                 <button class="filter-tab" data-status="UNENRICHED" onclick="filterByEnrichmentStatus(this, 'UNENRICHED')">Unenriched <span class="count" id="count-unenriched">-</span></button>
@@ -357,6 +365,87 @@
         }
 
         let currentEnrichmentFilter = '';
+        let currentSignalSourceFilter = 'all';
+        let cachedLeadEventsData = [];
+
+        function filterBySignalSource(btn, source) {
+            const tabColors = {
+                'all': 'var(--text-primary)',
+                'real': 'var(--text-primary)',
+                'synthetic': '#6b7280',
+                'sec': '#8b5cf6',
+                'job_board': '#f59e0b',
+                'news': '#3b82f6'
+            };
+            document.querySelectorAll('#source-filters .filter-tab').forEach(t => {
+                t.classList.remove('active');
+                t.style.background = 'var(--bg-elevated)';
+                const tabSource = t.getAttribute('data-source');
+                t.style.color = tabColors[tabSource] || 'var(--text-primary)';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'var(--accent-green)';
+            btn.style.color = 'var(--bg-primary)';
+            currentSignalSourceFilter = source;
+            renderFilteredLeadEvents();
+        }
+
+        function matchesSignalSourceFilter(signalSource, filter) {
+            if (filter === 'all') return true;
+            if (filter === 'real') {
+                return ['news', 'job_board', 'reddit', 'craigslist'].includes(signalSource);
+            }
+            return signalSource === filter;
+        }
+
+        function renderFilteredLeadEvents() {
+            const filteredData = cachedLeadEventsData.filter(e => 
+                matchesSignalSourceFilter(e.signal_source || 'unknown', currentSignalSourceFilter)
+            );
+            renderLeadEventsRows(filteredData);
+        }
+
+        function renderLeadEventsRows(data) {
+            const rows = data.map(e => {
+                const missionLog = parseMissionLog(e.enrichment_mission_log);
+                const attemptsDisplay = `${e.enrichment_attempts || 0}/${e.max_enrichment_attempts || 3}`;
+                const unenrichableReason = e.unenrichable_reason ? `<span style="color:var(--accent-red);font-size:0.7rem;display:block;">${e.unenrichable_reason}</span>` : '';
+                
+                const canForceEnrich = ['UNENRICHED', 'WITH_DOMAIN_NO_EMAIL', 'ARCHIVED_UNENRICHABLE'].includes(e.enrichment_status);
+                const actionBtn = canForceEnrich 
+                    ? `<button onclick="forceEnrichLead(${e.id}, this)" style="background:var(--accent-green);color:var(--bg-primary);border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Force Process</button>`
+                    : '<span style="color:var(--text-tertiary)">-</span>';
+                
+                const sourceColors = {
+                    news: '#3b82f6',
+                    sec: '#8b5cf6',
+                    job_board: '#f59e0b',
+                    reddit: '#ef4444',
+                    craigslist: '#22c55e',
+                    synthetic: '#6b7280',
+                    unknown: '#4b5563'
+                };
+                const sourceColor = sourceColors[e.signal_source] || sourceColors.unknown;
+                const sourcePill = `<span style="background:${sourceColor};color:#fff;padding:0.15rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;text-transform:lowercase;">${e.signal_source || 'unknown'}</span>`;
+                
+                return `
+                <tr>
+                    <td style="font-size:0.75rem;">${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
+                    <td>${sourcePill}</td>
+                    <td title="${e.summary || ''}">${e.lead_company || (e.summary ? e.summary.substring(0, 30) + '...' : '-')}</td>
+                    <td>${e.lead_domain ? '<a href="https://' + e.lead_domain + '" target="_blank" style="color:var(--accent-blue)">' + e.lead_domain + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
+                    <td>${e.lead_email || '<span style="color:var(--text-tertiary)">-</span>'}</td>
+                    <td>${e.lead_phone_e164 ? '<a href="tel:' + e.lead_phone_e164 + '" style="color:var(--accent-blue)">' + e.lead_phone_e164 + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
+                    <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
+                    <td><span class="enrichment-pill ${getEnrichmentPillClass(e.enrichment_status)}">${getEnrichmentLabel(e.enrichment_status)}</span>${unenrichableReason}</td>
+                    <td style="text-align:center;">${attemptsDisplay}</td>
+                    <td style="font-size:0.7rem;max-width:200px;overflow:hidden;">${missionLog}</td>
+                    <td>${actionBtn}</td>
+                </tr>
+            `}).join('');
+            
+            document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="11" class="empty">No lead events match filters</td></tr>';
+        }
 
         function getEnrichmentPillClass(status) {
             switch(status) {
@@ -483,45 +572,9 @@
                     throw new Error(data.detail || data.error || 'Invalid response');
                 }
                 
-                const rows = data.map(e => {
-                    const missionLog = parseMissionLog(e.enrichment_mission_log);
-                    const attemptsDisplay = `${e.enrichment_attempts || 0}/${e.max_enrichment_attempts || 3}`;
-                    const unenrichableReason = e.unenrichable_reason ? `<span style="color:var(--accent-red);font-size:0.7rem;display:block;">${e.unenrichable_reason}</span>` : '';
-                    
-                    const canForceEnrich = ['UNENRICHED', 'WITH_DOMAIN_NO_EMAIL', 'ARCHIVED_UNENRICHABLE'].includes(e.enrichment_status);
-                    const actionBtn = canForceEnrich 
-                        ? `<button onclick="forceEnrichLead(${e.id}, this)" style="background:var(--accent-green);color:var(--bg-primary);border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Force Process</button>`
-                        : '<span style="color:var(--text-tertiary)">-</span>';
-                    
-                    const sourceColors = {
-                        news: '#3b82f6',
-                        sec: '#8b5cf6',
-                        job_board: '#f59e0b',
-                        reddit: '#ef4444',
-                        craigslist: '#22c55e',
-                        synthetic: '#6b7280',
-                        unknown: '#4b5563'
-                    };
-                    const sourceColor = sourceColors[e.signal_source] || sourceColors.unknown;
-                    const sourcePill = `<span style="background:${sourceColor};color:#fff;padding:0.15rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;text-transform:lowercase;">${e.signal_source || 'unknown'}</span>`;
-                    
-                    return `
-                    <tr>
-                        <td style="font-size:0.75rem;">${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
-                        <td>${sourcePill}</td>
-                        <td title="${e.summary || ''}">${e.lead_company || (e.summary ? e.summary.substring(0, 30) + '...' : '-')}</td>
-                        <td>${e.lead_domain ? '<a href="https://' + e.lead_domain + '" target="_blank" style="color:var(--accent-blue)">' + e.lead_domain + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
-                        <td>${e.lead_email || '<span style="color:var(--text-tertiary)">-</span>'}</td>
-                        <td>${e.lead_phone_e164 ? '<a href="tel:' + e.lead_phone_e164 + '" style="color:var(--accent-blue)">' + e.lead_phone_e164 + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
-                        <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
-                        <td><span class="enrichment-pill ${getEnrichmentPillClass(e.enrichment_status)}">${getEnrichmentLabel(e.enrichment_status)}</span>${unenrichableReason}</td>
-                        <td style="text-align:center;">${attemptsDisplay}</td>
-                        <td style="font-size:0.7rem;max-width:200px;overflow:hidden;">${missionLog}</td>
-                        <td>${actionBtn}</td>
-                    </tr>
-                `}).join('');
+                cachedLeadEventsData = data;
+                renderFilteredLeadEvents();
                 
-                document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="11" class="empty">No lead events yet</td></tr>';
                 document.getElementById('leadevents-loading').style.display = 'none';
                 document.getElementById('leadevents-table').style.display = 'block';
             } catch (e) {
