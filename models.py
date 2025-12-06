@@ -106,6 +106,21 @@ class Customer(SQLModel, table=True):
     public_token: Optional[str] = None  # For customer portal access
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_login_at: Optional[datetime] = None
+
+
+class SupportTicket(SQLModel, table=True):
+    """
+    Support tickets submitted by customers for admin review.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    customer_id: int = Field(foreign_key="customer.id")
+    subject: str
+    body: str
+    status: str = "open"  # open, in_progress, closed
+    internal_notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class TrialIdentity(SQLModel, table=True):

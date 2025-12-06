@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-primary: #0a0a0a;
@@ -28,13 +29,12 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); padding-bottom: 1.5rem; }
         h1 { font-size: 1.75rem; font-weight: 600; }
         .header-actions { display: flex; gap: 1rem; align-items: center; }
-        .logout-btn { background: var(--accent-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; text-decoration: none; font-family: inherit; }
-        .stats-bar { display: flex; gap: 2rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-subtle); }
-        .stat { display: flex; flex-direction: column; }
-        .stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-green); }
-        .stat-label { font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; }
+        .header-btn { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; text-decoration: none; font-family: inherit; transition: all 0.2s; }
+        .header-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .header-btn.portal { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+        .header-btn.logout { background: var(--accent-red); color: white; border-color: var(--accent-red); }
         .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-medium); }
-        .tab { padding: 1rem; cursor: pointer; border: none; background: transparent; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab { padding: 1rem 1.5rem; cursor: pointer; border: none; background: transparent; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 0.9rem; }
         .tab:hover { color: var(--text-primary); }
         .tab.active { color: var(--accent-green); border-bottom-color: var(--accent-green); }
         .tab-content { display: none; }
@@ -44,107 +44,61 @@
         th { font-weight: 600; background: var(--bg-secondary); color: var(--accent-green); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
         tr:hover { background: var(--bg-secondary); }
         .status { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
-        .sent, .active { color: var(--accent-green); background: rgba(34, 197, 94, 0.1); }
-        .pending, .trial { color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
-        .error, .failed { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
-        .new { color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); }
-        .draft { color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
+        .status-active { color: var(--accent-green); background: rgba(34, 197, 94, 0.1); }
+        .status-trial { color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
+        .status-cancelled { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
+        .status-open { color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); }
+        .status-in_progress { color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
+        .status-closed { color: var(--text-tertiary); background: rgba(102, 102, 102, 0.1); }
         .empty { text-align: center; padding: 2rem; color: var(--text-tertiary); }
-        .loading { text-align: center; padding: 2rem; }
-        .score { display: inline-block; min-width: 40px; text-align: center; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; }
-        .score-high { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
-        .score-medium { background: rgba(249, 115, 22, 0.2); color: var(--accent-orange); }
-        .score-low { background: rgba(102, 102, 102, 0.2); color: var(--text-tertiary); }
-        .truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .loading { text-align: center; padding: 2rem; color: var(--text-tertiary); }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         .section-header h2 { font-size: 1.1rem; font-weight: 500; }
-        .filter-input { padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; width: 250px; font-family: inherit; }
-        .refresh-btn { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
-        .refresh-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
-        .enrichment-filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-subtle); flex-wrap: wrap; }
-        .filter-tab { padding: 0.5rem 1rem; cursor: pointer; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; border-radius: 6px; transition: all 0.2s; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
-        .filter-tab:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-medium); }
-        .filter-tab.active { background: var(--accent-green); color: var(--bg-primary); border-color: var(--accent-green); }
-        .filter-tab .count { background: rgba(0,0,0,0.2); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
-        .filter-tab.active .count { background: rgba(0,0,0,0.3); }
-        .enrichment-pill { font-weight: 500; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 0.3rem; }
-        .enrichment-unenriched { color: var(--accent-orange); background: rgba(249, 115, 22, 0.15); }
-        .enrichment-with-domain { color: #eab308; background: rgba(234, 179, 8, 0.15); }
-        .enrichment-with-phone { color: #a855f7; background: rgba(168, 85, 247, 0.15); }
-        .enrichment-ready { color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
-        .enrichment-sent { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
-        .enrichment-archived { color: #6b7280; background: rgba(107, 114, 128, 0.15); }
-        .enrichment-error { color: var(--accent-red); background: rgba(239, 68, 68, 0.15); }
-        .link-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.5rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: var(--accent-blue); text-decoration: none; font-size: 0.75rem; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.15s; }
-        .link-chip:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--accent-blue); }
-        .link-chip-icon { flex-shrink: 0; font-size: 0.7rem; }
-        .sortable { cursor: pointer; user-select: none; transition: color 0.15s; }
-        .sortable:hover { color: var(--text-primary); }
-        .sortable::after { content: '⇅'; margin-left: 0.3rem; opacity: 0.4; font-size: 0.7rem; }
-        .sortable.asc::after { content: '↑'; opacity: 1; }
-        .sortable.desc::after { content: '↓'; opacity: 1; }
-        @media (max-width: 768px) {
-            .stats-bar { flex-wrap: wrap; gap: 1rem; }
-            .tabs { overflow-x: auto; }
-            table { font-size: 0.85rem; }
-            th, td { padding: 0.5rem; }
-            .truncate { max-width: 150px; }
-        }
-        .mission-tooltip-wrapper { position: relative; display: inline-block; cursor: help; }
-        .mission-tooltip-icon { font-size: 0.9rem; opacity: 0.7; transition: opacity 0.2s; }
-        .mission-tooltip-wrapper:hover .mission-tooltip-icon { opacity: 1; }
-        .mission-tooltip { 
-            visibility: hidden; opacity: 0;
-            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-            background: var(--bg-tertiary); border: 1px solid var(--border-medium);
-            padding: 0.75rem; border-radius: 6px; font-size: 0.7rem;
-            white-space: nowrap; z-index: 1000; min-width: 200px; max-width: 320px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: opacity 0.15s, visibility 0.15s;
-            margin-bottom: 6px;
-        }
-        .mission-tooltip::after {
-            content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-            border: 6px solid transparent; border-top-color: var(--border-medium);
-        }
-        .mission-tooltip-wrapper:hover .mission-tooltip { visibility: visible; opacity: 1; }
-        .mission-entry { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid var(--border-subtle); }
-        .mission-entry:last-child { border-bottom: none; }
-        .mission-attempt { color: var(--text-tertiary); min-width: 60px; }
-        .mission-phase { color: var(--accent-blue); }
-        .mission-result { color: var(--text-secondary); }
-        .mission-success { color: var(--accent-green); }
-        .mission-fail { color: var(--accent-red); }
+        .btn { padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.8rem; border: none; transition: all 0.2s; }
+        .btn-primary { background: var(--accent-green); color: var(--bg-primary); }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+        .btn-secondary:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .btn-small { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .kpi-card { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.25rem; }
+        .kpi-value { font-size: 2rem; font-weight: 600; color: var(--accent-green); margin-bottom: 0.25rem; }
+        .kpi-label { font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-change { font-size: 0.75rem; margin-top: 0.5rem; }
+        .kpi-change.positive { color: var(--accent-green); }
+        .kpi-change.negative { color: var(--accent-red); }
+        .chart-container { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .chart-title { font-size: 0.9rem; font-weight: 500; margin-bottom: 1rem; color: var(--text-secondary); }
+        .chart-wrapper { height: 300px; position: relative; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
-        .modal { background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: 12px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal { background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: 12px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border-subtle); }
         .modal-header h3 { font-size: 1.1rem; font-weight: 600; color: var(--accent-green); }
-        .modal-close { background: transparent; border: none; color: var(--text-tertiary); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; }
+        .modal-close { background: transparent; border: none; color: var(--text-tertiary); font-size: 1.5rem; cursor: pointer; }
         .modal-close:hover { color: var(--text-primary); }
         .modal-body { padding: 1.25rem; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.25rem; border-top: 1px solid var(--border-subtle); }
         .form-group { margin-bottom: 1rem; }
-        .form-label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em; }
-        .form-input { width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; font-family: inherit; font-size: 0.9rem; }
-        .form-input:focus { outline: none; border-color: var(--accent-green); }
-        .form-textarea { min-height: 300px; resize: vertical; line-height: 1.6; }
-        .btn-primary { background: var(--accent-green); color: var(--bg-primary); border: none; padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.85rem; }
-        .btn-primary:hover { opacity: 0.9; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-subtle); padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
-        .btn-secondary:hover { background: var(--bg-secondary); color: var(--text-primary); }
-        .to-info { background: var(--bg-tertiary); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
-        .to-info strong { color: var(--accent-green); }
-        .autopilot-badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
-        .autopilot-on { background: var(--accent-green); color: var(--bg-primary); }
-        .autopilot-off { background: var(--accent-orange); color: var(--bg-primary); }
+        .form-label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem; text-transform: uppercase; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; font-family: inherit; font-size: 0.9rem; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent-green); }
+        .form-textarea { min-height: 150px; resize: vertical; }
+        .detail-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-subtle); }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: var(--text-tertiary); font-size: 0.85rem; }
+        .detail-value { color: var(--text-primary); font-size: 0.85rem; }
         .toggle-switch { position: relative; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
         .toggle-switch input { display: none; }
         .toggle-slider { width: 36px; height: 20px; background: var(--bg-tertiary); border: 1px solid var(--border-medium); border-radius: 20px; position: relative; transition: all 0.2s; }
         .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; background: var(--text-tertiary); border-radius: 50%; top: 2px; left: 2px; transition: all 0.2s; }
         .toggle-switch input:checked + .toggle-slider { background: var(--accent-green); border-color: var(--accent-green); }
         .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); background: var(--bg-primary); }
-        .toggle-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; }
+        @media (max-width: 768px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .tabs { overflow-x: auto; }
+            table { font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
@@ -152,1161 +106,541 @@
         <div class="header">
             <h1>HossAgent Admin</h1>
             <div class="header-actions">
-                <span id="timezone-label" style="font-size: 0.7rem; color: var(--text-tertiary); margin-right: 0.5rem;"></span>
-                <span id="autopilot-badge" class="autopilot-badge autopilot-on">AUTO</span>
-                <label class="toggle-switch" title="Toggle outbound email autopilot">
-                    <input type="checkbox" id="outbound-toggle" onchange="toggleOutboundAutopilot(this.checked)" checked>
-                    <span class="toggle-slider"></span>
-                    <span class="toggle-label" id="outbound-toggle-label">Outbound: ON</span>
-                </label>
-                <span id="email-mode" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
-                <a href="/portal" class="logout-btn" style="background: var(--accent-blue);">Portal</a>
-                <a href="/admin/logout" class="logout-btn">Logout</a>
-            </div>
-        </div>
-
-        <div class="stats-bar" id="stats-bar">
-            <div class="stat">
-                <span class="stat-value" id="stat-signals">-</span>
-                <span class="stat-label">Signals Today</span>
-            </div>
-            <div class="stat">
-                <span class="stat-value" id="stat-events">-</span>
-                <span class="stat-label">LeadEvents</span>
-            </div>
-            <div class="stat">
-                <span class="stat-value" id="stat-emails">-</span>
-                <span class="stat-label">Emails Sent</span>
-            </div>
-            <div class="stat">
-                <span class="stat-value" id="stat-customers">-</span>
-                <span class="stat-label">Customers</span>
+                <span id="timezone-label" style="font-size: 0.7rem; color: var(--text-tertiary);"></span>
+                <a href="/portal" class="header-btn portal">Portal</a>
+                <a href="/admin/logout" class="header-btn logout">Logout</a>
             </div>
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('signals')">SIGNALS</button>
-            <button class="tab" onclick="showTab('leadevents')">LEAD EVENTS</button>
-            <button class="tab" onclick="showTab('no-osint')">NO OSINT</button>
-            <button class="tab" onclick="showTab('outbound')">OUTBOUND</button>
-            <button class="tab" onclick="showTab('customers')">CUSTOMERS</button>
+            <button class="tab active" onclick="showTab('customers')">CUSTOMERS</button>
+            <button class="tab" onclick="showTab('support')">SUPPORT INBOX</button>
             <button class="tab" onclick="showTab('analytics')">ANALYTICS</button>
         </div>
 
-        <!-- SIGNALS VIEW -->
-        <div id="signals" class="tab-content active">
-            <div class="section-header">
-                <h2>Raw Signals from SignalNet</h2>
-                <button class="refresh-btn" onclick="loadSignals()">Refresh</button>
-            </div>
-            <div id="signals-loading" class="loading">Loading signals...</div>
-            <div id="signals-table" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Source</th>
-                            <th>Geography</th>
-                            <th>Score</th>
-                            <th>Summary</th>
-                            <th>Event Created</th>
-                        </tr>
-                    </thead>
-                    <tbody id="signals-rows"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- LEAD EVENTS VIEW -->
-        <div id="leadevents" class="tab-content">
-            <div class="section-header">
-                <h2>Converted Opportunities</h2>
-                <button class="refresh-btn" onclick="loadLeadEvents()">Refresh</button>
-            </div>
-            <div class="signal-source-filter-bar" id="source-filters" style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
-                <button class="filter-tab active" data-source="all" onclick="filterBySignalSource(this, 'all')" style="background:var(--bg-elevated);border:1px solid var(--border-subtle);color:var(--text-primary);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">All Sources</button>
-                <button class="filter-tab" data-source="real" onclick="filterBySignalSource(this, 'real')" style="background:var(--bg-elevated);border:1px solid var(--border-subtle);color:var(--text-primary);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">Real Leads</button>
-                <button class="filter-tab" data-source="synthetic" onclick="filterBySignalSource(this, 'synthetic')" style="background:var(--bg-elevated);border:1px solid #6b7280;color:#6b7280;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">Synthetic</button>
-                <button class="filter-tab" data-source="sec" onclick="filterBySignalSource(this, 'sec')" style="background:var(--bg-elevated);border:1px solid #8b5cf6;color:#8b5cf6;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">SEC</button>
-                <button class="filter-tab" data-source="job_board" onclick="filterBySignalSource(this, 'job_board')" style="background:var(--bg-elevated);border:1px solid #f59e0b;color:#f59e0b;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">Jobs</button>
-                <button class="filter-tab" data-source="news" onclick="filterBySignalSource(this, 'news')" style="background:var(--bg-elevated);border:1px solid #3b82f6;color:#3b82f6;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:500;">News</button>
-            </div>
-            <div class="enrichment-filter-bar" id="enrichment-filters">
-                <button class="filter-tab active" data-status="" onclick="filterByEnrichmentStatus(this, '')">All <span class="count" id="count-all">-</span></button>
-                <button class="filter-tab" data-status="UNENRICHED" onclick="filterByEnrichmentStatus(this, 'UNENRICHED')">Unenriched <span class="count" id="count-unenriched">-</span></button>
-                <button class="filter-tab" data-status="WITH_DOMAIN_NO_EMAIL" onclick="filterByEnrichmentStatus(this, 'WITH_DOMAIN_NO_EMAIL')">With Domain <span class="count" id="count-with-domain">-</span></button>
-                <button class="filter-tab" data-status="WITH_PHONE_ONLY" onclick="filterByEnrichmentStatus(this, 'WITH_PHONE_ONLY')">With Phone <span class="count" id="count-with-phone">-</span></button>
-                <button class="filter-tab" data-status="ENRICHED_NO_OUTBOUND" onclick="filterByEnrichmentStatus(this, 'ENRICHED_NO_OUTBOUND')">Ready to Send <span class="count" id="count-ready">-</span></button>
-                <button class="filter-tab" data-status="OUTBOUND_SENT" onclick="filterByEnrichmentStatus(this, 'OUTBOUND_SENT')">Outbound Sent <span class="count" id="count-sent">-</span></button>
-            </div>
-            <div id="leadevents-loading" class="loading">Loading lead events...</div>
-            <div id="leadevents-table" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th class="sortable" data-sort="signal_source" onclick="sortLeadEvents('signal_source')">Source</th>
-                            <th>Lead Company</th>
-                            <th>Domain</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th class="sortable" data-sort="urgency_score" onclick="sortLeadEvents('urgency_score')">Score</th>
-                            <th class="sortable" data-sort="enrichment_status" onclick="sortLeadEvents('enrichment_status')">Status</th>
-                            <th class="sortable" data-sort="enrichment_attempts" onclick="sortLeadEvents('enrichment_attempts')">Attempts</th>
-                            <th>Mission Log</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leadevents-rows"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- NO OSINT PRESENCE VIEW -->
-        <div id="no-osint" class="tab-content">
-            <div class="section-header">
-                <h2>No OSINT Presence</h2>
-                <button class="refresh-btn" onclick="loadNoOsint()">Refresh</button>
-            </div>
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
-                Leads that could not be enriched after maximum attempts. No discoverable web presence via search engines.
-            </p>
-            <div id="no-osint-loading" class="loading">Loading leads...</div>
-            <div id="no-osint-table" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Source</th>
-                            <th>Lead Company</th>
-                            <th>Summary</th>
-                            <th>Attempts</th>
-                            <th>Reason</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="no-osint-rows"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- OUTBOUND MESSAGES VIEW -->
-        <div id="outbound" class="tab-content">
-            <div class="section-header">
-                <h2>Outbound Email Activity</h2>
-                <button class="refresh-btn" onclick="loadOutbound()">Refresh</button>
-            </div>
-            <div id="outbound-loading" class="loading">Loading outbound messages...</div>
-            <div id="outbound-table" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Customer</th>
-                            <th>To</th>
-                            <th>Subject</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="outbound-rows"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- CUSTOMERS VIEW -->
-        <div id="customers" class="tab-content">
+        <!-- CUSTOMERS TAB -->
+        <div id="customers" class="tab-content active">
             <div class="section-header">
                 <h2>Customer Accounts</h2>
-                <button class="refresh-btn" onclick="loadCustomers()">Refresh</button>
+                <button class="btn btn-secondary" onclick="loadCustomers()">Refresh</button>
             </div>
             <div id="customers-loading" class="loading">Loading customers...</div>
-            <div id="customers-table" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Company</th>
-                            <th>Contact</th>
-                            <th>Plan</th>
-                            <th>Status</th>
-                            <th>Autopilot</th>
-                            <th>Mode</th>
-                            <th>Tasks</th>
-                            <th>Leads</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="customers-rows"></tbody>
-                </table>
-            </div>
+            <table id="customers-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Signup Date</th>
+                        <th>Plan</th>
+                        <th>Renewal</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="customers-body"></tbody>
+            </table>
         </div>
 
-        <!-- ANALYTICS VIEW -->
+        <!-- SUPPORT INBOX TAB -->
+        <div id="support" class="tab-content">
+            <div class="section-header">
+                <h2>Support Tickets</h2>
+                <button class="btn btn-secondary" onclick="loadTickets()">Refresh</button>
+            </div>
+            <div id="tickets-loading" class="loading">Loading tickets...</div>
+            <table id="tickets-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Subject</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tickets-body"></tbody>
+            </table>
+            <div id="tickets-empty" class="empty" style="display: none;">No support tickets</div>
+        </div>
+
+        <!-- ANALYTICS TAB -->
         <div id="analytics" class="tab-content">
             <div class="section-header">
-                <h2>Traffic & Conversion Analytics</h2>
-                <button class="refresh-btn" onclick="loadAnalytics()">Refresh</button>
+                <h2>System Health Dashboard</h2>
+                <button class="btn btn-secondary" onclick="loadAnalytics()">Refresh</button>
             </div>
-            <div id="analytics-loading" class="loading">Loading analytics...</div>
-            <div id="analytics-content" style="display: none;">
-                <div class="analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                    <!-- Page Views Card -->
-                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
-                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Page Views (7d)</h3>
-                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
-                            <div>
-                                <span id="analytics-total-views" style="font-size: 2rem; font-weight: 600; color: var(--accent-green);">-</span>
-                                <div style="font-size: 0.75rem; color: var(--text-tertiary);">Total Views</div>
-                            </div>
-                            <div>
-                                <span id="analytics-unique-visitors" style="font-size: 2rem; font-weight: 600; color: var(--accent-blue);">-</span>
-                                <div style="font-size: 0.75rem; color: var(--text-tertiary);">Unique Visitors</div>
-                            </div>
-                        </div>
-                        <div id="analytics-top-pages" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
-                    </div>
-
-                    <!-- Funnel Card -->
-                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
-                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Signup Funnel (30d)</h3>
-                        <div id="analytics-funnel" style="font-size: 0.85rem;"></div>
-                    </div>
-
-                    <!-- Checkout Card -->
-                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
-                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Checkout & Upgrades (30d)</h3>
-                        <div id="analytics-checkout" style="font-size: 0.85rem;"></div>
-                    </div>
-
-                    <!-- Engagement Card -->
-                    <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem;">
-                        <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Engagement (30d)</h3>
-                        <div id="analytics-engagement" style="font-size: 0.85rem;"></div>
-                    </div>
+            
+            <div class="kpi-grid" id="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-customers">-</div>
+                    <div class="kpi-label">Active Customers</div>
                 </div>
-
-                <!-- Top Referrers -->
-                <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                    <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Top Traffic Sources (7d)</h3>
-                    <div id="analytics-referrers" style="font-size: 0.85rem;"></div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-signals">-</div>
+                    <div class="kpi-label">Signals (7 days)</div>
                 </div>
-
-                <!-- SendGrid Email Stats -->
-                <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                    <h3 style="font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 1rem; text-transform: uppercase;">Email Delivery Stats (7d)</h3>
-                    <div id="sendgrid-stats" style="font-size: 0.85rem;">
-                        <div style="color: var(--text-tertiary);">Loading...</div>
-                    </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-leads">-</div>
+                    <div class="kpi-label">Leads Created (7 days)</div>
                 </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-enrichment-rate">-</div>
+                    <div class="kpi-label">Enrichment Rate</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-outbound">-</div>
+                    <div class="kpi-label">Emails Sent (7 days)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-error-rate">-</div>
+                    <div class="kpi-label">Error Rate</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Pipeline Flow (Last 7 Days)</div>
+                <div class="chart-wrapper">
+                    <canvas id="pipeline-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Daily Activity</div>
+                <div class="chart-wrapper">
+                    <canvas id="activity-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div id="customer-modal" class="modal-overlay" onclick="if(event.target===this)closeCustomerModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Customer Details</h3>
+                <button class="modal-close" onclick="closeCustomerModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="customer-detail-body">
+                <!-- Populated by JS -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCustomerModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Detail Modal -->
+    <div id="ticket-modal" class="modal-overlay" onclick="if(event.target===this)closeTicketModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Support Ticket</h3>
+                <button class="modal-close" onclick="closeTicketModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="ticket-detail-body">
+                <!-- Populated by JS -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTicketModal()">Close</button>
+                <button class="btn btn-primary" id="save-ticket-btn" onclick="saveTicket()">Save Changes</button>
             </div>
         </div>
     </div>
 
     <script>
-        let userTimezone = null;
+    let pipelineChart = null;
+    let activityChart = null;
+    let currentTicketId = null;
+
+    (function() {{
         const DEFAULT_TIMEZONE = 'America/New_York';
-        
-        function detectAndSaveTimezone() {
-            try {
-                const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                const savedTz = getCookie('admin_timezone');
-                
-                if (savedTz) {
-                    userTimezone = savedTz;
-                    updateTimezoneLabel(savedTz, false);
-                } else if (detectedTz) {
-                    userTimezone = detectedTz;
-                    fetch('/api/admin/timezone', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ timezone: detectedTz })
-                    }).then(r => {
-                        if (r.ok) {
-                            updateTimezoneLabel(detectedTz, false);
-                        }
-                    }).catch(() => {});
-                } else {
-                    userTimezone = DEFAULT_TIMEZONE;
-                    updateTimezoneLabel(DEFAULT_TIMEZONE, true);
-                }
-            } catch (e) {
-                userTimezone = DEFAULT_TIMEZONE;
-                updateTimezoneLabel(DEFAULT_TIMEZONE, true);
-            }
-        }
-        
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-            return null;
-        }
-        
-        function updateTimezoneLabel(tz, isDefault) {
-            const label = document.getElementById('timezone-label');
-            if (label) {
-                label.textContent = isDefault ? `Times: ${tz} (default)` : `Times: ${tz}`;
-            }
-        }
-        
-        function formatLocalTime(isoString) {
-            if (!isoString) return '-';
-            try {
-                const date = new Date(isoString);
-                if (isNaN(date.getTime())) return '-';
-                
-                const tz = userTimezone || DEFAULT_TIMEZONE;
-                const options = {
-                    timeZone: tz,
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                };
-                
-                const formatted = date.toLocaleString('en-US', options);
-                return formatted.replace(',', ' ·');
-            } catch (e) {
-                return new Date(isoString).toLocaleString();
-            }
-        }
-        
-        detectAndSaveTimezone();
-        
-        function showTab(name) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            document.getElementById(name).classList.add('active');
-            event.target.classList.add('active');
-            
-            if (name === 'signals') loadSignals();
-            else if (name === 'leadevents') {
-                loadEnrichmentCounts();
-                loadLeadEvents();
-            }
-            else if (name === 'no-osint') loadNoOsint();
-            else if (name === 'outbound') loadOutbound();
-            else if (name === 'customers') loadCustomers();
-            else if (name === 'analytics') loadAnalytics();
-        }
-
-        function scoreClass(score) {
-            if (score >= 70) return 'score-high';
-            if (score >= 50) return 'score-medium';
-            return 'score-low';
-        }
-
-        function formatLinkChip(url, maxLen = 18) {
-            if (!url) return '<span style="color:var(--text-tertiary)">-</span>';
-            let displayUrl = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
-            if (displayUrl.length > maxLen) {
-                displayUrl = displayUrl.substring(0, maxLen - 1) + '...';
-            }
-            const fullUrl = url.startsWith('http') ? url : 'https://' + url;
-            return `<a href="${fullUrl}" target="_blank" class="link-chip" title="${url}"><span class="link-chip-icon">🔗</span>${displayUrl}</a>`;
-        }
-
-        async function loadStats() {
-            try {
-                const resp = await fetch('/api/admin/stats');
-                const data = await resp.json();
-                document.getElementById('stat-signals').textContent = data.signals_today || 0;
-                document.getElementById('stat-events').textContent = data.lead_events || 0;
-                document.getElementById('stat-emails').textContent = data.emails_sent || 0;
-                document.getElementById('stat-customers').textContent = data.customers || 0;
-                document.getElementById('email-mode').textContent = data.email_mode || '';
-            } catch (e) {
-                console.error('Failed to load stats:', e);
-            }
-        }
-
-        async function loadSignals() {
-            try {
-                const resp = await fetch('/api/admin/signals');
-                const data = await resp.json();
-                
-                if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Invalid response');
-                }
-                
-                const rows = data.map(s => `
-                    <tr>
-                        <td>${formatLocalTime(s.created_at)}</td>
-                        <td>${s.source_type}</td>
-                        <td>${s.geography || '-'}</td>
-                        <td><span class="score ${scoreClass(s.score)}">${s.score}</span></td>
-                        <td class="truncate" title="${s.summary}">${s.summary}</td>
-                        <td>${s.event_created ? '<span class="status sent">Yes</span>' : '<span class="status" style="opacity:0.5">No</span>'}</td>
-                    </tr>
-                `).join('');
-                
-                document.getElementById('signals-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No signals yet</td></tr>';
-                document.getElementById('signals-loading').style.display = 'none';
-                document.getElementById('signals-table').style.display = 'block';
-            } catch (e) {
-                document.getElementById('signals-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadSignals()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
-            }
-        }
-
-        let currentEnrichmentFilter = '';
-        let currentSignalSourceFilter = 'all';
-        let cachedLeadEventsData = [];
-        let leadEventsData = [];
-        let currentSort = { field: null, dir: 'desc' };
-
-        function filterBySignalSource(btn, source) {
-            const tabColors = {
-                'all': 'var(--text-primary)',
-                'real': 'var(--text-primary)',
-                'synthetic': '#6b7280',
-                'sec': '#8b5cf6',
-                'job_board': '#f59e0b',
-                'news': '#3b82f6'
-            };
-            document.querySelectorAll('#source-filters .filter-tab').forEach(t => {
-                t.classList.remove('active');
-                t.style.background = 'var(--bg-elevated)';
-                const tabSource = t.getAttribute('data-source');
-                t.style.color = tabColors[tabSource] || 'var(--text-primary)';
-            });
-            btn.classList.add('active');
-            btn.style.background = 'var(--accent-green)';
-            btn.style.color = 'var(--bg-primary)';
-            currentSignalSourceFilter = source;
-            renderFilteredLeadEvents();
-        }
-
-        function matchesSignalSourceFilter(signalSource, filter) {
-            if (filter === 'all') return true;
-            if (filter === 'real') {
-                return ['news', 'job_board', 'reddit', 'craigslist'].includes(signalSource);
-            }
-            return signalSource === filter;
-        }
-
-        function renderFilteredLeadEvents() {
-            leadEventsData = cachedLeadEventsData.filter(e => 
-                matchesSignalSourceFilter(e.signal_source || 'unknown', currentSignalSourceFilter)
-            );
-            if (currentSort.field) {
-                sortLeadEvents(currentSort.field);
-            } else {
-                renderLeadEventsTable(leadEventsData);
-            }
-        }
-
-        function renderLeadEventsTable(data) {
-            const rows = data.map(e => {
-                const missionTooltip = buildMissionTooltip(e.enrichment_mission_log);
-                const attemptsDisplay = `${e.enrichment_attempts || 0}/${e.max_enrichment_attempts || 3}`;
-                const unenrichableReason = e.unenrichable_reason ? `<span style="color:var(--accent-red);font-size:0.7rem;display:block;">${e.unenrichable_reason}</span>` : '';
-                
-                const canForceEnrich = ['UNENRICHED', 'WITH_DOMAIN_NO_EMAIL', 'ARCHIVED_UNENRICHABLE'].includes(e.enrichment_status);
-                const canSendManual = !autopilotEnabled && e.enrichment_status === 'ENRICHED_NO_OUTBOUND' && e.lead_email;
-                
-                let actionBtn = '<span style="color:var(--text-tertiary)">-</span>';
-                if (canSendManual) {
-                    actionBtn = `<button onclick="openOutboundEditor(${e.id})" style="background:var(--accent-blue);color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Review & Send</button>`;
-                } else if (canForceEnrich) {
-                    actionBtn = `<button onclick="forceEnrichLead(${e.id}, this)" style="background:var(--accent-green);color:var(--bg-primary);border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Force Process</button>`;
-                }
-                
-                const sourceColors = {
-                    news: '#3b82f6',
-                    sec: '#8b5cf6',
-                    job_board: '#f59e0b',
-                    reddit: '#ef4444',
-                    craigslist: '#22c55e',
-                    synthetic: '#6b7280',
-                    unknown: '#4b5563'
-                };
-                const sourceColor = sourceColors[e.signal_source] || sourceColors.unknown;
-                const sourcePill = `<span style="background:${sourceColor};color:#fff;padding:0.15rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;text-transform:lowercase;">${e.signal_source || 'unknown'}</span>`;
-                
-                const classColors = {
-                    enterprise: '#ef4444',
-                    smb: '#22c55e',
-                    unknown: '#6b7280'
-                };
-                const classColor = classColors[e.company_class] || classColors.unknown;
-                const classLabel = (e.company_class || 'unknown').toUpperCase();
-                const classPill = `<span style="background:${classColor};color:#fff;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.6rem;font-weight:600;margin-left:0.4rem;">${classLabel}</span>`;
-                
-                const companyDisplay = e.lead_company || (e.summary ? e.summary.substring(0, 30) + '...' : '-');
-                
-                return `
-                <tr>
-                    <td style="font-size:0.75rem;">${formatLocalTime(e.created_at)}</td>
-                    <td>${sourcePill}</td>
-                    <td title="${e.summary || ''}">${companyDisplay}${classPill}</td>
-                    <td>${formatLinkChip(e.lead_domain)}</td>
-                    <td>${e.lead_email || '<span style="color:var(--text-tertiary)">-</span>'}</td>
-                    <td>${e.lead_phone_e164 ? '<a href="tel:' + e.lead_phone_e164 + '" style="color:var(--accent-blue)">' + e.lead_phone_e164 + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
-                    <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
-                    <td><span class="enrichment-pill ${getEnrichmentPillClass(e.enrichment_status)}">${getEnrichmentLabel(e.enrichment_status)}</span>${unenrichableReason}</td>
-                    <td style="text-align:center;">${attemptsDisplay}</td>
-                    <td style="text-align:center;">${missionTooltip}</td>
-                    <td>${actionBtn}</td>
-                </tr>
-            `}).join('');
-            
-            document.getElementById('leadevents-rows').innerHTML = rows || '<tr><td colspan="11" class="empty">No lead events match filters</td></tr>';
-        }
-
-        function getEnrichmentPillClass(status) {
-            switch(status) {
-                case 'UNENRICHED': return 'enrichment-unenriched';
-                case 'WITH_DOMAIN_NO_EMAIL': return 'enrichment-with-domain';
-                case 'WITH_PHONE_ONLY': return 'enrichment-with-phone';
-                case 'ENRICHED_NO_OUTBOUND': return 'enrichment-ready';
-                case 'OUTBOUND_SENT': return 'enrichment-sent';
-                case 'ARCHIVED_UNENRICHABLE': return 'enrichment-archived';
-                case 'ERROR': case 'FAILED': return 'enrichment-error';
-                default: return 'enrichment-unenriched';
-            }
-        }
-
-        function getEnrichmentLabel(status) {
-            switch(status) {
-                case 'UNENRICHED': return '<span class="status-icon">⚪</span>Unenriched';
-                case 'WITH_DOMAIN_NO_EMAIL': return '<span class="status-icon">🟡</span>Domain Only';
-                case 'WITH_PHONE_ONLY': return '<span class="status-icon">🟣</span>Phone Only';
-                case 'ENRICHED_NO_OUTBOUND': return '<span class="status-icon">🔵</span>Ready';
-                case 'OUTBOUND_SENT': return '<span class="status-icon">🟢</span>Sent';
-                case 'ARCHIVED_UNENRICHABLE': return '<span class="status-icon">⚫</span>Archived';
-                case 'ERROR': case 'FAILED': return '<span class="status-icon">🔴</span>Error';
-                default: return '<span class="status-icon">⚪</span>' + (status || 'Unknown');
-            }
-        }
-        
-        function sortLeadEvents(field) {
-            if (currentSort.field === field) {
-                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.field = field;
-                currentSort.dir = 'desc';
-            }
-            
-            document.querySelectorAll('#leadevents-table .sortable').forEach(th => {
-                th.classList.remove('asc', 'desc');
-                if (th.dataset.sort === field) {
-                    th.classList.add(currentSort.dir);
-                }
-            });
-            
-            const statusOrder = {
-                'ENRICHED_NO_OUTBOUND': 1,
-                'OUTBOUND_SENT': 2,
-                'WITH_DOMAIN_NO_EMAIL': 3,
-                'WITH_PHONE_ONLY': 4,
-                'UNENRICHED': 5,
-                'ARCHIVED_UNENRICHABLE': 6,
-                'ERROR': 7,
-                'FAILED': 8
-            };
-            
-            leadEventsData.sort((a, b) => {
-                let valA, valB;
-                if (field === 'enrichment_status') {
-                    valA = statusOrder[a[field]] || 99;
-                    valB = statusOrder[b[field]] || 99;
-                } else {
-                    valA = a[field] ?? '';
-                    valB = b[field] ?? '';
-                }
-                
-                if (typeof valA === 'number' && typeof valB === 'number') {
-                    return currentSort.dir === 'asc' ? valA - valB : valB - valA;
-                }
-                valA = String(valA).toLowerCase();
-                valB = String(valB).toLowerCase();
-                if (currentSort.dir === 'asc') {
-                    return valA.localeCompare(valB);
-                }
-                return valB.localeCompare(valA);
-            });
-            
-            renderLeadEventsTable(leadEventsData);
-        }
-        
-        function getPhoneTypeLabel(phoneType) {
-            if (!phoneType) return '';
-            switch(phoneType) {
-                case 'mobile': return '<span style="color:var(--accent-green)">Mobile</span>';
-                case 'landline': return '<span style="color:var(--accent-blue)">Landline</span>';
-                case 'tollfree': return '<span style="color:var(--text-tertiary)">Toll-free</span>';
-                default: return phoneType;
-            }
-        }
-        
-        function parseMissionLog(logJson) {
-            if (!logJson) return '<span style="color:var(--text-tertiary)">No log</span>';
-            try {
-                const entries = JSON.parse(logJson);
-                if (!Array.isArray(entries) || entries.length === 0) {
-                    return '<span style="color:var(--text-tertiary)">No entries</span>';
-                }
-                const recentEntries = entries.slice(-3);
-                const formatted = recentEntries.map(e => {
-                    const phase = e.phase || e.method || 'unknown';
-                    const success = e.success || e.result === 'success';
-                    const icon = success ? '<span style="color:var(--accent-green)">+</span>' : '<span style="color:var(--accent-red)">x</span>';
-                    return `${icon} ${phase}`;
-                }).join('<br>');
-                const total = entries.length;
-                const suffix = total > 3 ? `<br><span style="color:var(--text-tertiary)">+${total - 3} more</span>` : '';
-                return formatted + suffix;
-            } catch (err) {
-                return '<span style="color:var(--text-tertiary)">Parse error</span>';
-            }
-        }
-
-        function buildMissionTooltip(logJson) {
-            const noDataTooltip = `<div class="mission-tooltip-wrapper">
-                <span class="mission-tooltip-icon">ℹ️</span>
-                <div class="mission-tooltip">
-                    <div style="color:var(--text-tertiary)">No mission log data</div>
-                </div>
-            </div>`;
-            
-            if (!logJson) {
-                return noDataTooltip;
-            }
-            
-            let entries;
-            try {
-                entries = JSON.parse(logJson);
-            } catch (err) {
-                return noDataTooltip;
-            }
-            
-            if (!Array.isArray(entries) || entries.length === 0) {
-                return noDataTooltip;
-            }
-            
-            const last3 = entries.slice(-3);
-            const startIndex = entries.length - last3.length + 1;
-            const tooltipContent = last3.map((e, idx) => {
-                const attemptNum = startIndex + idx;
-                const phase = e.phase || e.method || 'unknown';
-                const success = e.success || e.result === 'success';
-                const details = e.details || e.result || '';
-                const statusClass = success ? 'mission-success' : 'mission-fail';
-                const statusIcon = success ? '+' : 'x';
-                const detailText = typeof details === 'string' ? details.substring(0, 30) : '';
-                return `<div class="mission-entry">
-                    <span class="mission-attempt">Attempt ${attemptNum}:</span>
-                    <span class="mission-phase">${phase}</span>
-                    <span class="${statusClass}">${statusIcon}</span>
-                    ${detailText ? `<span class="mission-result">${detailText}</span>` : ''}
-                </div>`;
-            }).join('');
-            const totalNote = entries.length > 3 ? `<div style="color:var(--text-tertiary);margin-top:0.5rem;font-size:0.65rem;">+${entries.length - 3} more entries</div>` : '';
-            return `<div class="mission-tooltip-wrapper">
-                <span class="mission-tooltip-icon">ℹ️</span>
-                <div class="mission-tooltip">
-                    ${tooltipContent}
-                    ${totalNote}
-                </div>
-            </div>`;
-        }
-
-        async function loadEnrichmentCounts() {
-            try {
-                const resp = await fetch('/api/enrichment_status_counts');
-                const data = await resp.json();
-                
-                document.getElementById('count-all').textContent = data.total || 0;
-                document.getElementById('count-unenriched').textContent = data.counts?.UNENRICHED || 0;
-                document.getElementById('count-with-domain').textContent = data.counts?.WITH_DOMAIN_NO_EMAIL || 0;
-                document.getElementById('count-with-phone').textContent = data.counts?.WITH_PHONE_ONLY || 0;
-                document.getElementById('count-ready').textContent = data.counts?.ENRICHED_NO_OUTBOUND || 0;
-                document.getElementById('count-sent').textContent = data.counts?.OUTBOUND_SENT || 0;
-            } catch (e) {
-                console.error('Failed to load enrichment counts:', e);
-            }
-        }
-
-        function filterByEnrichmentStatus(btn, status) {
-            document.querySelectorAll('#enrichment-filters .filter-tab').forEach(t => t.classList.remove('active'));
-            btn.classList.add('active');
-            currentEnrichmentFilter = status;
-            loadLeadEvents(status);
-        }
-
-        async function forceEnrichLead(eventId, btn) {
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
-            btn.style.opacity = '0.6';
-            
-            try {
-                const resp = await fetch(`/api/admin/lead_event/${eventId}/force-enrich`, {
+        try {{
+            const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (detectedTz) {{
+                fetch('/api/save-timezone', {{
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await resp.json();
-                
-                if (resp.ok) {
-                    const msg = data.email_found 
-                        ? `Email found: ${data.email_found}` 
-                        : `Status: ${data.old_status} -> ${data.new_status}`;
-                    alert(`Force enrichment complete!\n${msg}`);
-                    loadLeadEvents();
-                    loadEnrichmentCounts();
-                } else {
-                    alert('Error: ' + (data.detail || 'Unknown error'));
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            } catch (e) {
-                alert('Error: ' + e.message);
-                btn.textContent = originalText;
-                btn.disabled = false;
-                btn.style.opacity = '1';
-            }
-        }
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ timezone: detectedTz }})
+                }}).catch(() => {{}});
+                document.getElementById('timezone-label').textContent = 'Times: ' + detectedTz;
+            }} else {{
+                document.getElementById('timezone-label').textContent = 'Times: ' + DEFAULT_TIMEZONE + ' (default)';
+            }}
+        }} catch (e) {{
+            document.getElementById('timezone-label').textContent = 'Times: ' + DEFAULT_TIMEZONE + ' (default)';
+        }}
+    }})();
 
-        async function loadLeadEvents(enrichmentStatus) {
-            const status = enrichmentStatus !== undefined ? enrichmentStatus : currentEnrichmentFilter;
-            try {
-                let url = '/api/lead_events_detailed?exclude_no_osint=true';
-                if (status) {
-                    url += '&enrichment_status=' + encodeURIComponent(status);
-                }
-                const resp = await fetch(url);
-                const data = await resp.json();
-                
-                if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Invalid response');
-                }
-                
-                cachedLeadEventsData = data;
-                renderFilteredLeadEvents();
-                
-                document.getElementById('leadevents-loading').style.display = 'none';
-                document.getElementById('leadevents-table').style.display = 'block';
-            } catch (e) {
-                document.getElementById('leadevents-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadLeadEvents()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
-            }
-        }
+    function showTab(tabId) {{
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelector(`[onclick="showTab('${{tabId}}')"]`).classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+        
+        if (tabId === 'customers') loadCustomers();
+        if (tabId === 'support') loadTickets();
+        if (tabId === 'analytics') loadAnalytics();
+    }}
 
-        async function loadNoOsint() {
-            try {
-                const resp = await fetch('/api/lead_events_detailed?only_no_osint=true');
-                const data = await resp.json();
+    async function loadCustomers() {{
+        const loading = document.getElementById('customers-loading');
+        const table = document.getElementById('customers-table');
+        const tbody = document.getElementById('customers-body');
+        
+        loading.style.display = 'block';
+        table.style.display = 'none';
+        
+        try {{
+            const res = await fetch('/api/admin/customers');
+            const data = await res.json();
+            
+            tbody.innerHTML = '';
+            data.customers.forEach(c => {{
+                const statusClass = c.plan === 'paid' ? 'active' : (c.plan === 'trial' ? 'trial' : 'cancelled');
+                const statusLabel = c.plan === 'paid' ? 'Active' : (c.plan === 'trial' ? 'Trial' : 'Cancelled');
+                const renewal = c.renewal_date || '-';
                 
-                if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Invalid response');
-                }
-                
-                const noOsintLeads = data;
-                
-                const rows = noOsintLeads.map(e => {
-                    const sourceTag = e.signal_source ? `<span class="source-tag source-${e.signal_source}">${e.signal_source}</span>` : '-';
-                    
-                    return `
+                tbody.innerHTML += `
                     <tr>
-                        <td>${formatLocalTime(e.created_at)}</td>
-                        <td>${sourceTag}</td>
-                        <td>${e.lead_company || e.summary?.substring(0, 30) || '-'}</td>
-                        <td class="truncate" title="${e.summary || ''}">${e.summary || '-'}</td>
-                        <td>${e.enrichment_attempts || 0}</td>
-                        <td><span class="status" style="background: rgba(239,68,68,0.15); color: #ef4444;">No Web Presence</span></td>
+                        <td>${{c.id}}</td>
+                        <td>${{c.contact_name || c.company}}</td>
+                        <td>${{c.contact_email}}</td>
+                        <td><span class="status status-${{statusClass}}">${{statusLabel}}</span></td>
+                        <td>${{c.signup_date}}</td>
+                        <td>${{c.plan}}</td>
+                        <td>${{renewal}}</td>
                         <td>
-                            <button onclick="forceEnrich(${e.id}, this)" class="action-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;">Retry</button>
+                            <button class="btn btn-small btn-secondary" onclick="viewCustomer(${{c.id}})">Details</button>
+                            <a href="/portal/${{c.public_token}}" class="btn btn-small btn-primary" target="_blank">View as Customer</a>
                         </td>
                     </tr>
-                `}).join('');
-                
-                document.getElementById('no-osint-rows').innerHTML = rows || '<tr><td colspan="7" class="empty">No leads with missing OSINT presence</td></tr>';
-                document.getElementById('no-osint-loading').style.display = 'none';
-                document.getElementById('no-osint-table').style.display = 'block';
-            } catch (e) {
-                document.getElementById('no-osint-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadNoOsint()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
-            }
-        }
-
-        async function loadOutbound() {
-            try {
-                const resp = await fetch('/api/admin/outbound-messages');
-                const data = await resp.json();
-                
-                if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Invalid response');
-                }
-                
-                const rows = data.map(m => `
-                    <tr>
-                        <td>${formatLocalTime(m.created_at)}</td>
-                        <td>${m.customer || '-'}</td>
-                        <td>${m.to_email}</td>
-                        <td class="truncate" title="${m.subject}">${m.subject}</td>
-                        <td><span class="status ${m.status.toLowerCase()}">${m.status}</span></td>
-                    </tr>
-                `).join('');
-                
-                document.getElementById('outbound-rows').innerHTML = rows || '<tr><td colspan="5" class="empty">No outbound messages yet</td></tr>';
-                document.getElementById('outbound-loading').style.display = 'none';
-                document.getElementById('outbound-table').style.display = 'block';
-            } catch (e) {
-                document.getElementById('outbound-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadOutbound()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
-            }
-        }
-
-        async function loadCustomers() {
-            try {
-                const resp = await fetch('/api/admin/customers-list');
-                const data = await resp.json();
-                
-                if (!Array.isArray(data)) {
-                    throw new Error(data.detail || data.error || 'Invalid response');
-                }
-                
-                const rows = data.map(c => `
-                    <tr>
-                        <td>${c.company}</td>
-                        <td>${c.contact_name}</td>
-                        <td><span class="status ${c.plan === 'paid' ? 'active' : 'trial'}">${c.plan}</span></td>
-                        <td><span class="status ${c.status.toLowerCase()}">${c.status}</span></td>
-                        <td>${c.autopilot ? '<span style="color:var(--accent-green)">ON</span>' : '<span style="color:var(--text-tertiary)">OFF</span>'}</td>
-                        <td>${c.outreach_mode || 'AUTO'}</td>
-                        <td>${c.tasks_used}/${c.tasks_limit}</td>
-                        <td>${c.leads_used}/${c.leads_limit}</td>
-                        <td><a href="/portal/${c.public_token}" style="color: var(--accent-blue); text-decoration: none;">Portal</a></td>
-                    </tr>
-                `).join('');
-                
-                document.getElementById('customers-rows').innerHTML = rows || '<tr><td colspan="9" class="empty">No customers yet</td></tr>';
-                document.getElementById('customers-loading').style.display = 'none';
-                document.getElementById('customers-table').style.display = 'block';
-            } catch (e) {
-                document.getElementById('customers-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadCustomers()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
-            }
-        }
-
-        async function loadAnalytics() {
-            try {
-                const resp = await fetch('/api/admin/analytics');
-                const data = await resp.json();
-                
-                if (data.detail) {
-                    throw new Error(data.detail);
-                }
-                
-                const pv = data.page_views_7d || {};
-                const funnel = data.funnel_30d?.funnel || {};
-                const engagement = data.funnel_30d?.engagement || {};
-                const referrers = pv.top_referrers || {};
-                const byPage = pv.by_page || {};
-                
-                document.getElementById('analytics-total-views').textContent = pv.total_views || 0;
-                document.getElementById('analytics-unique-visitors').textContent = pv.unique_visitors || 0;
-                
-                const topPages = Object.entries(byPage).slice(0, 5).map(([page, count]) => 
-                    `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                        <span>${page}</span><span style="color:var(--accent-green)">${count}</span>
-                    </div>`
-                ).join('') || '<span style="color:var(--text-tertiary)">No page views yet</span>';
-                document.getElementById('analytics-top-pages').innerHTML = topPages;
-                
-                const signupRate = funnel.signup_conversion_rate || 0;
-                document.getElementById('analytics-funnel').innerHTML = `
-                    <div style="display:grid;gap:0.5rem;">
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Signup Started</span><span style="color:var(--accent-orange)">${funnel.signup_started || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Signup Completed</span><span style="color:var(--accent-green)">${funnel.signup_completed || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Signup Abandoned</span><span style="color:var(--accent-red)">${funnel.signup_abandoned || 0}</span>
-                        </div>
-                        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;">
-                            <span>Conversion Rate</span><span style="color:${signupRate >= 50 ? 'var(--accent-green)' : signupRate >= 25 ? 'var(--accent-orange)' : 'var(--accent-red)'}">${signupRate}%</span>
-                        </div>
-                    </div>
                 `;
-                
-                const checkoutRate = funnel.checkout_conversion_rate || 0;
-                document.getElementById('analytics-checkout').innerHTML = `
-                    <div style="display:grid;gap:0.5rem;">
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Checkout Started</span><span style="color:var(--accent-orange)">${funnel.checkout_started || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Checkout Completed</span><span style="color:var(--accent-green)">${funnel.checkout_completed || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Checkout Abandoned</span><span style="color:var(--accent-red)">${funnel.checkout_abandoned || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Upgrades</span><span style="color:var(--accent-green)">${funnel.upgrades || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Cancellations</span><span style="color:var(--accent-red)">${funnel.cancellations || 0}</span>
-                        </div>
-                    </div>
-                `;
-                
-                document.getElementById('analytics-engagement').innerHTML = `
-                    <div style="display:grid;gap:0.5rem;">
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Logins</span><span style="color:var(--accent-blue)">${engagement.logins || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Portal Views</span><span style="color:var(--accent-blue)">${engagement.portal_views || 0}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span>Active Customers</span><span style="color:var(--accent-green)">${engagement.unique_active_customers || 0}</span>
-                        </div>
-                    </div>
-                `;
-                
-                const referrerList = Object.entries(referrers).slice(0, 10).map(([domain, count]) => 
-                    `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                        <span>${domain}</span><span style="color:var(--accent-blue)">${count}</span>
-                    </div>`
-                ).join('') || '<span style="color:var(--text-tertiary)">No referrer data yet</span>';
-                document.getElementById('analytics-referrers').innerHTML = referrerList;
-                
-                loadSendGridStats();
-                
-                document.getElementById('analytics-loading').style.display = 'none';
-                document.getElementById('analytics-content').style.display = 'block';
-            } catch (e) {
-                document.getElementById('analytics-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadAnalytics()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
-            }
-        }
-        
-        async function loadSendGridStats() {
-            const container = document.getElementById('sendgrid-stats');
-            try {
-                const resp = await fetch('/api/admin/sendgrid-stats?days=7');
-                const data = await resp.json();
-                
-                if (!data.success) {
-                    container.innerHTML = `<div style="color:var(--accent-red);">${data.error || 'Failed to load stats'}</div>`;
-                    return;
-                }
-                
-                const t = data.totals;
-                const r = data.rates;
-                
-                container.innerHTML = `
-                    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:1rem;margin-bottom:1.5rem;">
-                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
-                            <div style="font-size:1.5rem;font-weight:600;color:var(--accent-green);">${t.delivered}</div>
-                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Delivered</div>
-                        </div>
-                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
-                            <div style="font-size:1.5rem;font-weight:600;color:var(--accent-blue);">${r.open_rate}%</div>
-                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Open Rate</div>
-                        </div>
-                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
-                            <div style="font-size:1.5rem;font-weight:600;color:var(--accent-orange);">${r.click_rate}%</div>
-                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Click Rate</div>
-                        </div>
-                        <div style="text-align:center;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
-                            <div style="font-size:1.5rem;font-weight:600;color:${t.bounces > 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${t.bounces}</div>
-                            <div style="font-size:0.7rem;color:var(--text-tertiary);text-transform:uppercase;">Bounces</div>
-                        </div>
-                    </div>
-                    <div style="display:grid;gap:0.5rem;">
-                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                            <span>Total Requests</span><span>${t.requests}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                            <span>Opens (unique)</span><span style="color:var(--accent-blue);">${t.unique_opens}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                            <span>Clicks (unique)</span><span style="color:var(--accent-orange);">${t.unique_clicks}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                            <span>Blocks</span><span style="color:${t.blocks > 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${t.blocks}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border-subtle);">
-                            <span>Spam Reports</span><span style="color:${t.spam_reports > 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${t.spam_reports}</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;">
-                            <span>Period</span><span style="color:var(--text-tertiary);">${data.period.start} to ${data.period.end}</span>
-                        </div>
-                    </div>
-                `;
-            } catch (e) {
-                container.innerHTML = `<div style="color:var(--accent-red);">Error loading stats: ${e.message}</div>`;
-            }
-        }
+            }});
+            
+            loading.style.display = 'none';
+            table.style.display = 'table';
+        }} catch (e) {{
+            loading.textContent = 'Error loading customers';
+        }}
+    }}
 
-        let autopilotEnabled = true;
-        let outboundAutopilotEnabled = true;
-        
-        async function loadAutopilotStatus() {
-            try {
-                const resp = await fetch('/api/settings');
-                const data = await resp.json();
-                autopilotEnabled = data.autopilot_enabled !== false;
-                outboundAutopilotEnabled = data.outbound_autopilot_enabled !== false;
-                updateAutopilotBadge();
-                updateOutboundToggle();
-            } catch (e) {
-                console.error('Failed to load autopilot status:', e);
-            }
-        }
-        
-        function updateAutopilotBadge() {
-            const badge = document.getElementById('autopilot-badge');
-            if (badge) {
-                badge.className = 'autopilot-badge ' + (autopilotEnabled ? 'autopilot-on' : 'autopilot-off');
-                badge.textContent = autopilotEnabled ? 'AUTO' : 'MANUAL';
-            }
-        }
-        
-        function updateOutboundToggle() {
-            const toggle = document.getElementById('outbound-toggle');
-            const label = document.getElementById('outbound-toggle-label');
-            if (toggle) {
-                toggle.checked = outboundAutopilotEnabled;
-            }
-            if (label) {
-                label.textContent = outboundAutopilotEnabled ? 'Outbound: ON' : 'Outbound: OFF';
-                label.style.color = outboundAutopilotEnabled ? 'var(--accent-green)' : 'var(--accent-orange)';
-            }
-        }
-        
-        async function toggleOutboundAutopilot(enabled) {
-            try {
-                const resp = await fetch(`/admin/outbound-autopilot?enabled=${enabled}`, { method: 'POST' });
-                const data = await resp.json();
-                if (resp.ok) {
-                    outboundAutopilotEnabled = enabled;
-                    updateOutboundToggle();
-                    console.log('[ADMIN] Outbound autopilot:', enabled ? 'ON' : 'OFF');
-                } else {
-                    console.error('Failed to toggle outbound autopilot:', data.error);
-                    document.getElementById('outbound-toggle').checked = !enabled;
-                }
-            } catch (e) {
-                console.error('Error toggling outbound autopilot:', e);
-                document.getElementById('outbound-toggle').checked = !enabled;
-            }
-        }
-        
-        async function openOutboundEditor(eventId) {
-            const modal = document.getElementById('outbound-modal');
-            const loadingEl = document.getElementById('outbound-loading');
-            const formEl = document.getElementById('outbound-form');
+    async function viewCustomer(id) {{
+        try {{
+            const res = await fetch(`/api/admin/customers/${{id}}`);
+            const c = await res.json();
             
-            modal.classList.add('active');
-            loadingEl.style.display = 'block';
-            formEl.style.display = 'none';
+            const statusClass = c.plan === 'paid' ? 'active' : (c.plan === 'trial' ? 'trial' : 'cancelled');
+            const statusLabel = c.plan === 'paid' ? 'Active' : (c.plan === 'trial' ? 'Trial' : 'Cancelled');
             
-            try {
-                const resp = await fetch(`/api/admin/lead_event/${eventId}/draft-outbound`);
-                const data = await resp.json();
-                
-                if (resp.ok) {
-                    document.getElementById('outbound-event-id').value = data.event_id;
-                    document.getElementById('outbound-to-email').textContent = data.to_email;
-                    document.getElementById('outbound-to-name').textContent = data.to_name || 'Unknown';
-                    document.getElementById('outbound-company').textContent = data.company || '-';
-                    document.getElementById('outbound-subject').value = data.subject;
-                    document.getElementById('outbound-body').value = data.body;
-                    
-                    loadingEl.style.display = 'none';
-                    formEl.style.display = 'block';
-                } else {
-                    alert(data.detail || 'Failed to load email draft');
-                    modal.classList.remove('active');
-                }
-            } catch (e) {
-                alert('Error loading draft: ' + e.message);
-                modal.classList.remove('active');
-            }
-        }
-        
-        function closeOutboundModal() {
-            document.getElementById('outbound-modal').classList.remove('active');
-        }
-        
-        async function sendOutbound() {
-            const eventId = document.getElementById('outbound-event-id').value;
-            const subject = document.getElementById('outbound-subject').value;
-            const body = document.getElementById('outbound-body').value;
-            const sendBtn = document.getElementById('outbound-send-btn');
-            
-            if (!subject.trim() || !body.trim()) {
-                alert('Subject and body are required');
-                return;
-            }
-            
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Sending...';
-            
-            try {
-                const formData = new FormData();
-                formData.append('subject', subject);
-                formData.append('body', body);
-                
-                const resp = await fetch(`/api/admin/lead_event/${eventId}/send-outbound`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await resp.json();
-                
-                if (data.success) {
-                    alert('Email sent successfully!');
-                    closeOutboundModal();
-                    loadLeadEvents();
-                } else {
-                    alert('Failed to send: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Error sending: ' + e.message);
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send Email';
-            }
-        }
-
-        window.addEventListener('load', () => {
-            loadStats();
-            loadSignals();
-            loadAutopilotStatus();
-        });
-    </script>
-    
-    <div id="outbound-modal" class="modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3>Review & Send Outbound</h3>
-                <button class="modal-close" onclick="closeOutboundModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="outbound-loading" style="text-align:center;padding:2rem;">Loading draft...</div>
-                <div id="outbound-form" style="display:none;">
-                    <input type="hidden" id="outbound-event-id">
-                    <div class="to-info">
-                        <strong>To:</strong> <span id="outbound-to-name"></span> &lt;<span id="outbound-to-email"></span>&gt;<br>
-                        <strong>Company:</strong> <span id="outbound-company"></span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Subject</label>
-                        <input type="text" id="outbound-subject" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Body</label>
-                        <textarea id="outbound-body" class="form-input form-textarea"></textarea>
-                    </div>
+            document.getElementById('customer-detail-body').innerHTML = `
+                <div class="detail-row">
+                    <span class="detail-label">Customer ID</span>
+                    <span class="detail-value">${{c.id}}</span>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeOutboundModal()">Cancel</button>
-                <button id="outbound-send-btn" class="btn-primary" onclick="sendOutbound()">Send Email</button>
-            </div>
-        </div>
-    </div>
+                <div class="detail-row">
+                    <span class="detail-label">Company</span>
+                    <span class="detail-value">${{c.company}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Contact Name</span>
+                    <span class="detail-value">${{c.contact_name || '-'}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email</span>
+                    <span class="detail-value">${{c.contact_email}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value"><span class="status status-${{statusClass}}">${{statusLabel}}</span></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Plan</span>
+                    <span class="detail-value">${{c.plan}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Subscription Status</span>
+                    <span class="detail-value">${{c.subscription_status}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Billing Method</span>
+                    <span class="detail-value">${{c.billing_method || '-'}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Signup Date</span>
+                    <span class="detail-value">${{c.signup_date}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Last Login</span>
+                    <span class="detail-value">${{c.last_login || 'Never'}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Renewal Date</span>
+                    <span class="detail-value">${{c.renewal_date || '-'}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Autopilot</span>
+                    <span class="detail-value">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autopilot-toggle-${{c.id}}" ${{c.autopilot_enabled ? 'checked' : ''}} onchange="toggleAutopilot(${{c.id}}, this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="margin-left: 0.5rem; font-size: 0.8rem; color: var(--text-tertiary);">${{c.autopilot_enabled ? 'ON' : 'OFF'}}</span>
+                    </span>
+                </div>
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <a href="/portal/${{c.public_token}}" class="btn btn-primary" target="_blank">View as Customer</a>
+                </div>
+            `;
+            
+            document.getElementById('customer-modal').classList.add('active');
+        }} catch (e) {{
+            alert('Error loading customer details');
+        }}
+    }}
+
+    async function toggleAutopilot(customerId, enabled) {{
+        try {{
+            await fetch(`/api/admin/customers/${{customerId}}/autopilot`, {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{ enabled }})
+            }});
+        }} catch (e) {{
+            alert('Error updating autopilot setting');
+        }}
+    }}
+
+    function closeCustomerModal() {{
+        document.getElementById('customer-modal').classList.remove('active');
+    }}
+
+    async function loadTickets() {{
+        const loading = document.getElementById('tickets-loading');
+        const table = document.getElementById('tickets-table');
+        const empty = document.getElementById('tickets-empty');
+        const tbody = document.getElementById('tickets-body');
+        
+        loading.style.display = 'block';
+        table.style.display = 'none';
+        empty.style.display = 'none';
+        
+        try {{
+            const res = await fetch('/api/admin/support-tickets');
+            const data = await res.json();
+            
+            if (data.tickets.length === 0) {{
+                loading.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }}
+            
+            tbody.innerHTML = '';
+            data.tickets.forEach(t => {{
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${{t.customer_name}}</td>
+                        <td>${{t.subject}}</td>
+                        <td>${{t.created_at}}</td>
+                        <td><span class="status status-${{t.status}}">${{t.status.replace('_', ' ')}}</span></td>
+                        <td>
+                            <button class="btn btn-small btn-secondary" onclick="viewTicket(${{t.id}})">View</button>
+                        </td>
+                    </tr>
+                `;
+            }});
+            
+            loading.style.display = 'none';
+            table.style.display = 'table';
+        }} catch (e) {{
+            loading.textContent = 'Error loading tickets';
+        }}
+    }}
+
+    async function viewTicket(id) {{
+        currentTicketId = id;
+        try {{
+            const res = await fetch(`/api/admin/support-tickets/${{id}}`);
+            const t = await res.json();
+            
+            document.getElementById('ticket-detail-body').innerHTML = `
+                <div class="detail-row">
+                    <span class="detail-label">Customer</span>
+                    <span class="detail-value">${{t.customer_name}} <a href="#" onclick="viewCustomer(${{t.customer_id}}); return false;" style="color: var(--accent-blue);">(view)</a></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Subject</span>
+                    <span class="detail-value">${{t.subject}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Created</span>
+                    <span class="detail-value">${{t.created_at}}</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${{t.body}}</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="ticket-status" class="form-select">
+                        <option value="open" ${{t.status === 'open' ? 'selected' : ''}}>Open</option>
+                        <option value="in_progress" ${{t.status === 'in_progress' ? 'selected' : ''}}>In Progress</option>
+                        <option value="closed" ${{t.status === 'closed' ? 'selected' : ''}}>Closed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Internal Notes</label>
+                    <textarea id="ticket-notes" class="form-textarea" placeholder="Add internal notes...">${{t.internal_notes || ''}}</textarea>
+                </div>
+            `;
+            
+            document.getElementById('ticket-modal').classList.add('active');
+        }} catch (e) {{
+            alert('Error loading ticket');
+        }}
+    }}
+
+    async function saveTicket() {{
+        if (!currentTicketId) return;
+        
+        const status = document.getElementById('ticket-status').value;
+        const notes = document.getElementById('ticket-notes').value;
+        
+        try {{
+            await fetch(`/api/admin/support-tickets/${{currentTicketId}}`, {{
+                method: 'PUT',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{ status, internal_notes: notes }})
+            }});
+            
+            closeTicketModal();
+            loadTickets();
+        }} catch (e) {{
+            alert('Error saving ticket');
+        }}
+    }}
+
+    function closeTicketModal() {{
+        document.getElementById('ticket-modal').classList.remove('active');
+        currentTicketId = null;
+    }}
+
+    async function loadAnalytics() {{
+        try {{
+            const res = await fetch('/api/admin/analytics');
+            const data = await res.json();
+            
+            document.getElementById('kpi-customers').textContent = data.active_customers;
+            document.getElementById('kpi-signals').textContent = data.signals_7d.toLocaleString();
+            document.getElementById('kpi-leads').textContent = data.leads_7d.toLocaleString();
+            document.getElementById('kpi-enrichment-rate').textContent = data.enrichment_rate + '%';
+            document.getElementById('kpi-outbound').textContent = data.outbound_7d.toLocaleString();
+            document.getElementById('kpi-error-rate').textContent = data.error_rate + '%';
+            
+            renderPipelineChart(data.pipeline);
+            renderActivityChart(data.daily_activity);
+        }} catch (e) {{
+            console.error('Error loading analytics:', e);
+        }}
+    }}
+
+    function renderPipelineChart(pipeline) {{
+        const ctx = document.getElementById('pipeline-chart').getContext('2d');
+        
+        if (pipelineChart) pipelineChart.destroy();
+        
+        pipelineChart = new Chart(ctx, {{
+            type: 'bar',
+            data: {{
+                labels: ['Signals', 'Leads', 'Enriched', 'Outbound Sent'],
+                datasets: [{{
+                    data: [pipeline.signals, pipeline.leads, pipeline.enriched, pipeline.outbound],
+                    backgroundColor: ['#3b82f6', '#f97316', '#22c55e', '#a855f7'],
+                    borderRadius: 4
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{
+                    legend: {{ display: false }}
+                }},
+                scales: {{
+                    y: {{
+                        beginAtZero: true,
+                        grid: {{ color: '#1f1f1f' }},
+                        ticks: {{ color: '#666666' }}
+                    }},
+                    x: {{
+                        grid: {{ display: false }},
+                        ticks: {{ color: '#a0a0a0' }}
+                    }}
+                }}
+            }}
+        }});
+    }}
+
+    function renderActivityChart(activity) {{
+        const ctx = document.getElementById('activity-chart').getContext('2d');
+        
+        if (activityChart) activityChart.destroy();
+        
+        activityChart = new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: activity.dates,
+                datasets: [
+                    {{
+                        label: 'Signals',
+                        data: activity.signals,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }},
+                    {{
+                        label: 'Leads',
+                        data: activity.leads,
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }},
+                    {{
+                        label: 'Outbound',
+                        data: activity.outbound,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }}
+                ]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{
+                    legend: {{
+                        labels: {{ color: '#a0a0a0' }}
+                    }}
+                }},
+                scales: {{
+                    y: {{
+                        beginAtZero: true,
+                        grid: {{ color: '#1f1f1f' }},
+                        ticks: {{ color: '#666666' }}
+                    }},
+                    x: {{
+                        grid: {{ display: false }},
+                        ticks: {{ color: '#a0a0a0' }}
+                    }}
+                }}
+            }}
+        }});
+    }}
+
+    document.addEventListener('DOMContentLoaded', () => {{
+        loadCustomers();
+    }});
+    </script>
 </body>
 </html>

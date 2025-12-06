@@ -39,7 +39,7 @@ from database import create_db_and_tables, get_session, engine
 from models import (
     Lead, Customer, Task, Invoice, SystemSettings, TrialIdentity, 
     Signal, LeadEvent, PasswordResetToken, PendingOutbound, BusinessProfile, Report,
-    Thread, Message, Suppression, ConversationMetrics,
+    Thread, Message, Suppression, ConversationMetrics, SupportTicket,
     THREAD_STATUS_OPEN, THREAD_STATUS_HUMAN_OWNED, THREAD_STATUS_AUTO, THREAD_STATUS_CLOSED,
     MESSAGE_DIRECTION_INBOUND, MESSAGE_DIRECTION_OUTBOUND,
     MESSAGE_STATUS_QUEUED, MESSAGE_STATUS_SENT, MESSAGE_STATUS_DRAFT, MESSAGE_STATUS_FAILED, MESSAGE_STATUS_APPROVED,
@@ -6218,6 +6218,287 @@ def admin_logout():
     response = RedirectResponse(url="/admin/login", status_code=303)
     response.delete_cookie(ADMIN_COOKIE_NAME)
     return response
+
+
+@app.get("/api/admin/customers")
+def get_admin_customers(request: Request, session: Session = Depends(get_session)):
+    """Get all customers for admin console."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    customers = session.exec(select(Customer).order_by(Customer.created_at.desc())).all()
+    result = []
+    
+    for cust in customers:
+        plan_status = get_customer_plan_status(cust)
+        renewal_date = None
+        if cust.stripe_subscription_id and cust.subscription_status == "active":
+            renewal_date = (cust.created_at + timedelta(days=30)).strftime("%b %d, %Y")
+        
+        result.append({
+            "id": cust.id,
+            "company": cust.company,
+            "contact_name": cust.contact_name,
+            "contact_email": cust.contact_email,
+            "plan": cust.plan,
+            "subscription_status": cust.subscription_status,
+            "signup_date": cust.created_at.strftime("%b %d, %Y") if cust.created_at else "-",
+            "renewal_date": renewal_date,
+            "public_token": cust.public_token,
+            "autopilot_enabled": cust.autopilot_enabled
+        })
+    
+    return {"customers": result}
+
+
+@app.get("/api/admin/customers/{customer_id}")
+def get_admin_customer_detail(customer_id: int, request: Request, session: Session = Depends(get_session)):
+    """Get detailed customer info for admin console."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    customer = session.exec(select(Customer).where(Customer.id == customer_id)).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    renewal_date = None
+    if customer.stripe_subscription_id and customer.subscription_status == "active":
+        renewal_date = (customer.created_at + timedelta(days=30)).strftime("%b %d, %Y")
+    
+    return {
+        "id": customer.id,
+        "company": customer.company,
+        "contact_name": customer.contact_name,
+        "contact_email": customer.contact_email,
+        "plan": customer.plan,
+        "subscription_status": customer.subscription_status,
+        "billing_method": customer.billing_method,
+        "signup_date": customer.created_at.strftime("%b %d, %Y") if customer.created_at else "-",
+        "last_login": customer.last_login_at.strftime("%b %d, %Y %H:%M") if customer.last_login_at else None,
+        "renewal_date": renewal_date,
+        "public_token": customer.public_token,
+        "autopilot_enabled": customer.autopilot_enabled
+    }
+
+
+@app.post("/api/admin/customers/{customer_id}/autopilot")
+async def toggle_customer_autopilot(customer_id: int, request: Request, session: Session = Depends(get_session)):
+    """Toggle customer autopilot setting."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    body = await request.json()
+    
+    customer = session.exec(select(Customer).where(Customer.id == customer_id)).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    customer.autopilot_enabled = body.get("enabled", True)
+    session.add(customer)
+    session.commit()
+    
+    return {"success": True, "autopilot_enabled": customer.autopilot_enabled}
+
+
+@app.get("/api/admin/support-tickets")
+def get_admin_support_tickets(request: Request, session: Session = Depends(get_session)):
+    """Get all support tickets for admin console."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    tickets = session.exec(
+        select(SupportTicket).order_by(SupportTicket.created_at.desc())
+    ).all()
+    
+    result = []
+    for ticket in tickets:
+        customer = session.exec(select(Customer).where(Customer.id == ticket.customer_id)).first()
+        result.append({
+            "id": ticket.id,
+            "customer_id": ticket.customer_id,
+            "customer_name": customer.contact_name or customer.company if customer else "Unknown",
+            "subject": ticket.subject,
+            "status": ticket.status,
+            "created_at": ticket.created_at.strftime("%b %d, %Y %H:%M") if ticket.created_at else "-"
+        })
+    
+    return {"tickets": result}
+
+
+@app.get("/api/admin/support-tickets/{ticket_id}")
+def get_admin_support_ticket_detail(ticket_id: int, request: Request, session: Session = Depends(get_session)):
+    """Get detailed support ticket info."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    ticket = session.exec(select(SupportTicket).where(SupportTicket.id == ticket_id)).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    customer = session.exec(select(Customer).where(Customer.id == ticket.customer_id)).first()
+    
+    return {
+        "id": ticket.id,
+        "customer_id": ticket.customer_id,
+        "customer_name": customer.contact_name or customer.company if customer else "Unknown",
+        "subject": ticket.subject,
+        "body": ticket.body,
+        "status": ticket.status,
+        "internal_notes": ticket.internal_notes,
+        "created_at": ticket.created_at.strftime("%b %d, %Y %H:%M") if ticket.created_at else "-"
+    }
+
+
+@app.put("/api/admin/support-tickets/{ticket_id}")
+async def update_admin_support_ticket(ticket_id: int, request: Request, session: Session = Depends(get_session)):
+    """Update support ticket status and notes."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    body = await request.json()
+    
+    ticket = session.exec(select(SupportTicket).where(SupportTicket.id == ticket_id)).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    if "status" in body:
+        ticket.status = body["status"]
+    if "internal_notes" in body:
+        ticket.internal_notes = body["internal_notes"]
+    ticket.updated_at = datetime.utcnow()
+    
+    session.add(ticket)
+    session.commit()
+    
+    return {"success": True}
+
+
+@app.get("/api/admin/analytics")
+def get_admin_analytics_dashboard(request: Request, session: Session = Depends(get_session)):
+    """Get aggregate analytics for admin dashboard."""
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    now = datetime.utcnow()
+    seven_days_ago = now - timedelta(days=7)
+    
+    active_customers = session.exec(
+        select(func.count(Customer.id)).where(
+            Customer.plan.in_(["paid", "trial"]),
+            Customer.subscription_status != "canceled"
+        )
+    ).one()
+    
+    signals_7d = session.exec(
+        select(func.count(Signal.id)).where(Signal.created_at >= seven_days_ago)
+    ).one()
+    
+    leads_7d = session.exec(
+        select(func.count(LeadEvent.id)).where(LeadEvent.created_at >= seven_days_ago)
+    ).one()
+    
+    total_leads = session.exec(select(func.count(LeadEvent.id))).one()
+    enriched_leads = session.exec(
+        select(func.count(LeadEvent.id)).where(
+            LeadEvent.enrichment_status.in_([
+                ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+                ENRICHMENT_STATUS_OUTBOUND_SENT
+            ])
+        )
+    ).one()
+    enrichment_rate = round((enriched_leads / total_leads * 100) if total_leads > 0 else 0, 1)
+    
+    outbound_7d = session.exec(
+        select(func.count(LeadEvent.id)).where(
+            LeadEvent.enrichment_status == ENRICHMENT_STATUS_OUTBOUND_SENT,
+            LeadEvent.updated_at >= seven_days_ago
+        )
+    ).one()
+    
+    archived_leads = session.exec(
+        select(func.count(LeadEvent.id)).where(
+            LeadEvent.enrichment_status == ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE
+        )
+    ).one()
+    error_rate = round((archived_leads / total_leads * 100) if total_leads > 0 else 0, 1)
+    
+    pipeline_signals = session.exec(
+        select(func.count(Signal.id)).where(Signal.created_at >= seven_days_ago)
+    ).one()
+    pipeline_leads = session.exec(
+        select(func.count(LeadEvent.id)).where(LeadEvent.created_at >= seven_days_ago)
+    ).one()
+    pipeline_enriched = session.exec(
+        select(func.count(LeadEvent.id)).where(
+            LeadEvent.enrichment_status.in_([
+                ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+                ENRICHMENT_STATUS_OUTBOUND_SENT
+            ]),
+            LeadEvent.created_at >= seven_days_ago
+        )
+    ).one()
+    pipeline_outbound = session.exec(
+        select(func.count(LeadEvent.id)).where(
+            LeadEvent.enrichment_status == ENRICHMENT_STATUS_OUTBOUND_SENT,
+            LeadEvent.created_at >= seven_days_ago
+        )
+    ).one()
+    
+    daily_activity = {"dates": [], "signals": [], "leads": [], "outbound": []}
+    for i in range(6, -1, -1):
+        day = now - timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        
+        daily_activity["dates"].append(day.strftime("%b %d"))
+        
+        day_signals = session.exec(
+            select(func.count(Signal.id)).where(
+                Signal.created_at >= day_start,
+                Signal.created_at < day_end
+            )
+        ).one()
+        daily_activity["signals"].append(day_signals)
+        
+        day_leads = session.exec(
+            select(func.count(LeadEvent.id)).where(
+                LeadEvent.created_at >= day_start,
+                LeadEvent.created_at < day_end
+            )
+        ).one()
+        daily_activity["leads"].append(day_leads)
+        
+        day_outbound = session.exec(
+            select(func.count(LeadEvent.id)).where(
+                LeadEvent.enrichment_status == ENRICHMENT_STATUS_OUTBOUND_SENT,
+                LeadEvent.updated_at >= day_start,
+                LeadEvent.updated_at < day_end
+            )
+        ).one()
+        daily_activity["outbound"].append(day_outbound)
+    
+    return {
+        "active_customers": active_customers,
+        "signals_7d": signals_7d,
+        "leads_7d": leads_7d,
+        "enrichment_rate": enrichment_rate,
+        "outbound_7d": outbound_7d,
+        "error_rate": error_rate,
+        "pipeline": {
+            "signals": pipeline_signals,
+            "leads": pipeline_leads,
+            "enriched": pipeline_enriched,
+            "outbound": pipeline_outbound
+        },
+        "daily_activity": daily_activity
+    }
 
 
 if __name__ == "__main__":
