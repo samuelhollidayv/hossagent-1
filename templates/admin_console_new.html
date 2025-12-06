@@ -73,6 +73,9 @@
         .enrichment-with-phone { color: #a855f7; background: rgba(168, 85, 247, 0.15); }
         .enrichment-ready { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
         .enrichment-sent { color: var(--text-primary); background: rgba(255, 255, 255, 0.15); }
+        .link-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.5rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: var(--accent-blue); text-decoration: none; font-size: 0.75rem; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.15s; }
+        .link-chip:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--accent-blue); }
+        .link-chip-icon { flex-shrink: 0; font-size: 0.7rem; }
         @media (max-width: 768px) {
             .stats-bar { flex-wrap: wrap; gap: 1rem; }
             .tabs { overflow-x: auto; }
@@ -413,6 +416,16 @@
             return 'score-low';
         }
 
+        function formatLinkChip(url, maxLen = 18) {
+            if (!url) return '<span style="color:var(--text-tertiary)">-</span>';
+            let displayUrl = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+            if (displayUrl.length > maxLen) {
+                displayUrl = displayUrl.substring(0, maxLen - 1) + '...';
+            }
+            const fullUrl = url.startsWith('http') ? url : 'https://' + url;
+            return `<a href="${fullUrl}" target="_blank" class="link-chip" title="${url}"><span class="link-chip-icon">🔗</span>${displayUrl}</a>`;
+        }
+
         async function loadStats() {
             try {
                 const resp = await fetch('/api/admin/stats');
@@ -540,7 +553,7 @@
                     <td style="font-size:0.75rem;">${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
                     <td>${sourcePill}</td>
                     <td title="${e.summary || ''}">${companyDisplay}${classPill}</td>
-                    <td>${e.lead_domain ? '<a href="https://' + e.lead_domain + '" target="_blank" style="color:var(--accent-blue)">' + e.lead_domain + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
+                    <td>${formatLinkChip(e.lead_domain)}</td>
                     <td>${e.lead_email || '<span style="color:var(--text-tertiary)">-</span>'}</td>
                     <td>${e.lead_phone_e164 ? '<a href="tel:' + e.lead_phone_e164 + '" style="color:var(--accent-blue)">' + e.lead_phone_e164 + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
                     <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
