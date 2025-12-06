@@ -80,6 +80,30 @@
             th, td { padding: 0.5rem; }
             .truncate { max-width: 150px; }
         }
+        .mission-tooltip-wrapper { position: relative; display: inline-block; cursor: help; }
+        .mission-tooltip-icon { font-size: 0.9rem; opacity: 0.7; transition: opacity 0.2s; }
+        .mission-tooltip-wrapper:hover .mission-tooltip-icon { opacity: 1; }
+        .mission-tooltip { 
+            visibility: hidden; opacity: 0;
+            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: var(--bg-tertiary); border: 1px solid var(--border-medium);
+            padding: 0.75rem; border-radius: 6px; font-size: 0.7rem;
+            white-space: nowrap; z-index: 1000; min-width: 200px; max-width: 320px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: opacity 0.15s, visibility 0.15s;
+            margin-bottom: 6px;
+        }
+        .mission-tooltip::after {
+            content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+            border: 6px solid transparent; border-top-color: var(--border-medium);
+        }
+        .mission-tooltip-wrapper:hover .mission-tooltip { visibility: visible; opacity: 1; }
+        .mission-entry { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid var(--border-subtle); }
+        .mission-entry:last-child { border-bottom: none; }
+        .mission-attempt { color: var(--text-tertiary); min-width: 60px; }
+        .mission-phase { color: var(--accent-blue); }
+        .mission-result { color: var(--text-secondary); }
+        .mission-success { color: var(--accent-green); }
+        .mission-fail { color: var(--accent-red); }
     </style>
 </head>
 <body>
@@ -407,7 +431,7 @@
 
         function renderLeadEventsRows(data) {
             const rows = data.map(e => {
-                const missionLog = parseMissionLog(e.enrichment_mission_log);
+                const missionTooltip = buildMissionTooltip(e.enrichment_mission_log);
                 const attemptsDisplay = `${e.enrichment_attempts || 0}/${e.max_enrichment_attempts || 3}`;
                 const unenrichableReason = e.unenrichable_reason ? `<span style="color:var(--accent-red);font-size:0.7rem;display:block;">${e.unenrichable_reason}</span>` : '';
                 
@@ -439,7 +463,7 @@
                     <td><span class="score ${scoreClass(e.urgency_score)}">${e.urgency_score}</span></td>
                     <td><span class="enrichment-pill ${getEnrichmentPillClass(e.enrichment_status)}">${getEnrichmentLabel(e.enrichment_status)}</span>${unenrichableReason}</td>
                     <td style="text-align:center;">${attemptsDisplay}</td>
-                    <td style="font-size:0.7rem;max-width:200px;overflow:hidden;">${missionLog}</td>
+                    <td style="text-align:center;">${missionTooltip}</td>
                     <td>${actionBtn}</td>
                 </tr>
             `}).join('');
@@ -499,6 +523,56 @@
             } catch (err) {
                 return '<span style="color:var(--text-tertiary)">Parse error</span>';
             }
+        }
+
+        function buildMissionTooltip(logJson) {
+            const noDataTooltip = `<div class="mission-tooltip-wrapper">
+                <span class="mission-tooltip-icon">ℹ️</span>
+                <div class="mission-tooltip">
+                    <div style="color:var(--text-tertiary)">No mission log data</div>
+                </div>
+            </div>`;
+            
+            if (!logJson) {
+                return noDataTooltip;
+            }
+            
+            let entries;
+            try {
+                entries = JSON.parse(logJson);
+            } catch (err) {
+                return noDataTooltip;
+            }
+            
+            if (!Array.isArray(entries) || entries.length === 0) {
+                return noDataTooltip;
+            }
+            
+            const last3 = entries.slice(-3);
+            const startIndex = entries.length - last3.length + 1;
+            const tooltipContent = last3.map((e, idx) => {
+                const attemptNum = startIndex + idx;
+                const phase = e.phase || e.method || 'unknown';
+                const success = e.success || e.result === 'success';
+                const details = e.details || e.result || '';
+                const statusClass = success ? 'mission-success' : 'mission-fail';
+                const statusIcon = success ? '+' : 'x';
+                const detailText = typeof details === 'string' ? details.substring(0, 30) : '';
+                return `<div class="mission-entry">
+                    <span class="mission-attempt">Attempt ${attemptNum}:</span>
+                    <span class="mission-phase">${phase}</span>
+                    <span class="${statusClass}">${statusIcon}</span>
+                    ${detailText ? `<span class="mission-result">${detailText}</span>` : ''}
+                </div>`;
+            }).join('');
+            const totalNote = entries.length > 3 ? `<div style="color:var(--text-tertiary);margin-top:0.5rem;font-size:0.65rem;">+${entries.length - 3} more entries</div>` : '';
+            return `<div class="mission-tooltip-wrapper">
+                <span class="mission-tooltip-icon">ℹ️</span>
+                <div class="mission-tooltip">
+                    ${tooltipContent}
+                    ${totalNote}
+                </div>
+            </div>`;
         }
 
         async function loadEnrichmentCounts() {
