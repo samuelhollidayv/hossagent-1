@@ -4266,6 +4266,45 @@ def compute_signal_source(lead_event, signal=None):
     return 'unknown'
 
 
+def compute_company_class(lead_event):
+    """
+    Compute company classification for admin display.
+    
+    Classification logic:
+    - enterprise: domain ends in .com AND org size keywords in title/summary
+    - smb: category in [GROWTH_SIGNAL, OPPORTUNITY] AND phone present
+    - unknown: fallback for unclassified leads
+    """
+    domain = (lead_event.lead_domain or '').lower()
+    summary = (lead_event.summary or '').lower()
+    lead_company = (lead_event.lead_company or '').lower()
+    category = (lead_event.category or '').upper()
+    
+    enterprise_keywords = [
+        'airlines', 'airline', 'corporation', 'corp', 'inc', 'incorporated',
+        'international', 'holdings', 'group', 'enterprises', 'global',
+        'national', 'regional', 'public company', 'publicly traded',
+        'fortune 500', 'fortune 1000', 'nasdaq', 'nyse', 'stock',
+        'billion', 'thousand employees', 'hundreds of employees',
+        'major', 'largest', 'leading', 'headquarters'
+    ]
+    
+    has_com_domain = domain.endswith('.com') if domain else False
+    has_enterprise_keyword = any(kw in summary or kw in lead_company for kw in enterprise_keywords)
+    
+    if has_com_domain and has_enterprise_keyword:
+        return 'enterprise'
+    
+    smb_categories = ['GROWTH_SIGNAL', 'OPPORTUNITY']
+    has_smb_category = category in smb_categories
+    has_phone = bool(lead_event.lead_phone_e164 or lead_event.lead_phone_raw)
+    
+    if has_smb_category and has_phone:
+        return 'smb'
+    
+    return 'unknown'
+
+
 @app.get("/api/lead_events_detailed")
 def get_lead_events_detailed(
     request: Request,
@@ -4324,6 +4363,7 @@ def get_lead_events_detailed(
         
         signal = signals_map.get(e.signal_id) if e.signal_id else None
         signal_source = compute_signal_source(e, signal)
+        company_class = compute_company_class(e)
         
         result.append({
             "id": e.id,
@@ -4332,6 +4372,7 @@ def get_lead_events_detailed(
             "urgency_score": e.urgency_score,
             "status": e.status,
             "signal_source": signal_source,
+            "company_class": company_class,
             "enrichment_status": e.enrichment_status or "UNENRICHED",
             "enrichment_attempts": e.enrichment_attempts or 0,
             "max_enrichment_attempts": getattr(e, 'max_enrichment_attempts', 3),

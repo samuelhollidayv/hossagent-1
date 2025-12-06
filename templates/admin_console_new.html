@@ -452,11 +452,22 @@
                 const sourceColor = sourceColors[e.signal_source] || sourceColors.unknown;
                 const sourcePill = `<span style="background:${sourceColor};color:#fff;padding:0.15rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;text-transform:lowercase;">${e.signal_source || 'unknown'}</span>`;
                 
+                const classColors = {
+                    enterprise: '#ef4444',
+                    smb: '#22c55e',
+                    unknown: '#6b7280'
+                };
+                const classColor = classColors[e.company_class] || classColors.unknown;
+                const classLabel = (e.company_class || 'unknown').toUpperCase();
+                const classPill = `<span style="background:${classColor};color:#fff;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.6rem;font-weight:600;margin-left:0.4rem;">${classLabel}</span>`;
+                
+                const companyDisplay = e.lead_company || (e.summary ? e.summary.substring(0, 30) + '...' : '-');
+                
                 return `
                 <tr>
                     <td style="font-size:0.75rem;">${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
                     <td>${sourcePill}</td>
-                    <td title="${e.summary || ''}">${e.lead_company || (e.summary ? e.summary.substring(0, 30) + '...' : '-')}</td>
+                    <td title="${e.summary || ''}">${companyDisplay}${classPill}</td>
                     <td>${e.lead_domain ? '<a href="https://' + e.lead_domain + '" target="_blank" style="color:var(--accent-blue)">' + e.lead_domain + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>
                     <td>${e.lead_email || '<span style="color:var(--text-tertiary)">-</span>'}</td>
                     <td>${e.lead_phone_e164 ? '<a href="tel:' + e.lead_phone_e164 + '" style="color:var(--accent-blue)">' + e.lead_phone_e164 + '</a>' : '<span style="color:var(--text-tertiary)">-</span>'}</td>

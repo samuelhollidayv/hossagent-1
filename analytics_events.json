@@ -20,5 +20,137 @@
     "customer_id": null,
     "session_id": null,
     "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:44:09.410975",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:44:09.412457",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:44:09.638821",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:44:30.425844",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:44:30.430866",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:45:04.458180",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:45:04.720573",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:45:26.887641",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:45:26.896641",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:46:02.582494",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:46:02.588850",
+    "path": "/",
+    "referrer": "https://replit.com/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
+  },
+  {
+    "event_type": "page_view",
+    "timestamp": "2025-12-06T00:47:17.222098",
+    "path": "/",
+    "referrer": "https://3deb0d27-ff61-45db-bb4d-20b509510745-00-1lsmdyf5yix8n.spock.replit.dev/",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Replit-Bonsai/2.165.3 (iOS 26.1)",
+    "ip_hash": "9a1728f9273a6c2d",
+    "customer_id": null,
+    "session_id": null,
+    "metadata": null
   }
 ]
