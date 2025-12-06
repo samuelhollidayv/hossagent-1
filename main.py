@@ -48,6 +48,8 @@ from models import (
     ENRICHMENT_STATUS_WITH_PHONE_ONLY,
     ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
     ENRICHMENT_STATUS_OUTBOUND_SENT,
+    ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE,
+    UNENRICHABLE_REASON_NO_OSINT_PRESENCE,
     OUTREACH_MODE_REVIEW,
 )
 from agents import (
@@ -4350,6 +4352,8 @@ def get_lead_events_detailed(
     request: Request,
     limit: int = Query(default=50, le=100),
     enrichment_status: Optional[str] = Query(default=None),
+    exclude_no_osint: bool = Query(default=False),
+    only_no_osint: bool = Query(default=False),
     session: Session = Depends(get_session)
 ):
     """
@@ -4361,6 +4365,10 @@ def get_lead_events_detailed(
     - ENRICHED_NO_OUTBOUND: Ready to send (email found)
     - OUTBOUND_SENT: Email sent
     
+    Additional filters:
+    - exclude_no_osint: Exclude leads with NO_OSINT_PRESENCE unenrichable_reason
+    - only_no_osint: Only return leads with NO_OSINT_PRESENCE unenrichable_reason
+    
     Returns lead events with has_outbound, has_report, and signal_source.
     """
     admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
@@ -4371,6 +4379,18 @@ def get_lead_events_detailed(
     
     if enrichment_status:
         query = query.where(LeadEvent.enrichment_status == enrichment_status)
+    
+    if exclude_no_osint:
+        query = query.where(
+            (LeadEvent.enrichment_status != ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE) |
+            (LeadEvent.unenrichable_reason != UNENRICHABLE_REASON_NO_OSINT_PRESENCE)
+        )
+    
+    if only_no_osint:
+        query = query.where(
+            LeadEvent.enrichment_status == ENRICHMENT_STATUS_ARCHIVED_UNENRICHABLE,
+            LeadEvent.unenrichable_reason == UNENRICHABLE_REASON_NO_OSINT_PRESENCE
+        )
     
     events = session.exec(query.limit(limit)).all()
     

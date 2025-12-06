@@ -175,6 +175,7 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('signals')">SIGNALS</button>
             <button class="tab" onclick="showTab('leadevents')">LEAD EVENTS</button>
+            <button class="tab" onclick="showTab('no-osint')">NO OSINT</button>
             <button class="tab" onclick="showTab('outbound')">OUTBOUND</button>
             <button class="tab" onclick="showTab('customers')">CUSTOMERS</button>
             <button class="tab" onclick="showTab('analytics')">ANALYTICS</button>
@@ -245,6 +246,34 @@
                         </tr>
                     </thead>
                     <tbody id="leadevents-rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- NO OSINT PRESENCE VIEW -->
+        <div id="no-osint" class="tab-content">
+            <div class="section-header">
+                <h2>No OSINT Presence</h2>
+                <button class="refresh-btn" onclick="loadNoOsint()">Refresh</button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+                Leads that could not be enriched after maximum attempts. No discoverable web presence via search engines.
+            </p>
+            <div id="no-osint-loading" class="loading">Loading leads...</div>
+            <div id="no-osint-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Source</th>
+                            <th>Lead Company</th>
+                            <th>Summary</th>
+                            <th>Attempts</th>
+                            <th>Reason</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="no-osint-rows"></tbody>
                 </table>
             </div>
         </div>
@@ -372,6 +401,7 @@
                 loadEnrichmentCounts();
                 loadLeadEvents();
             }
+            else if (name === 'no-osint') loadNoOsint();
             else if (name === 'outbound') loadOutbound();
             else if (name === 'customers') loadCustomers();
             else if (name === 'analytics') loadAnalytics();
@@ -688,9 +718,9 @@
         async function loadLeadEvents(enrichmentStatus) {
             const status = enrichmentStatus !== undefined ? enrichmentStatus : currentEnrichmentFilter;
             try {
-                let url = '/api/lead_events_detailed';
+                let url = '/api/lead_events_detailed?exclude_no_osint=true';
                 if (status) {
-                    url += '?enrichment_status=' + encodeURIComponent(status);
+                    url += '&enrichment_status=' + encodeURIComponent(status);
                 }
                 const resp = await fetch(url);
                 const data = await resp.json();
@@ -706,6 +736,42 @@
                 document.getElementById('leadevents-table').style.display = 'block';
             } catch (e) {
                 document.getElementById('leadevents-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadLeadEvents()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
+            }
+        }
+
+        async function loadNoOsint() {
+            try {
+                const resp = await fetch('/api/lead_events_detailed?only_no_osint=true');
+                const data = await resp.json();
+                
+                if (!Array.isArray(data)) {
+                    throw new Error(data.detail || data.error || 'Invalid response');
+                }
+                
+                const noOsintLeads = data;
+                
+                const rows = noOsintLeads.map(e => {
+                    const sourceTag = e.signal_source ? `<span class="source-tag source-${e.signal_source}">${e.signal_source}</span>` : '-';
+                    
+                    return `
+                    <tr>
+                        <td>${new Date(e.created_at).toLocaleString()}</td>
+                        <td>${sourceTag}</td>
+                        <td>${e.lead_company || e.summary?.substring(0, 30) || '-'}</td>
+                        <td class="truncate" title="${e.summary || ''}">${e.summary || '-'}</td>
+                        <td>${e.enrichment_attempts || 0}</td>
+                        <td><span class="status" style="background: rgba(239,68,68,0.15); color: #ef4444;">No Web Presence</span></td>
+                        <td>
+                            <button onclick="forceEnrich(${e.id}, this)" class="action-btn" style="padding:0.25rem 0.5rem;font-size:0.7rem;">Retry</button>
+                        </td>
+                    </tr>
+                `}).join('');
+                
+                document.getElementById('no-osint-rows').innerHTML = rows || '<tr><td colspan="7" class="empty">No leads with missing OSINT presence</td></tr>';
+                document.getElementById('no-osint-loading').style.display = 'none';
+                document.getElementById('no-osint-table').style.display = 'block';
+            } catch (e) {
+                document.getElementById('no-osint-loading').innerHTML = 'Error: ' + e.message + ' <button onclick="loadNoOsint()" style="margin-left:10px;padding:5px 10px;cursor:pointer;">Retry</button>';
             }
         }
 
