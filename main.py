@@ -3982,22 +3982,33 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     with open("templates/customer_portal.html", "r") as f:
         template = f.read()
     
+    # Escape any single braces in content variables to prevent format() interpretation
+    def escape_braces(s):
+        if not s:
+            return s
+        # Replace single { with {{ and single } with }}
+        # But skip already escaped {{ and }}
+        result = s.replace("{{", "\x00").replace("}}", "\x01")  # Temporarily replace doubles
+        result = result.replace("{", "{{").replace("}", "}}")     # Escape singles
+        result = result.replace("\x00", "{{").replace("\x01", "}}")  # Restore doubles
+        return result
+    
     html = template.format(
-        payment_message=payment_banner,
-        approval_banner=approval_banner,
-        plan_name=plan_name,
-        status_class=status_class,
-        status_label=status_label,
-        autopilot_class=autopilot_class,
-        autopilot_label=autopilot_label,
-        billing_info=billing_info,
-        account_cta=account_cta,
-        opportunities_count=total_opportunities,
-        opportunities_content=opportunities_content,
-        conversations_count=total_threads,
-        conversations_content=conversations_content,
-        reports_count=len(reports),
-        reports_content=reports_content,
+        payment_message=escape_braces(payment_banner),
+        approval_banner=escape_braces(approval_banner),
+        plan_name=escape_braces(plan_name),
+        status_class=escape_braces(status_class),
+        status_label=escape_braces(status_label),
+        autopilot_class=escape_braces(autopilot_class),
+        autopilot_label=escape_braces(autopilot_label),
+        billing_info=escape_braces(billing_info),
+        account_cta=escape_braces(account_cta),
+        opportunities_count=escape_braces(str(total_opportunities)),
+        opportunities_content=escape_braces(opportunities_content),
+        conversations_count=escape_braces(str(total_threads)),
+        conversations_content=escape_braces(conversations_content),
+        reports_count=escape_braces(str(len(reports))),
+        reports_content=escape_braces(reports_content),
         leadEventId=""
     )
     
