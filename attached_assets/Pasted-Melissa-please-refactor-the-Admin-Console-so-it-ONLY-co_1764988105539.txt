@@ -1,0 +1,93 @@
+Melissa — please refactor the Admin Console so it ONLY contains three tabs:
+
+1) Customers
+2) Support Inbox
+3) Analytics
+
+Absolutely NO views or tables that list individual leads, OSINT failures, unenriched records, mission logs, or per-lead enrichment states. 
+If a lead is not usable by a customer, I do not want to see it in the UI at all. 
+Failures should only roll up into aggregate metrics on the Analytics tab.
+
+---
+
+### 1. Customers Tab
+
+Purpose: manage accounts and impersonate customers.
+
+Requirements:
+- Table of all customers with columns:
+  - customer_id
+  - Name
+  - Email
+  - Status (active / trial / cancelled)
+  - Signup date
+  - Subscription plan and renewal date
+- Row actions:
+  - “View as customer” (impersonate their portal, read-only is fine)
+- Customer detail view:
+  - Same fields as table plus:
+    - Billing status (from Stripe or local billing)
+    - Last login time
+    - Primary contact email
+    - Per-customer autopilot toggle (on/off) **only as a high-level flag**, not per-lead
+
+No leads table, no enrichment states, no raw signals anywhere in this tab.
+
+---
+
+### 2. Support Inbox Tab
+
+Purpose: respond to customer issues.
+
+Requirements:
+- Simple list of support tickets / messages submitted by customers
+- Columns:
+  - Customer
+  - Subject
+  - Created at (local time)
+  - Status (open / in progress / closed)
+- Detail view for a ticket:
+  - Full message body
+  - Internal notes field
+  - Status dropdown
+- Optional: link back to the Customer detail page
+
+No outbound email tools here beyond replying to support tickets.
+No lead or enrichment controls.
+
+---
+
+### 3. Analytics Tab
+
+Purpose: high-level health dashboard only.
+
+Requirements:
+- Aggregate metrics only, such as:
+  - Total signals ingested (by day)
+  - Total leads created (by day)
+  - Enrichment rates (% with domain, % with email)
+  - Outbound_sent count
+  - Error rates (e.g., rate-limit hits, scraping failures) as rollup numbers
+- Visuals:
+  - Line chart for “signals → leads → enriched → outbound_sent” over time
+  - Simple cards for key KPIs (e.g., current enrichment rate, total active customers)
+- NO drill-down tables of individual leads or failures.
+- Failures are represented only as counts / percentages, not rows.
+
+All timestamps shown in the admin’s local timezone.
+
+---
+
+### Global Constraints
+
+- Remove any existing tabs or components that:
+  - Show unenriched or archived leads
+  - Show individual mission logs
+  - Allow per-lead enrichment actions or outbound actions
+- Admin Console is for:
+  - Account management (Customers)
+  - Customer support (Support Inbox)
+  - System health (Analytics)
+- Anything related to **individual leads or outbound messaging** must live only in the customer portal, not in Admin.
+
+Please implement this simplified Admin Console and strip out all legacy lead/enrichment tables from the admin UI.
