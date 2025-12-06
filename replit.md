@@ -76,7 +76,9 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 - DuckDuckGo: Exponential backoff (5 min → 10 min → 20 min)
 
 - **Autopilot**: Automates agent cycles every 15 minutes for paid plans.
+- **Outbound Autopilot Toggle**: Separate toggle to control automated email sending. When OFF, BizDev cycles skip auto-send and leads remain in ENRICHED_NO_OUTBOUND status for manual approval. Customer Portal shows "Awaiting Your Approval" banner when pending approvals exist.
 - **Manual Outbound Editor**: When autopilot is OFF, operators can manually review and send emails via "Review & Send" button. Opens modal with editable subject/body fields, sends via SendGrid, updates enrichment_status to OUTBOUND_SENT. Available in both Admin Console and Customer Portal.
+- **No OSINT Presence Tab**: Dedicated Admin Console tab for leads with NO_OSINT_PRESENCE unenrichable_reason. These leads are filtered from the main Lead Events view via backend filtering (exclude_no_osint=true) for clean data segregation.
 - **Conversation Engine**: Handles inbound email replies, AI-assisted draft generation, guardrails for sensitive content, human-in-the-loop approval, and a suppression system. Uses a state machine (OPEN → HUMAN_OWNED → AUTO → CLOSED).
 - **Subscription Model**: Trial plan (7 days, restricted) and Paid plan ($99/month, full access). Manages signup, Stripe checkout, upgrade, and cancellation flows.
 - **Analytics & Telemetry**: Server-side analytics (`analytics.py`) tracks page views, funnel events, and abandonment (stored in `analytics_events.json` with IP hashing). An Admin Analytics Dashboard provides insights. Optional Google Analytics 4 integration.
