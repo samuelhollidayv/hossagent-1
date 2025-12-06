@@ -49,6 +49,8 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 - `GET /api/lead_events`: Includes enrichment_status, enrichment_attempts, unenrichable_reason, confidence scores
 - `GET /api/enrichment/metrics`: Source-level enrichment yield, discovery counts, unenrichable breakdown
 - `GET /api/companies`: Canonical company entities with enrichment status
+- `POST /api/admin/lead_event/{id}/force-enrich`: Force immediate enrichment bypass (resets ARCHIVED_UNENRICHABLE leads)
+- `GET /api/admin/diagnostics`: Lead funnel metrics and conversion data
 
 **Craigslist Connector (EPIC 3.1):**
 - SMB-heavy signal source with niche detection (HVAC, plumbing, roofing, legal, etc.)
