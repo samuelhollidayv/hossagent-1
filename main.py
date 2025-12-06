@@ -3408,6 +3408,28 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     elif query_params.get("reactivated") == "true":
         payment_banner = '<div class="payment-success">Your subscription has been reactivated!</div>'
     
+    settings = session.exec(select(SystemSettings).where(SystemSettings.id == 1)).first()
+    outbound_autopilot_off = settings and not getattr(settings, 'outbound_autopilot_enabled', True)
+    
+    awaiting_approval_count = 0
+    if outbound_autopilot_off:
+        awaiting_approval_count = session.exec(
+            select(func.count(LeadEvent.id))
+            .where(LeadEvent.company_id == customer.id)
+            .where(LeadEvent.enrichment_status == ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND)
+        ).one()
+    
+    approval_banner = ""
+    if outbound_autopilot_off and awaiting_approval_count > 0:
+        approval_banner = f'''
+        <div class="approval-banner">
+            <div class="approval-banner-text">
+                <span class="approval-count">{awaiting_approval_count}</span>
+                <span>Awaiting Your Approval - Outbound autopilot is OFF. Review leads below to send emails manually.</span>
+            </div>
+        </div>
+        '''
+    
     business_profile = session.exec(
         select(BusinessProfile).where(BusinessProfile.customer_id == customer.id)
     ).first()
@@ -3836,6 +3858,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     
     html = template.format(
         payment_message=payment_banner,
+        approval_banner=approval_banner,
         plan_name=plan_name,
         status_class=status_class,
         status_label=status_label,

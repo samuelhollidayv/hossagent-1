@@ -102,6 +102,34 @@
             border-radius: 8px;
             font-size: 0.9rem;
         }}
+        
+        .approval-banner {{
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent-blue);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        
+        .approval-banner-text {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }}
+        
+        .approval-count {{
+            background: var(--accent-blue);
+            color: white;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }}
 
         /* SECTION 1: Account Status Card */
         .account-card {{
@@ -700,6 +728,8 @@
         </div>
 
         {payment_message}
+        
+        {approval_banner}
 
         <!-- SECTION 1: Account Status -->
         <div class="account-card">
