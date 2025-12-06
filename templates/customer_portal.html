@@ -721,6 +721,7 @@
         <div class="header-nav">
             <a href="/" class="logo-link">HossAgent</a>
             <div class="nav-links">
+                <span id="timezone-label" style="font-size: 0.7rem; color: var(--text-tertiary); margin-right: 0.5rem;"></span>
                 <a href="/how-it-works" class="nav-link">How It Works</a>
                 <a href="/portal/settings" class="nav-link">Settings</a>
                 <a href="/logout" class="nav-link">Log out</a>
@@ -787,6 +788,29 @@
     </div>
 
     <script>
+    (function() {{
+        const DEFAULT_TIMEZONE = 'America/New_York';
+        try {{
+            const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (detectedTz) {{
+                fetch('/api/user/timezone', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ timezone: detectedTz }})
+                }}).catch(() => {{}});
+                
+                const label = document.getElementById('timezone-label');
+                if (label) label.textContent = 'Times: ' + detectedTz;
+            }} else {{
+                const label = document.getElementById('timezone-label');
+                if (label) label.textContent = 'Times: ' + DEFAULT_TIMEZONE + ' (default)';
+            }}
+        }} catch (e) {{
+            const label = document.getElementById('timezone-label');
+            if (label) label.textContent = 'Times: ' + DEFAULT_TIMEZONE + ' (default)';
+        }}
+    }})();
+    
     function toggleOpp(cardId) {{
         const card = document.getElementById(cardId);
         const wasExpanded = card.classList.contains('expanded');

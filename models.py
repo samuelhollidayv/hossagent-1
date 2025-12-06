@@ -95,6 +95,8 @@ class Customer(SQLModel, table=True):
     outreach_style: str = Field(default="transparent_ai")  # transparent_ai or classic
     autopilot_enabled: bool = Field(default=True)  # Per-customer autopilot toggle
     
+    time_zone: Optional[str] = Field(default=None)  # IANA timezone e.g. "America/New_York"
+    
     niche: Optional[str] = None
     geography: Optional[str] = None
     

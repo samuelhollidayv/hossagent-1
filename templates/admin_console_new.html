@@ -152,6 +152,7 @@
         <div class="header">
             <h1>HossAgent Admin</h1>
             <div class="header-actions">
+                <span id="timezone-label" style="font-size: 0.7rem; color: var(--text-tertiary); margin-right: 0.5rem;"></span>
                 <span id="autopilot-badge" class="autopilot-badge autopilot-on">AUTO</span>
                 <label class="toggle-switch" title="Toggle outbound email autopilot">
                     <input type="checkbox" id="outbound-toggle" onchange="toggleOutboundAutopilot(this.checked)" checked>
@@ -400,6 +401,78 @@
     </div>
 
     <script>
+        let userTimezone = null;
+        const DEFAULT_TIMEZONE = 'America/New_York';
+        
+        function detectAndSaveTimezone() {
+            try {
+                const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const savedTz = getCookie('admin_timezone');
+                
+                if (savedTz) {
+                    userTimezone = savedTz;
+                    updateTimezoneLabel(savedTz, false);
+                } else if (detectedTz) {
+                    userTimezone = detectedTz;
+                    fetch('/api/admin/timezone', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ timezone: detectedTz })
+                    }).then(r => {
+                        if (r.ok) {
+                            updateTimezoneLabel(detectedTz, false);
+                        }
+                    }).catch(() => {});
+                } else {
+                    userTimezone = DEFAULT_TIMEZONE;
+                    updateTimezoneLabel(DEFAULT_TIMEZONE, true);
+                }
+            } catch (e) {
+                userTimezone = DEFAULT_TIMEZONE;
+                updateTimezoneLabel(DEFAULT_TIMEZONE, true);
+            }
+        }
+        
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        
+        function updateTimezoneLabel(tz, isDefault) {
+            const label = document.getElementById('timezone-label');
+            if (label) {
+                label.textContent = isDefault ? `Times: ${tz} (default)` : `Times: ${tz}`;
+            }
+        }
+        
+        function formatLocalTime(isoString) {
+            if (!isoString) return '-';
+            try {
+                const date = new Date(isoString);
+                if (isNaN(date.getTime())) return '-';
+                
+                const tz = userTimezone || DEFAULT_TIMEZONE;
+                const options = {
+                    timeZone: tz,
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                };
+                
+                const formatted = date.toLocaleString('en-US', options);
+                return formatted.replace(',', ' ·');
+            } catch (e) {
+                return new Date(isoString).toLocaleString();
+            }
+        }
+        
+        detectAndSaveTimezone();
+        
         function showTab(name) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -458,7 +531,7 @@
                 
                 const rows = data.map(s => `
                     <tr>
-                        <td>${new Date(s.created_at).toLocaleString()}</td>
+                        <td>${formatLocalTime(s.created_at)}</td>
                         <td>${s.source_type}</td>
                         <td>${s.geography || '-'}</td>
                         <td><span class="score ${scoreClass(s.score)}">${s.score}</span></td>
@@ -563,7 +636,7 @@
                 
                 return `
                 <tr>
-                    <td style="font-size:0.75rem;">${e.created_at ? new Date(e.created_at).toLocaleString() : '-'}</td>
+                    <td style="font-size:0.75rem;">${formatLocalTime(e.created_at)}</td>
                     <td>${sourcePill}</td>
                     <td title="${e.summary || ''}">${companyDisplay}${classPill}</td>
                     <td>${formatLinkChip(e.lead_domain)}</td>
@@ -835,7 +908,7 @@
                     
                     return `
                     <tr>
-                        <td>${new Date(e.created_at).toLocaleString()}</td>
+                        <td>${formatLocalTime(e.created_at)}</td>
                         <td>${sourceTag}</td>
                         <td>${e.lead_company || e.summary?.substring(0, 30) || '-'}</td>
                         <td class="truncate" title="${e.summary || ''}">${e.summary || '-'}</td>
@@ -866,7 +939,7 @@
                 
                 const rows = data.map(m => `
                     <tr>
-                        <td>${new Date(m.created_at).toLocaleString()}</td>
+                        <td>${formatLocalTime(m.created_at)}</td>
                         <td>${m.customer || '-'}</td>
                         <td>${m.to_email}</td>
                         <td class="truncate" title="${m.subject}">${m.subject}</td>

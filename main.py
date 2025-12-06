@@ -28,6 +28,7 @@ import os
 import secrets
 import time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, Depends, Request, HTTPException, Query, Form, Response
@@ -134,6 +135,47 @@ from auth_utils import (
 )
 
 app = FastAPI(title="HossAgent Control Engine")
+
+DEFAULT_TIMEZONE = "America/New_York"
+
+def format_local_time(utc_dt: datetime, user_time_zone: Optional[str] = None) -> str:
+    """
+    Convert UTC datetime to user's local time zone and format for display.
+    
+    Args:
+        utc_dt: Datetime in UTC
+        user_time_zone: IANA timezone string (e.g., "America/New_York")
+        
+    Returns:
+        Formatted string like "Dec 5, 2025 · 5:42 PM" or with "(ET default)" if using default
+    """
+    if utc_dt is None:
+        return "-"
+    
+    use_default = False
+    tz_str = user_time_zone
+    
+    if not tz_str:
+        tz_str = DEFAULT_TIMEZONE
+        use_default = True
+    
+    try:
+        tz = ZoneInfo(tz_str)
+    except Exception:
+        tz = ZoneInfo(DEFAULT_TIMEZONE)
+        use_default = True
+    
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
+    
+    local_dt = utc_dt.astimezone(tz)
+    
+    formatted = local_dt.strftime("%b %d, %Y · %I:%M %p").replace(" 0", " ")
+    
+    if use_default:
+        formatted += " (ET default)"
+    
+    return formatted
 
 
 # ============================================================================
@@ -1383,6 +1425,86 @@ def portal_reactivate_subscription(request: Request, session: Session = Depends(
     print(f"[PORTAL] Subscription reactivated for customer {customer.id}: {customer.company}")
     
     return RedirectResponse(url="/portal?reactivated=true", status_code=303)
+
+
+@app.post("/api/user/timezone")
+def save_user_timezone(request: Request, session: Session = Depends(get_session)):
+    """
+    Save user's detected timezone from browser.
+    Called automatically on first page load to set timezone for localized timestamp display.
+    """
+    import json as json_module
+    
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    customer = get_customer_from_session(session, session_token)
+    
+    if not customer:
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    
+    import asyncio
+    body = asyncio.get_event_loop().run_until_complete(request.body())
+    try:
+        data = json_module.loads(body)
+        timezone = data.get("timezone")
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid JSON"}, status_code=400)
+    
+    if not timezone:
+        return JSONResponse({"status": "error", "message": "No timezone provided"}, status_code=400)
+    
+    try:
+        ZoneInfo(timezone)
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid timezone"}, status_code=400)
+    
+    customer.time_zone = timezone
+    session.add(customer)
+    session.commit()
+    
+    print(f"[TIMEZONE] Saved timezone {timezone} for customer {customer.id}")
+    
+    return JSONResponse({"status": "ok", "timezone": timezone})
+
+
+@app.post("/api/admin/timezone")
+def save_admin_timezone(request: Request):
+    """
+    Save admin's detected timezone to a cookie (admin doesn't have a user record).
+    """
+    import json as json_module
+    
+    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if not verify_admin_session(admin_token):
+        return JSONResponse({"status": "unauthenticated"}, status_code=401)
+    
+    import asyncio
+    body = asyncio.get_event_loop().run_until_complete(request.body())
+    try:
+        data = json_module.loads(body)
+        timezone = data.get("timezone")
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid JSON"}, status_code=400)
+    
+    if not timezone:
+        return JSONResponse({"status": "error", "message": "No timezone provided"}, status_code=400)
+    
+    try:
+        ZoneInfo(timezone)
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid timezone"}, status_code=400)
+    
+    response = JSONResponse({"status": "ok", "timezone": timezone})
+    response.set_cookie(
+        key="admin_timezone",
+        value=timezone,
+        max_age=60*60*24*365,
+        httponly=False,
+        samesite="lax"
+    )
+    
+    print(f"[TIMEZONE] Saved admin timezone {timezone}")
+    
+    return response
 
 
 @app.post("/api/outreach/{outreach_id}/{action}")
@@ -3464,10 +3586,12 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     ).all()
     pending_map = {po.lead_event_id: po for po in pending_outreach if po.lead_event_id}
     
+    user_tz = customer.time_zone if customer else None
+    
     if opportunities:
         opp_cards = ""
         for opp in opportunities:
-            timestamp = opp.created_at.strftime("%b %d") if opp.created_at else "-"
+            timestamp = format_local_time(opp.created_at, user_tz) if opp.created_at else "-"
             company_name = html_module.escape(opp.lead_company or opp.summary[:40] or "Unknown Lead")
             signal_summary = html_module.escape(opp.summary[:120] if opp.summary else "Opportunity identified")
             
@@ -3734,7 +3858,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             lead_display = html_module.escape(thread.lead_name or thread.lead_email or "Unknown Lead")
             company_display = f" ({html_module.escape(thread.lead_company)})" if thread.lead_company else ""
             preview = html_module.escape(thread.last_summary[:100] if thread.last_summary else "No messages yet")
-            timestamp = thread.updated_at.strftime("%b %d") if thread.updated_at else "-"
+            timestamp = format_local_time(thread.updated_at, user_tz) if thread.updated_at else "-"
             
             messages = session.exec(
                 select(Message).where(Message.thread_id == thread.id)
@@ -3758,7 +3882,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
             
             messages_html = ""
             for msg in reversed(messages):
-                msg_time = msg.created_at.strftime("%b %d %H:%M") if msg.created_at else "-"
+                msg_time = format_local_time(msg.created_at, user_tz) if msg.created_at else "-"
                 msg_body = html_module.escape(msg.body[:500] if msg.body else "")
                 is_draft = msg.status == "DRAFT" and msg.direction == "OUTBOUND"
                 
@@ -3828,7 +3952,7 @@ def render_customer_portal(customer: Customer, request: Request, session: Sessio
     if reports:
         report_cards = ""
         for idx, report in enumerate(reports):
-            timestamp = report.created_at.strftime("%b %d, %Y") if report.created_at else "-"
+            timestamp = format_local_time(report.created_at, user_tz) if report.created_at else "-"
             title = html_module.escape(report.title[:80] if report.title else "Report")
             desc = html_module.escape(report.description[:150] if report.description else "")
             content = html_module.escape(report.content or "")
