@@ -128,6 +128,13 @@
         .autopilot-badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .autopilot-on { background: var(--accent-green); color: var(--bg-primary); }
         .autopilot-off { background: var(--accent-orange); color: var(--bg-primary); }
+        .toggle-switch { position: relative; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .toggle-switch input { display: none; }
+        .toggle-slider { width: 36px; height: 20px; background: var(--bg-tertiary); border: 1px solid var(--border-medium); border-radius: 20px; position: relative; transition: all 0.2s; }
+        .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; background: var(--text-tertiary); border-radius: 50%; top: 2px; left: 2px; transition: all 0.2s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent-green); border-color: var(--accent-green); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); background: var(--bg-primary); }
+        .toggle-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -136,6 +143,11 @@
             <h1>HossAgent Admin</h1>
             <div class="header-actions">
                 <span id="autopilot-badge" class="autopilot-badge autopilot-on">AUTO</span>
+                <label class="toggle-switch" title="Toggle outbound email autopilot">
+                    <input type="checkbox" id="outbound-toggle" onchange="toggleOutboundAutopilot(this.checked)" checked>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label" id="outbound-toggle-label">Outbound: ON</span>
+                </label>
                 <span id="email-mode" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
                 <a href="/admin/logout" class="logout-btn">Logout</a>
             </div>
@@ -909,13 +921,16 @@
         }
 
         let autopilotEnabled = true;
+        let outboundAutopilotEnabled = true;
         
         async function loadAutopilotStatus() {
             try {
                 const resp = await fetch('/api/settings');
                 const data = await resp.json();
                 autopilotEnabled = data.autopilot_enabled !== false;
+                outboundAutopilotEnabled = data.outbound_autopilot_enabled !== false;
                 updateAutopilotBadge();
+                updateOutboundToggle();
             } catch (e) {
                 console.error('Failed to load autopilot status:', e);
             }
@@ -926,6 +941,36 @@
             if (badge) {
                 badge.className = 'autopilot-badge ' + (autopilotEnabled ? 'autopilot-on' : 'autopilot-off');
                 badge.textContent = autopilotEnabled ? 'AUTO' : 'MANUAL';
+            }
+        }
+        
+        function updateOutboundToggle() {
+            const toggle = document.getElementById('outbound-toggle');
+            const label = document.getElementById('outbound-toggle-label');
+            if (toggle) {
+                toggle.checked = outboundAutopilotEnabled;
+            }
+            if (label) {
+                label.textContent = outboundAutopilotEnabled ? 'Outbound: ON' : 'Outbound: OFF';
+                label.style.color = outboundAutopilotEnabled ? 'var(--accent-green)' : 'var(--accent-orange)';
+            }
+        }
+        
+        async function toggleOutboundAutopilot(enabled) {
+            try {
+                const resp = await fetch(`/admin/outbound-autopilot?enabled=${enabled}`, { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    outboundAutopilotEnabled = enabled;
+                    updateOutboundToggle();
+                    console.log('[ADMIN] Outbound autopilot:', enabled ? 'ON' : 'OFF');
+                } else {
+                    console.error('Failed to toggle outbound autopilot:', data.error);
+                    document.getElementById('outbound-toggle').checked = !enabled;
+                }
+            } catch (e) {
+                console.error('Error toggling outbound autopilot:', e);
+                document.getElementById('outbound-toggle').checked = !enabled;
             }
         }
         
