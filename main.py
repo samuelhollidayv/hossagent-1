@@ -6047,20 +6047,6 @@ def get_admin_stats(request: Request, session: Session = Depends(get_session)):
     }
 
 
-@app.get("/api/admin/analytics")
-def get_admin_analytics(request: Request):
-    """
-    Get analytics dashboard data.
-    
-    Returns page views, funnel metrics, and abandonment data.
-    """
-    admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
-    if not verify_admin_session(admin_token):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    return get_analytics_summary()
-
-
 @app.get("/api/admin/analytics/page-views")
 def get_admin_page_views(request: Request, days: int = 7):
     """Get page view statistics."""

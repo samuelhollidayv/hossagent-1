@@ -17,8 +17,10 @@ HossAgent utilizes a FastAPI backend and SQLModel for ORM, connecting to Postgre
 
 **Interfaces:**
 - **Public**: Marketing Landing Page (`/`), About Page (`/about`), How It Works Page (`/how-it-works`).
-- **Admin Console (`/admin`)**: Consolidated dashboard for Signals, LeadEvents, Outbound Messages, and Customers.
-- **Lead Funnel Diagnostics (`/admin/diagnostics`)**: Real-time metrics dashboard tracking signal flow through enrichment pipeline. Shows conversion funnel (signals → events → enriched → sent), status breakdown, signal source breakdown, and per-lead enrichment attempt tracking. API endpoint: `GET /api/admin/diagnostics`.
+- **Admin Console (`/admin`)**: Simplified 3-tab dashboard focused on account management, support, and system health.
+  - **Customers Tab**: Customer accounts table with ID, name, email, status, signup date, plan, renewal. Row actions: Details modal (billing info, last login, autopilot toggle), "View as Customer" impersonation.
+  - **Support Inbox Tab**: Support tickets list with customer, subject, created date, status. Detail modal with message body, status dropdown, internal notes.
+  - **Analytics Tab**: Aggregate KPI cards (active customers, signals 7d, leads 7d, enrichment rate, outbound 7d, error rate) plus Chart.js pipeline flow and daily activity visualizations. No individual lead drill-down.
 - **Customer Portal (`/portal`)**: Session-authenticated portal with sections for Account Status, Recent Opportunities & Outreach, Conversations (email threads), and Reports. Includes a token-based admin impersonation view (`/portal/<token>`).
 - **Customer Settings (`/portal/settings`)**: Business profile configuration, outreach preferences, and do-not-contact lists.
 
