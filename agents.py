@@ -19,7 +19,7 @@ from datetime import datetime
 from sqlmodel import Session, select
 from models import (
     Lead, Customer, Task, Invoice, LeadEvent, 
-    BusinessProfile, PendingOutbound, Report,
+    BusinessProfile, PendingOutbound, Report, SystemSettings,
     TRIAL_TASK_LIMIT, TRIAL_LEAD_LIMIT,
     OUTREACH_MODE_AUTO, OUTREACH_MODE_REVIEW,
     LEAD_STATUS_NEW, LEAD_STATUS_CONTACTED,
