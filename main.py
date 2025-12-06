@@ -4214,6 +4214,58 @@ def get_kpis(request: Request, session: Session = Depends(get_session)):
     }
 
 
+def compute_signal_source(lead_event, signal=None):
+    """
+    Compute signal source classification for admin display.
+    
+    Classification logic:
+    - news: from news_search signal source
+    - sec: from SEC EDGAR filings (macro_event_id present or sec.gov in data)
+    - job_board: from job board connector (indeed, ziprecruiter, glassdoor)
+    - reddit: from reddit signal source
+    - craigslist: from craigslist connector
+    - synthetic: ForceCast synthetic leads (category patterns like "HVAC businesses", "Tech businesses")
+    - unknown: fallback for unclassified sources
+    """
+    if signal and signal.source_type:
+        source_type = signal.source_type.lower()
+        if source_type in ('news', 'news_search'):
+            return 'news'
+        elif source_type in ('job_board', 'job_posting'):
+            return 'job_board'
+        elif source_type == 'reddit' or source_type == 'reddit_local':
+            return 'reddit'
+        elif source_type in ('craigslist', 'craigslist_local'):
+            return 'craigslist'
+        elif 'sec' in source_type or 'edgar' in source_type:
+            return 'sec'
+    
+    if lead_event.macro_event_id:
+        return 'sec'
+    
+    category = (lead_event.category or '').lower()
+    summary = (lead_event.summary or '').lower()
+    
+    synthetic_patterns = [
+        'hvac businesses', 'tech businesses', 'roofing businesses',
+        'plumbing businesses', 'marketing agency', 'med spa',
+        'realtor', 'immigration attorney', 'businesses in miami',
+        'businesses in broward', 'businesses in south florida'
+    ]
+    for pattern in synthetic_patterns:
+        if pattern in category or pattern in summary:
+            return 'synthetic'
+    
+    if 'job' in category or 'hiring' in category:
+        return 'job_board'
+    if 'reddit' in category:
+        return 'reddit'
+    if 'craigslist' in category:
+        return 'craigslist'
+    
+    return 'unknown'
+
+
 @app.get("/api/lead_events_detailed")
 def get_lead_events_detailed(
     request: Request,
@@ -4230,7 +4282,7 @@ def get_lead_events_detailed(
     - ENRICHED_NO_OUTBOUND: Ready to send (email found)
     - OUTBOUND_SENT: Email sent
     
-    Returns lead events with has_outbound and has_report flags.
+    Returns lead events with has_outbound, has_report, and signal_source.
     """
     admin_token = request.cookies.get(ADMIN_COOKIE_NAME)
     if not verify_admin_session(admin_token):
@@ -4242,6 +4294,12 @@ def get_lead_events_detailed(
         query = query.where(LeadEvent.enrichment_status == enrichment_status)
     
     events = session.exec(query.limit(limit)).all()
+    
+    signal_ids = [e.signal_id for e in events if e.signal_id]
+    signals_map = {}
+    if signal_ids:
+        signals = session.exec(select(Signal).where(Signal.id.in_(signal_ids))).all()
+        signals_map = {s.id: s for s in signals}
     
     result = []
     for e in events:
@@ -4264,12 +4322,16 @@ def get_lead_events_detailed(
             ).first()
             company = customer.company if customer else None
         
+        signal = signals_map.get(e.signal_id) if e.signal_id else None
+        signal_source = compute_signal_source(e, signal)
+        
         result.append({
             "id": e.id,
             "summary": e.summary,
             "category": e.category,
             "urgency_score": e.urgency_score,
             "status": e.status,
+            "signal_source": signal_source,
             "enrichment_status": e.enrichment_status or "UNENRICHED",
             "enrichment_attempts": e.enrichment_attempts or 0,
             "max_enrichment_attempts": getattr(e, 'max_enrichment_attempts', 3),
