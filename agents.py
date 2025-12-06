@@ -125,7 +125,27 @@ async def run_bizdev_cycle(session: Session) -> str:
     Safe to call repeatedly - only emails leads with status='new'.
     
     Note: Trial customers are forced to DRY_RUN email mode.
+    
+    Outbound Autopilot: When outbound_autopilot_enabled=False, this cycle is skipped.
     """
+    settings = session.exec(
+        select(SystemSettings).where(SystemSettings.id == 1)
+    ).first()
+    
+    outbound_enabled = getattr(settings, 'outbound_autopilot_enabled', True) if settings else True
+    
+    if not outbound_enabled:
+        new_leads_count = len(session.exec(
+            select(Lead).where(Lead.status == "new")
+        ).all())
+        if new_leads_count > 0:
+            msg = f"BizDev: Outbound autopilot OFF. {new_leads_count} leads awaiting manual approval."
+            print(f"[CYCLE] {msg}")
+            return msg
+        msg = "BizDev: No new leads to contact."
+        print(f"[CYCLE] {msg}")
+        return msg
+    
     max_emails = get_max_emails_per_cycle()
     email_status = get_email_status()
     effective_mode = email_status["mode"]
@@ -502,7 +522,30 @@ async def run_event_driven_bizdev_cycle(session: Session) -> str:
     - UNENRICHED → WITH_DOMAIN_NO_EMAIL → ENRICHED_NO_OUTBOUND → OUTBOUND_SENT
     
     Safe to call repeatedly - only processes ENRICHED_NO_OUTBOUND events.
+    
+    Outbound Autopilot: When outbound_autopilot_enabled=False, this cycle is skipped
+    and leads remain in ENRICHED_NO_OUTBOUND for manual approval.
     """
+    settings = session.exec(
+        select(SystemSettings).where(SystemSettings.id == 1)
+    ).first()
+    
+    outbound_enabled = getattr(settings, 'outbound_autopilot_enabled', True) if settings else True
+    
+    if not outbound_enabled:
+        awaiting = len(session.exec(
+            select(LeadEvent)
+            .where(LeadEvent.status == LEAD_STATUS_NEW)
+            .where(LeadEvent.enrichment_status.in_([
+                ENRICHMENT_STATUS_ENRICHED_NO_OUTBOUND,
+                ENRICHMENT_STATUS_ENRICHED,
+                ENRICHMENT_STATUS_OUTBOUND_READY
+            ]))
+        ).all())
+        msg = f"Event-Driven BizDev: Outbound autopilot OFF. {awaiting} leads awaiting manual approval."
+        print(f"[CYCLE] {msg}")
+        return msg
+    
     max_events = get_max_emails_per_cycle()
     email_status = get_email_status()
     effective_mode = email_status["mode"]
