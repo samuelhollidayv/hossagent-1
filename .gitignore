@@ -28,3 +28,8 @@ ENV/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+.config/
+.local/
+.DS_Store
+__pycache__/
+*.db
