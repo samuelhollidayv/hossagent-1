@@ -33,3 +33,12 @@ htmlcov/
 .DS_Store
 __pycache__/
 *.db
+.config/
+.local/
+*.db
+*.json
+analytics_events.json
+email_attempts.json
+email_hourly_counter.json
+lead_source_log.json
+bizdev_template_log.json
